@@ -1,0 +1,74 @@
+# =============================================================================
+# demo-2-scaledobject.yaml
+# KEDA + Prometheus Demo - ScaledObject (in-cluster Prometheus)
+#
+# Usage:
+#   kubectl apply -f demo-2-scaledobject.yaml
+#
+# Prerequisites:
+#   - KEDA installed (AKS add-on or helm)
+#   - kube-prometheus-stack installed, release name "kube-prom-stack"
+#   - demo-2-demo-app.yaml applied
+#   - demo-2-servicemonitor.yaml applied
+#   - Prometheus is actively scraping the demo-app target
+#
+# How scaling math works:
+#   desiredReplicas = ceil( queryResult / threshold )
+#   queryResult     = sum(rate(http_requests_total[2m]))  <- req/s
+#   threshold       = 5  (one replica handles 5 req/s)
+#
+#   Example: 47.3 req/s total -> ceil(47.3 / 5) = 10 replicas
+#
+# activationThreshold: 1
+#   KEDA will NOT scale from 0 -> 1 until query result exceeds 1 req/s.
+#   This prevents single stray health-checks from waking the deployment.
+#
+# Note on HPA ownership:
+#   KEDA creates and manages a matching HPA automatically.
+#   Do NOT apply a separate HPA to this Deployment.
+#   Verify with: kubectl get hpa -n demo
+#
+# Verify external metric is registered:
+#   kubectl get --raw \
+#     "/apis/external.metrics.k8s.io/v1beta1/namespaces/demo/s0-prometheus-http_requests_total" \
+#     | jq .
+#
+# Cleanup:
+#   kubectl delete scaledobject demo-app-scaler -n demo
+# =============================================================================
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: demo-app-scaler
+  namespace: demo
+spec:
+  scaleTargetRef:
+    name: demo-app
+  minReplicaCount: 0       # Scale-to-zero - not possible with native HPA
+  maxReplicaCount: 10
+  pollingInterval: 15      # How often KEDA queries Prometheus (seconds)
+  cooldownPeriod: 60       # Seconds to wait before scaling to zero (demo-friendly)
+  advanced:
+    restoreToOriginalReplicaCount: false
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 0    # React immediately to load spikes
+          policies:
+          - type: Pods
+            value: 3                       # Add up to 3 pods per 15s interval
+            periodSeconds: 15
+        scaleDown:
+          stabilizationWindowSeconds: 60  # Wait 60s before removing pods
+          policies:
+          - type: Percent
+            value: 50                      # Remove at most 50% of pods per step
+            periodSeconds: 30
+  triggers:
+  - type: prometheus
+    metadata:
+      # FQDN required - short service name will not resolve from KEDA namespace
+      serverAddress: http://kube-prom-stack-kube-prome-prometheus.monitoring.svc.cluster.local:9090
+      query: sum(rate(http_requests_total{namespace="demo",job="demo-app"}[2m]))
+      threshold: '5'           # req/s per replica
+      activationThreshold: '1' # Min req/s before waking from zero

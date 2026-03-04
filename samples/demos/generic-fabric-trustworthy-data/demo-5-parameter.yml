@@ -1,0 +1,92 @@
+# parameter.yml
+# ==============================================================================
+# Microsoft Fabric - Trustworthy Data Demo Series
+# Demo 5: fabric-cicd GitHub Actions Automation
+#
+# PURPOSE
+# -------
+# This file is placed at the root of the fabric-workspace/ folder that Fabric
+# Git integration manages. fabric-cicd reads it automatically before deploying
+# each item and applies the substitution rules below to replace DEV-specific
+# GUIDs and settings with their PROD equivalents.
+#
+# PLACEMENT
+# ---------
+# Must live at: fabric-workspace/parameter.yml
+# (one level above the individual item folders)
+#
+# DOCUMENTATION
+# -------------
+# https://microsoft.github.io/fabric-cicd/latest/
+# https://github.com/microsoft/fabric-cicd
+#
+# SYNTAX NOTES
+# ------------
+# - find_replace: performs regex or literal string substitution on item files
+# - key_value_replace: targets a specific JSON/YAML key path inside item files
+# - Environment keys (PROD, TEST, DEV) match the "environment" parameter passed
+#   to FabricWorkspace() in deploy.py
+# - $items.{ItemType}.{ItemName}.$id resolves to the live workspace item GUID
+# - $workspace.$id resolves to the target workspace GUID
+# - Item names are CASE-SENSITIVE and must match folder names exactly
+#
+# HOW TO DEMONSTRATE DURING THE SESSION
+# ---------------------------------------
+# 1. Open IngestNotebook.Notebook/notebook-content.py in the repo on the dev branch
+# 2. Show the hardcoded DEV Lakehouse GUID in the # META comment lines
+# 3. Show this parameter.yml and explain the find/replace rules
+# 4. Merge the PR to main -> watch GitHub Actions fire
+# 5. After the run, open the Notebook in the PROD workspace
+# 6. Show that the GUID in the notebook metadata now reads the PROD Lakehouse GUID
+#    -> TELL AUDIENCE: "fabric-cicd did that substitution in-flight. The source
+#       code in GitHub still has the dev GUID - only the deployed artifact
+#       in PROD has the production GUID."
+# ==============================================================================
+
+find_replace:
+    # -------------------------------------------------------------------------
+    # Rule 1: Replace default_lakehouse GUID in Notebook metadata comments
+    # The Fabric notebook-content.py format stores metadata in comment lines:
+    #   # META   "default_lakehouse": "a1b2c3d4-..."
+    # This regex captures any UUID in that position and replaces it with the
+    # GUID of the item named "MyLakehouse" in the target workspace.
+    # -------------------------------------------------------------------------
+    - find_value: \#\s*META\s+"default_lakehouse":\s*"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+      replace_value:
+          PROD: '# META "default_lakehouse": "$items.Lakehouse.MyLakehouse.$id"'
+      is_regex: "true"
+      item_type: "Notebook"
+
+    # -------------------------------------------------------------------------
+    # Rule 2: Replace default_lakehouse_workspace_id in Notebook metadata
+    # This is the workspace GUID that accompanies the lakehouse GUID in the
+    # notebook metadata. Replace with the PROD workspace GUID.
+    # -------------------------------------------------------------------------
+    - find_value: \#\s*META\s+"default_lakehouse_workspace_id":\s*"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+      replace_value:
+          PROD: '# META "default_lakehouse_workspace_id": "$workspace.$id"'
+      is_regex: "true"
+      item_type: "Notebook"
+
+    # -------------------------------------------------------------------------
+    # Rule 3: Replace a hardcoded connection GUID in a specific DataPipeline
+    # Connections are NOT deployed by fabric-cicd - they must be pre-created
+    # in PROD. Use find_replace to swap the DEV connection GUID for PROD.
+    # Update the GUIDs below to match your actual DEV and PROD connection GUIDs.
+    # -------------------------------------------------------------------------
+    - find_value: "a1b2c3d4-dead-beef-cafe-111122223333"
+      replace_value:
+          PROD: "f4e3d2c1-1234-5678-abcd-999988887777"
+      item_type: "DataPipeline"
+      item_name: "IngestPipeline"
+
+key_value_replace:
+    # -------------------------------------------------------------------------
+    # Rule 4: Enable scheduled triggers only in PROD
+    # Notebooks and Pipelines have .schedules files with an "enabled" field.
+    # In DEV the schedule is disabled; in PROD it should be enabled.
+    # -------------------------------------------------------------------------
+    - find_key: $.schedules[?(@.jobType=="Execute")].enabled
+      replace_value:
+          PROD: true
+      file_path: "**/.schedules"

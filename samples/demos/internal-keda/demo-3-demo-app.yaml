@@ -1,0 +1,79 @@
+# =============================================================================
+# demo-3-demo-app.yaml
+# KEDA HTTP Add-on Demo - Application Deployment and Service
+# =============================================================================
+#
+# USAGE:
+#   kubectl apply -f demo-3-demo-app.yaml
+#   kubectl delete -f demo-3-demo-app.yaml   # cleanup
+#
+# PREREQUISITES:
+#   - Namespace exists: kubectl create namespace keda-http-demo
+#   - KEDA HTTP add-on installed (Operator, Interceptor, Scaler pods running)
+#
+# NOTE:
+#   Replica count is intentionally omitted from the Deployment spec.
+#   The HTTPScaledObject (demo-3-httpscaledobject.yaml) owns replica management
+#   once applied. Starting with 0 replicas is driven by KEDA, not this manifest.
+#
+# CLEANUP:
+#   kubectl delete -f demo-3-httpscaledobject.yaml  # delete HTTPScaledObject first
+#   kubectl delete -f demo-3-demo-app.yaml
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+  namespace: keda-http-demo
+  labels:
+    app: demo-app
+    demo: keda-http-addon
+spec:
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      labels:
+        app: demo-app
+        demo: keda-http-addon
+    spec:
+      containers:
+        - name: demo-app
+          image: nginx:alpine
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-app
+  namespace: keda-http-demo
+  labels:
+    app: demo-app
+    demo: keda-http-addon
+spec:
+  type: ClusterIP
+  selector:
+    app: demo-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

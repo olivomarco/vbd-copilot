@@ -39,8 +39,13 @@ For each slide, choose the best visual representation:
 | Title + comparison table | `create_standard_slide()` + `add_styled_table()` |
 | Title + multiple short items | `create_standard_slide()` + `add_numbered_items()` |
 | Title + cards/pillars | `create_standard_slide()` + `add_card_grid()` or `add_pillar_cards()` |
-| Title + big metrics | `create_standard_slide()` + `add_metric_card()` |
+| Title + big metric | `create_standard_slide()` + `add_metric_card()` (supports trend arrows) |
+| Title + metric row | `create_standard_slide()` + `add_stats_row()` |
 | Title + blockquote/callout | `create_standard_slide()` + `add_callout_box()` |
+| Title + feature grid | `create_standard_slide()` + `add_feature_grid()` |
+| Title + columns | `create_standard_slide()` + `add_colored_columns()` |
+| Title + architecture stack | `create_standard_slide()` + `add_layered_architecture()` |
+| Title + process flow | `create_standard_slide()` + `add_process_flow()` |
 | Closing/thank-you slide | `create_closing_slide()` |
 
 **Visual enhancement rules** - go beyond 1:1 mapping for richer slides:
@@ -48,10 +53,12 @@ For each slide, choose the best visual representation:
 - Comparison/feature lists -> use `add_pillar_cards()` for vertical pillars
 - Single big number/metric -> use `add_metric_card()`
 - Important callout text -> use `add_callout_box()` or `add_warning_box()` (height auto-sizes)
-- Code/YAML blocks -> use `add_code_block()` (dark theme, monospace)
+- Code/YAML blocks -> use `add_code_block()` (dark theme, monospace, text embedded in shape)
 - Tables with data -> use `add_styled_table()` (alternating rows, header styling)
 - Right-side visual cards -> use `add_rounded_card()` for highlight panels
 - Vertical step flows -> use `add_arrow_down()` between stacked cards
+- Architecture layers -> use `add_layered_architecture()` (text embedded, auto contrast)
+- Process flow -> use `add_process_flow()` (text embedded in boxes)
 
 ### Design Aesthetics Principles
 
@@ -178,8 +185,13 @@ Quick checklist:
 10. **Code blocks**: keep to ~15 lines max, use `add_code_block()` for dark-themed rendering
 11. **python-pptx must be installed**: `pip install python-pptx`
 12. **No top accent bar** - `create_standard_slide()` no longer draws a blue bar at the very top; the title underline is the sole brand accent. Do NOT call `add_top_accent_bar()` on standard slides.
-13. **Rounded card borders** - `add_rounded_card()` defaults to no border. Only pass `border=` when a box needs explicit separation from a white background (rare). The fill color alone is sufficient.
-14. **Callout / warning box height** - pass `height=None` (or omit) to auto-size the box to its text content. Only pass a fixed `Inches()` height when you need exact placement in a dense layout.
+14. **Rounded card borders** - `add_rounded_card()` defaults to no border. Only pass `border=` when a box needs explicit separation from a white background (rare).
+15. **Callout / warning box height** - pass `height=None` (or omit) to auto-size the box to its text content.
+16. **Embedded text** - composite helpers (`add_badge`, `add_callout_box`, `add_code_block`, `add_blue_speech_panel`, `add_metric_card`, `add_stats_row`, `add_layered_architecture`, `add_process_flow`, `add_activity_bars`, `add_timeline` boxes) embed text in shapes. Do NOT add separate `add_textbox()` overlays for these.
+17. **Auto contrast** - `add_icon_circle`, `add_badge`, `add_layered_architecture`, `add_activity_bars`, and `add_blue_speech_panel` use `auto_text_color()` / `ensure_contrast()`. You do NOT need to check light/dark fills manually.
+18. **Shrink-to-fit** - use `shrink_to_fit=True` on `add_textbox()` when text length is unpredictable.
+19. **Use `add_metric_card()` for both metrics and KPIs** - it supports optional `trend` and `trend_positive` parameters. Do NOT use `add_kpi_card()` (deprecated alias).
+20. **Function Decision Guide** - see the table in `references/api-reference.md` to pick the right function for your content pattern.
 
 ## Overlap Prevention and Layer Order Rules
 

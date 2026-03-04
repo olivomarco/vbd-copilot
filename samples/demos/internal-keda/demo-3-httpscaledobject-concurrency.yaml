@@ -1,0 +1,65 @@
+# =============================================================================
+# demo-3-httpscaledobject-concurrency.yaml
+# KEDA HTTP Add-on Demo - HTTPScaledObject (concurrency metric variant)
+# =============================================================================
+#
+# USAGE:
+#   # First, delete the requestRate variant to avoid conflict on demo-app:
+#   kubectl delete -f demo-3-httpscaledobject.yaml
+#   kubectl apply  -f demo-3-httpscaledobject-concurrency.yaml
+#   kubectl get httpscaledobject demo-app-concurrency -n keda-http-demo
+#   kubectl delete -f demo-3-httpscaledobject-concurrency.yaml   # cleanup
+#
+# PREREQUISITES:
+#   - demo-3-demo-app.yaml applied
+#   - KEDA HTTP add-on installed
+#   - Only ONE HTTPScaledObject may target a given Deployment at a time
+#
+# METRIC COMPARISON:
+#   requestRate  - scale on requests-per-second (rate)
+#                  Best for: throughput-bound workloads, REST APIs
+#                  targetValue: 10  =>  100 req/s drives 10 pods
+#
+#   concurrency  - scale on simultaneous in-flight requests (depth)
+#                  Best for: latency-sensitive workloads, slow backends
+#                  targetValue: 5   =>  25 in-flight reqs drives 5 pods
+#
+# CHOOSING BETWEEN THEM:
+#   Use requestRate  when your backend handles requests quickly (<100ms)
+#   and you want to bound steady-state throughput per pod.
+#   Use concurrency  when requests are slow or variable in duration and
+#   you want to bound how many requests each pod is working on at once.
+#
+# BETA CAVEAT:
+#   HTTPScaledObject and the KEDA HTTP add-on are BETA software.
+# =============================================================================
+
+kind: HTTPScaledObject
+apiVersion: http.keda.sh/v1alpha1
+metadata:
+  name: demo-app-concurrency
+  namespace: keda-http-demo
+  labels:
+    demo: keda-http-addon
+spec:
+  hosts:
+    - myapp.demo.com
+  pathPrefixes:
+    - /
+  scaleTargetRef:
+    name: demo-app
+    kind: Deployment
+    apiVersion: apps/v1
+    service: demo-app
+    port: 80
+  replicas:
+    min: 0
+    max: 10
+  # 60s scale-down window - same as requestRate variant for consistency.
+  scaledownPeriod: 60
+  scalingMetric:
+    concurrency:
+      # targetValue: maximum simultaneous in-flight requests per pod.
+      # At 25 in-flight requests: 25 / 5 = 5 pods.
+      # At 50 in-flight requests: 50 / 5 = 10 pods (max).
+      targetValue: 5

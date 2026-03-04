@@ -1,0 +1,72 @@
+# =============================================================================
+# demo-2-scaledobject-azure-monitor.yaml
+# KEDA + Prometheus Demo - ScaledObject (Azure Monitor Managed Prometheus)
+#
+# PURPOSE: Production upgrade path from in-cluster Prometheus.
+#   Swap the serverAddress and add a TriggerAuthentication.
+#   The PromQL query and all thresholds remain identical.
+#
+# Prerequisites:
+#   - AKS cluster with Workload Identity enabled
+#   - Azure Monitor workspace with Managed Prometheus enabled
+#     Docs: https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/prometheus-metrics-overview
+#   - User-Assigned Managed Identity (UAMI) with "Monitoring Data Reader" role
+#     on the Azure Monitor workspace
+#   - UAMI federated with the KEDA operator service account
+#
+# Required substitutions (search for angle brackets):
+#   <YOUR_UAMI_CLIENT_ID>  - Client ID (not Object ID) of the UAMI
+#                            az identity show --name <name> --query clientId -o tsv
+#   <WORKSPACE_NAME>       - Azure Monitor workspace name (not workspace ID)
+#                            az monitor account list --query "[].name" -o tsv
+#
+# Usage:
+#   # 1. Fill in substitutions above
+#   # 2. Remove the existing in-cluster ScaledObject first:
+#   kubectl delete scaledobject demo-app-scaler -n demo
+#   # 3. Apply this file:
+#   kubectl apply -f demo-2-scaledobject-azure-monitor.yaml
+#
+# Verify:
+#   kubectl describe scaledobject demo-app-scaler-amp -n demo
+#   kubectl get triggerauthentication -n demo
+#
+# Cleanup:
+#   kubectl delete scaledobject demo-app-scaler-amp -n demo
+#   kubectl delete triggerauthentication azure-managed-prometheus-trigger-auth -n demo
+# =============================================================================
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: azure-managed-prometheus-trigger-auth
+  namespace: demo
+spec:
+  podIdentity:
+    provider: azure-workload
+    # Replace with the CLIENT ID of your User-Assigned Managed Identity
+    identityId: <YOUR_UAMI_CLIENT_ID>
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: demo-app-scaler-amp
+  namespace: demo
+spec:
+  scaleTargetRef:
+    name: demo-app
+  minReplicaCount: 0
+  maxReplicaCount: 10
+  pollingInterval: 30       # Slightly relaxed for managed service latency
+  cooldownPeriod: 120
+  triggers:
+  - type: prometheus
+    metadata:
+      # Replace <WORKSPACE_NAME> with your Azure Monitor workspace name.
+      # Format: https://<name>.<region>.prometheus.monitor.azure.com
+      serverAddress: https://<WORKSPACE_NAME>.eastus.prometheus.monitor.azure.com
+      # Identical PromQL - no changes required when switching metric sources
+      query: sum(rate(http_requests_total{namespace="demo",job="demo-app"}[2m]))
+      threshold: '5'
+      activationThreshold: '1'
+    authenticationRef:
+      name: azure-managed-prometheus-trigger-auth

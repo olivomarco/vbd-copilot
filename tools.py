@@ -13,6 +13,7 @@ Most capabilities are provided by the Copilot CLI's built-in tools:
 Custom tools defined here:
   1. bing_search          - web search (CLI has no built-in equivalent)
   2. run_pptx_qa_checks   - programmatic layout/content QA on .pptx files
+  3. run_demo_qa_checks   - programmatic QA on demo packages (guide + scripts)
 
 Subagent invocation:
   Conductors delegate to subagents via the CLI's built-in 'task' tool.
@@ -203,7 +204,60 @@ SLIDE_TOOLS = [run_pptx_qa_checks]
 
 
 # =============================================================================
+# Demo QA - Programmatic Checks
+# =============================================================================
+
+
+class RunDemoQaChecksParams(BaseModel):
+    guide_path: str = Field(description="Path to the main demo guide .md file")
+    companion_dir: str = Field(
+        default="",
+        description="Path to companion scripts directory (auto-detected from guide path if empty)",
+    )
+    expected_demos: int = Field(
+        default=0,
+        description="Expected number of demos (0 to skip count check)",
+    )
+
+
+@define_tool(
+    description=(
+        "Run automated QA checks on a generated demo package (guide .md + companion "
+        "scripts). Checks for: placeholder text, emoji, em-dashes, script syntax "
+        "(bash -n / py_compile), file cross-references, guide structure, script headers, "
+        "and demo count. Returns a structured report with CRITICAL/MAJOR/MINOR issues. "
+        "Exit code 0 = CLEAN, 1 = ISSUES_FOUND."
+    )
+)
+def run_demo_qa_checks(params: RunDemoQaChecksParams) -> str:
+    import subprocess
+    qa_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "scripts", "demo_qa_checks.py")
+
+    if not os.path.exists(qa_script):
+        return f"ERROR: Demo QA script not found at {qa_script}"
+
+    cmd = [sys.executable, qa_script, params.guide_path]
+    if params.companion_dir:
+        cmd.extend(["--companion-dir", params.companion_dir])
+    if params.expected_demos and params.expected_demos > 0:
+        cmd.extend(["--expected-demos", str(params.expected_demos)])
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        output = result.stdout
+        if result.returncode == 2:
+            output = f"ERROR running demo QA checks:\n{result.stderr}\n"
+        return output
+    except Exception as e:
+        return f"ERROR running demo QA checks: {e}"
+
+
+DEMO_TOOLS = [run_demo_qa_checks]
+
+
+# =============================================================================
 # Exported tool groups
 # =============================================================================
 
-ALL_CUSTOM_TOOLS = RESEARCH_TOOLS + SLIDE_TOOLS
+ALL_CUSTOM_TOOLS = RESEARCH_TOOLS + SLIDE_TOOLS + DEMO_TOOLS

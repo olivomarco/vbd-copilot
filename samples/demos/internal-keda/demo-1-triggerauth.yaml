@@ -1,0 +1,39 @@
+# =============================================================================
+# demo-1-triggerauth.yaml
+# Purpose : TriggerAuthentication that tells KEDA how to authenticate to
+#           Azure Service Bus when polling queue depth. Uses Workload Identity
+#           (pod identity OIDC token exchange) so no Kubernetes Secret or
+#           connection string is needed anywhere in the cluster.
+#
+# Usage   : kubectl apply -f demo-1-triggerauth.yaml
+#
+# Prerequisites:
+#   - demo-1-serviceaccount.yaml already applied
+#   - Federated credential created for the keda-operator ServiceAccount:
+#       system:serviceaccount:kube-system:keda-operator
+#   - keda-operator Deployment restarted after federated credential creation:
+#       kubectl rollout restart deployment keda-operator -n kube-system
+#
+# Substitute before applying:
+#   Replace <MI_CLIENT_ID> with the output of:
+#     az identity show --name mi-keda-demo --resource-group rg-keda-demo \
+#       --query clientId --output tsv
+#
+# Reference:
+#   https://learn.microsoft.com/en-us/azure/aks/keda-workload-identity
+# =============================================================================
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: trigger-auth-service-bus-orders
+  namespace: keda-dotnet-sample
+spec:
+  podIdentity:
+    # azure-workload instructs KEDA to use the projected OIDC token from the
+    # keda-operator pod, exchanged for an Azure AD access token via the
+    # federated credential bound to kube-system:keda-operator.
+    provider: azure-workload
+    # identityId scopes the token exchange to this specific Managed Identity.
+    # Without this field KEDA falls back to the first identity on the node,
+    # which is non-deterministic in multi-identity clusters.
+    identityId: "<MI_CLIENT_ID>"

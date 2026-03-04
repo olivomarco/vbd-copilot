@@ -1,0 +1,70 @@
+# =============================================================================
+# demo-1-scaledobject.yaml
+# Purpose : ScaledObject that bridges the Azure Service Bus queue depth metric
+#           to the Kubernetes HPA for the order-processor Deployment.
+#           Enables scale-to-zero when the queue is empty.
+#
+# Usage   : kubectl apply -f demo-1-scaledobject.yaml
+#
+# Prerequisites:
+#   - demo-1-deployment.yaml already applied
+#   - demo-1-triggerauth.yaml already applied
+#   - Service Bus Standard namespace and 'orders' queue already created
+#
+# Substitute before applying:
+#   Replace <SB_NAME> with the short Service Bus namespace name (no .windows.net),
+#   e.g.: sb-keda-demo-31337
+#
+# Reference:
+#   https://keda.sh/docs/2.14/scalers/azure-service-bus/
+# =============================================================================
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: order-processor-scaler
+  namespace: keda-dotnet-sample
+spec:
+  scaleTargetRef:
+    # Must match the Deployment name exactly.
+    name: order-processor
+
+  # minReplicaCount: 0 enables scale-to-zero.
+  # When the queue is empty and cooldownPeriod has elapsed, KEDA patches
+  # the HPA minReplicas to 0 and scales the Deployment to 0 replicas.
+  minReplicaCount: 0
+
+  # maxReplicaCount caps the burst. Tune based on node capacity and
+  # downstream system throughput limits.
+  maxReplicaCount: 10
+
+  # pollingInterval: how often (seconds) KEDA queries the Service Bus metric.
+  # Default is 30. Lowered to 10 for demo visibility; use 30-60 in production.
+  pollingInterval: 10
+
+  # cooldownPeriod: seconds KEDA waits after the last active metric reading
+  # before scaling back to minReplicaCount. Lowered for demo purposes.
+  # Production recommendation: 60-300 seconds to avoid thrashing.
+  cooldownPeriod: 30
+
+  triggers:
+  - type: azure-servicebus
+    metadata:
+      # namespace: short Service Bus namespace name, NOT the full hostname.
+      namespace: "<SB_NAME>"
+
+      # queueName: must match the queue created during infrastructure setup.
+      queueName: orders
+
+      # messageCount: target number of messages per pod replica.
+      # KEDA calculates desiredReplicas = ceil(activeMessages / messageCount).
+      # With 100 messages and messageCount 5: ceil(100/5) = 20, capped to 10.
+      messageCount: "5"
+
+      # activationMessageCount: minimum queue depth needed to wake from zero.
+      # The first message triggers the cold-start transition from 0 to 1 replica.
+      activationMessageCount: "1"
+
+    # authenticationRef points to the TriggerAuthentication that uses
+    # Workload Identity - no connection string required.
+    authenticationRef:
+      name: trigger-auth-service-bus-orders

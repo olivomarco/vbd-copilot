@@ -1,0 +1,71 @@
+# =============================================================================
+# demo-3-httpscaledobject.yaml
+# KEDA HTTP Add-on Demo - HTTPScaledObject (requestRate metric)
+# =============================================================================
+#
+# USAGE:
+#   kubectl apply -f demo-3-httpscaledobject.yaml
+#   kubectl get httpscaledobject -n keda-http-demo      # verify
+#   kubectl get scaledobject -n keda-http-demo          # auto-created by operator
+#   kubectl delete -f demo-3-httpscaledobject.yaml      # cleanup
+#
+# PREREQUISITES:
+#   - demo-3-demo-app.yaml applied first
+#   - KEDA HTTP add-on installed via Helm in keda-http-demo namespace
+#   - Interceptor port-forward active for local testing:
+#       kubectl port-forward svc/keda-add-ons-http-interceptor-proxy \
+#         -n keda-http-demo 8080:8080 &
+#
+# SCALING MATH:
+#   scalingMetric.requestRate.targetValue: 10 (req/s per pod)
+#   At  10 req/s -> 1 pod
+#   At  50 req/s -> 5 pods
+#   At 100 req/s -> 10 pods (max)
+#   At   0 req/s -> 0 pods after scaledownPeriod (60s)
+#
+# BETA CAVEAT:
+#   HTTPScaledObject and the KEDA HTTP add-on are BETA software.
+#   Do not use in production without a supported wrapper such as
+#   Kedify (https://kedify.io) or Knative (https://knative.dev).
+#
+# CLEANUP:
+#   kubectl delete -f demo-3-httpscaledobject.yaml
+# =============================================================================
+
+kind: HTTPScaledObject
+apiVersion: http.keda.sh/v1alpha1
+metadata:
+  name: demo-app
+  namespace: keda-http-demo
+  labels:
+    demo: keda-http-addon
+  annotations:
+    # Set to "true" to suppress auto-creation of the backing ScaledObject,
+    # allowing you to combine HTTP scaling with other KEDA triggers manually.
+    httpscaledobject.keda.sh/skip-scaledobject-creation: "false"
+spec:
+  # Host header(s) the interceptor uses to route requests to this workload.
+  # Wildcard entries cover all subdomains - useful for multi-tenant routing.
+  hosts:
+    - myapp.demo.com
+    - "*.demo.com"
+  pathPrefixes:
+    - /
+  scaleTargetRef:
+    name: demo-app
+    kind: Deployment
+    apiVersion: apps/v1
+    service: demo-app
+    port: 80
+  replicas:
+    min: 0   # true scale-to-zero
+    max: 10
+  # scaledownPeriod: seconds of zero traffic before pods are removed.
+  # Default is 300s. Using 60s here so scale-down is visible in the demo.
+  # Increase to 300+ for production to avoid thrashing.
+  scaledownPeriod: 60
+  scalingMetric:
+    requestRate:
+      granularity: 1s        # metric resolution
+      targetValue: 10        # req/s per pod before a new pod is added
+      window: 1m             # rolling window for rate calculation

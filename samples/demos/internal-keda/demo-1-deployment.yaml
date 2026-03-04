@@ -1,0 +1,66 @@
+# =============================================================================
+# demo-1-deployment.yaml
+# Purpose : .NET order-processor worker that consumes messages from an Azure
+#           Service Bus queue. Replica count intentionally omitted - KEDA
+#           manages the replica count via the ScaledObject defined in
+#           demo-1-scaledobject.yaml.
+#
+# Usage   : kubectl apply -f demo-1-deployment.yaml
+#
+# Prerequisites:
+#   - Namespace keda-dotnet-sample already exists
+#   - demo-1-serviceaccount.yaml already applied
+#   - Service Bus Standard namespace and 'orders' queue already created
+#
+# Substitute before applying:
+#   Replace <SB_HOSTNAME> with the fully qualified Service Bus hostname, e.g.:
+#     sb-keda-demo-31337.servicebus.windows.net
+#
+# Image source:
+#   ghcr.io/kedacore/sample-dotnet-worker-servicebus-queue
+#   Reference: https://github.com/kedacore/sample-dotnet-worker-servicebus-queue
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-processor
+  namespace: keda-dotnet-sample
+  labels:
+    app: order-processor
+    azure.workload.identity/use: "true"
+spec:
+  # replicas is intentionally absent - KEDA ScaledObject owns this field.
+  # Setting it here would cause a fight between kubectl apply and the HPA.
+  selector:
+    matchLabels:
+      app: order-processor
+  template:
+    metadata:
+      labels:
+        app: order-processor
+        # Label is required on the pod template so the webhook mutates
+        # pods even when the ServiceAccount annotation is the primary signal.
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: order-processor-sa
+      containers:
+      - name: order-processor
+        image: ghcr.io/kedacore/sample-dotnet-worker-servicebus-queue:latest
+        env:
+        # Tell the .NET SDK to use the injected workload identity token
+        # instead of a connection string or SAS key.
+        - name: KEDA_SERVICEBUS_AUTH_MODE
+          value: WorkloadIdentity
+        # Fully qualified namespace hostname - no SAS token embedded here.
+        - name: KEDA_SERVICEBUS_HOST_NAME
+          value: "<SB_HOSTNAME>"
+        # Queue to consume from.
+        - name: KEDA_SERVICEBUS_QUEUE_NAME
+          value: orders
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"

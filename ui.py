@@ -291,22 +291,6 @@ class CopilotUI:
         else:
             self._print_compact_banner()
 
-        # ── Workflows ─────────────────────────────────────────────────────
-        self.console.print()
-        self.console.print("  [bold white]Conductors[/bold white]")
-        for name, desc in WORKFLOWS:
-            self.console.print(
-                f"    [cyan bold]>> {name:<22}[/cyan bold] "
-                f"[dim]-[/dim] {desc}"
-            )
-
-
-        # ── Content levels ────────────────────────────────────────────────
-        self.console.print()
-        self.console.print("  [bold white]Content Levels[/bold white]")
-        for level, desc in CONTENT_LEVELS:
-            self.console.print(f"    [cyan]{level}[/cyan] [dim]-[/dim] {desc}")
-
         # ── Quick start guide ─────────────────────────────────────────────
         self.console.print()
         qs = Table(show_header=False, show_edge=False, box=None, padding=(0, 1))
@@ -695,6 +679,21 @@ class CopilotUI:
                 expand=False,
             )
         )
+        # ── Conductors ────────────────────────────────────────────────
+        self.console.print()
+        self.console.print("  [bold white]Conductors[/bold white]")
+        for name, desc in WORKFLOWS:
+            self.console.print(
+                f"    [cyan bold]>> {name:<22}[/cyan bold] "
+                f"[dim]-[/dim] {desc}"
+            )
+
+        # ── Content levels ────────────────────────────────────────────────
+        self.console.print()
+        self.console.print("  [bold white]Content Levels[/bold white]")
+        for level, desc in CONTENT_LEVELS:
+            self.console.print(f"    [cyan]{level}[/cyan] [dim]-[/dim] {desc}")
+
         self.console.print()
         self.console.print(
             "  [dim]Tip: prefix any message with [cyan]@agent_name[/cyan]"

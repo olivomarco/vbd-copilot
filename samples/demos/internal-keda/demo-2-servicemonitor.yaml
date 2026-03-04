@@ -1,0 +1,51 @@
+# =============================================================================
+# demo-2-servicemonitor.yaml
+# KEDA + Prometheus Demo - Prometheus ServiceMonitor
+#
+# Usage:
+#   kubectl apply -f demo-2-servicemonitor.yaml
+#
+# Prerequisites:
+#   - kube-prometheus-stack installed in namespace "monitoring"
+#     helm install kube-prom-stack prometheus-community/kube-prometheus-stack \
+#       --namespace monitoring \
+#       --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
+#   - demo-2-demo-app.yaml already applied
+#
+# IMPORTANT - Label requirement:
+#   The label "release: kube-prom-stack" must match the Prometheus
+#   serviceMonitorSelector configured in your Helm release.
+#   If you installed the stack with a different release name, update
+#   the label accordingly, OR set:
+#     prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
+#   in the Helm values so Prometheus picks up ALL ServiceMonitors.
+#
+# Verify scrape target appears in Prometheus UI:
+#   kubectl port-forward -n monitoring \
+#     svc/kube-prom-stack-kube-prome-prometheus 9090:9090
+#   Open: http://localhost:9090/targets  ->  look for "demo/demo-app"
+#
+# Cleanup:
+#   kubectl delete servicemonitor demo-app -n demo
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: demo-app
+  namespace: demo
+  labels:
+    # This label must match the kube-prometheus-stack Helm release name.
+    # If your release is named differently, update this value.
+    release: kube-prom-stack
+spec:
+  namespaceSelector:
+    matchNames:
+    - demo
+  selector:
+    matchLabels:
+      app: demo-app
+  endpoints:
+  - port: http-metrics
+    interval: 15s
+    path: /metrics
+    scheme: http

@@ -1,0 +1,109 @@
+# deploy-fabric.yml
+# ==============================================================================
+# Microsoft Fabric - Trustworthy Data Demo Series
+# Demo 5: fabric-cicd GitHub Actions Automation
+#
+# PURPOSE
+# -------
+# GitHub Actions workflow that deploys Fabric workspace items to PROD on every
+# push to the main branch, or on manual trigger.
+#
+# PLACEMENT
+# ---------
+# Must live at: .github/workflows/deploy-fabric.yml
+#
+# REQUIRED REPOSITORY SECRETS
+# ----------------------------
+# Set these in: GitHub repo -> Settings -> Secrets and variables -> Actions
+#
+#   FABRIC_PROD_WORKSPACE_ID  GUID of the PROD Fabric workspace
+#   FABRIC_TENANT_ID          Entra tenant ID
+#   FABRIC_CLIENT_ID          SPN (app registration) client ID
+#   FABRIC_CLIENT_SECRET      SPN client secret value
+#
+# SPN PREREQUISITES (configure once in Entra ID and Fabric)
+# ----------------------------------------------------------
+#   1. Create an App Registration in Entra ID
+#   2. Generate a client secret (store value in FABRIC_CLIENT_SECRET secret)
+#   3. In Fabric: PROD workspace -> Settings -> Manage access ->
+#      Add the SPN by name -> assign Admin or Contributor role
+#   4. In Fabric Admin portal -> Tenant settings -> Developer settings ->
+#      Enable "Service principals can use Fabric APIs"
+#      Scope to a specific security group that contains the SPN if using
+#      group-based control.
+#
+# WOW MOMENT INSTRUCTIONS (for live demo)
+# ----------------------------------------
+#   1. Show the PR that contains a Notebook change on screen
+#   2. Merge the PR to main
+#   3. Switch to Actions tab - show the workflow appear and turn yellow (running)
+#   4. Walk through the steps as they turn green: checkout, setup-python, install, deploy
+#   5. When complete, open the PROD Notebook in Fabric
+#   6. Point to the Lakehouse GUID in the notebook metadata - it is the PROD GUID
+#   7. Open Fabric Admin portal -> Activity log -> filter by the SPN client_id
+#      -> show the SPN-attributed deploy event
+#      TELL AUDIENCE: "Every deployment has a non-repudiable audit record. You
+#      know exactly who deployed what and when. The SPN identity, not a human
+#      account, means no shared credentials and no manual portal access needed."
+#
+# REFERENCES
+# ----------
+# https://microsoft.github.io/fabric-cicd/latest/
+# https://github.com/microsoft/fabric-cicd
+# https://learn.microsoft.com/en-us/fabric/cicd/best-practices-cicd
+# ==============================================================================
+
+name: Deploy Fabric Workspace to PROD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Step 1: Checkout the repository so the runner has access to
+      #         fabric-workspace/ and .deploy/deploy.py
+      # -----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Step 2: Set up Python 3.12 runtime
+      # -----------------------------------------------------------------------
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # -----------------------------------------------------------------------
+      # Step 3: Install fabric-cicd and azure-identity
+      # Pin versions to avoid breaking changes in production use.
+      # Remove version pins if you always want the latest.
+      # -----------------------------------------------------------------------
+      - name: Install fabric-cicd and azure-identity
+        run: |
+          pip install --upgrade pip
+          # Versions pinned to known-good state for live demos.
+          # Verify latest stable tags before each customer engagement:
+          #   https://github.com/microsoft/fabric-cicd/releases
+          #   https://pypi.org/project/azure-identity/
+          pip install "fabric-cicd==0.2.0" "azure-identity==1.21.0"
+
+      # -----------------------------------------------------------------------
+      # Step 4: Deploy Fabric workspace items to PROD
+      # Secrets are injected as environment variables; deploy.py reads them.
+      # -----------------------------------------------------------------------
+      - name: Deploy Fabric workspace to PROD
+        env:
+          FABRIC_PROD_WORKSPACE_ID: ${{ secrets.FABRIC_PROD_WORKSPACE_ID }}
+          FABRIC_TENANT_ID: ${{ secrets.FABRIC_TENANT_ID }}
+          FABRIC_CLIENT_ID: ${{ secrets.FABRIC_CLIENT_ID }}
+          FABRIC_CLIENT_SECRET: ${{ secrets.FABRIC_CLIENT_SECRET }}
+        run: python .deploy/deploy.py
