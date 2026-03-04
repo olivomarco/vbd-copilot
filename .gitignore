@@ -1,0 +1,12 @@
+.venv/
+venv/
+__pycache__
+*egg-info
+
+plans/*
+!/plans/.gitkeep
+
+outputs/slides/*
+outputs/demos/*
+!outputs/slides/.gitkeep
+!outputs/demos/.gitkeep

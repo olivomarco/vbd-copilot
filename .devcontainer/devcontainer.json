@@ -1,0 +1,33 @@
+{
+  "name": "VBD-Copilot",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/git-lfs:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    }
+  },
+
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-impress poppler-utils && pip install --no-cache-dir -r requirements.txt && git lfs install",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "github.copilot-chat",
+        "esbenp.prettier-vscode",
+        "PKief.material-icon-theme",
+        "eamodio.gitlens",
+        "ms-python.python"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "python.defaultInterpreterPath": "/usr/local/bin/python"
+      }
+    }
+  },
+
+  "forwardPorts": [],
+  "remoteUser": "vscode"
+}
