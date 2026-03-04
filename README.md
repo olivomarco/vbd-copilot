@@ -13,6 +13,7 @@
   - [What This Is](#what-this-is)
   - [Sample Output](#sample-output)
   - [Architecture](#architecture)
+  - [Responsible AI](#responsible-ai)
   - [Content Levels](#content-levels)
   - [Slide Session Durations](#slide-session-durations)
   - [Prerequisites](#prerequisites)
@@ -66,48 +67,72 @@ Browse the full output library:
 
 ## Architecture
 
-```text
-+-----------------------------------------------------------------+
-|  User Input                                                     |
-|  "@slide-conductor I need a 1h L300 deck on Azure Container Apps"|
-+-----------------------+-----------------------------------------+
-                        |
-                        v
-+-----------------------------------------------------------------+
-|  router.py - Agent Router                                       |
-|  Detects "deck" keyword -> selects slide-conductor               |
-+-----------------------+-----------------------------------------+
-                        |
-                        v
-+-----------------------------------------------------------------+
-|  Conductor Agent (top-level, infer=True)                        |
-|                                                                 |
-|  slide-conductor:                                               |
-|    0. Pre-research + clarify                                    |
-|    1. Deep research (parallel shards)                           |
-|    2. Create plan -> user approval                              |
-|    3. Build PPTX (fragments -> assemble -> run)                 |
-|    3F. PPTX QA (markitdown + visual inspection)                 |
-|    4. Deliver .pptx + generator script                          |
-|                                                                 |
-|  demo-conductor:                                                |
-|    0. Pre-research + clarify                                    |
-|    1. Deep research                                             |
-|    2. Create plan -> user approval                              |
-|    3. Build guide + companion scripts                           |
-|    4. Validate + review (syntax, URLs, content)                 |
-|    5. Deliver guide + scripts                                   |
-|                                                                 |
-|  +-----------------------------------------------------------+ |
-|  |  Sub-agents (infer=False, via delegation tools)            | |
-|  |                                                           | |
-|  |  research-subagent       demo-research-subagent           | |
-|  |  slide-builder-subagent  demo-builder-subagent            | |
-|  |  pptx-qa-subagent        demo-reviewer-subagent           | |
-|  |                          demo-editor-subagent             | |
-|  +-----------------------------------------------------------+ |
-+-----------------------------------------------------------------+
+```mermaid
+flowchart TD
+    User(["User\nTUI prompt"]) -->|"free-text or @mention"| Router["router.py\nAgent Router"]
+
+    Router -->|"slides / deck / pptx keyword"| SC["slide-conductor\ninfer=True"]
+    Router -->|"demo / walkthrough keyword"| DC["demo-conductor\ninfer=True"]
+    Router -->|"no match"| Default["Default\nCopilot Agent"]
+
+    subgraph Slide_Pipeline ["Slide Pipeline"]
+        SC --> SC0["0 - Pre-research + clarify"]
+        SC0 --> SC1["1 - Deep research\n(parallel shards)"]
+        SC1 --> SC2["2 - Plan -> user approval"]
+        SC2 --> SC3["3 - Build PPTX\nfragments -> assemble -> run"]
+        SC3 --> SC3F["3F - PPTX QA"]
+        SC3F --> SC4["4 - Deliver\n.pptx + generate_*.py"]
+    end
+
+    subgraph Demo_Pipeline ["Demo Pipeline"]
+        DC --> DC0["0 - Pre-research + clarify"]
+        DC0 --> DC1["1 - Deep research"]
+        DC1 --> DC2["2 - Plan -> user approval"]
+        DC2 --> DC3["3 - Build guide + scripts"]
+        DC3 --> DC4["4 - Review + validate"]
+        DC4 --> DC5["5 - Deliver\nguide .md + scripts"]
+    end
+
+    SC0 & SC1 -->|"task tool"| RSA[("research-subagent")]
+    SC3 -->|"task tool"| SBA[("slide-builder-subagent")]
+    SC3F -->|"task tool"| QA[("pptx-qa-subagent")]
+
+    DC0 & DC1 -->|"task tool"| DRA[("demo-research-subagent")]
+    DC3 -->|"task tool"| DBA[("demo-builder-subagent")]
+    DC4 -->|"task tool"| DRV[("demo-reviewer-subagent")]
+    DC4 -->|"task tool"| DEA[("demo-editor-subagent")]
+
+    RSA & DRA -->|"bing_search + web_fetch"| Docs[("Official Sources - MS Learn - GitHub Docs - devblogs - Tech Community")]
+
+    SC4 --> OutS[("outputs/slides/")]
+    DC5 --> OutD[("outputs/demos/")]
 ```
+
+---
+
+## Responsible AI
+
+VBD-Copilot uses AI models to produce customer-facing technical content. The following principles apply:
+
+**Human in the loop.**
+Every pipeline has mandatory approval stops before content is built and before output is delivered. No content reaches a customer without a human reviewing and accepting the plan.
+
+**Accuracy over speed.**
+All research is restricted to official Microsoft and GitHub sources (MS Learn, docs.github.com, devblogs.microsoft.com, techcommunity.microsoft.com). Invented URLs are explicitly forbidden; every link in generated output must be real and verifiable.
+
+**Transparency.**
+Generated `.pptx` files and demo guides are first drafts, not finished deliverables. The README, app UI, and speaker notes all state this. Users are expected to review, fact-check, and own the content before presenting it.
+
+**No sensitive data in prompts.**
+Do not include customer names, internal project codenames, NDA-protected details, pricing data, or personal information in generation prompts. Use generic placeholders (e.g. "Contoso") when a customer name is needed for narrative context.
+
+**Content scope.**
+The tool is scoped to technical education content for Microsoft Cloud products. It is not intended to generate marketing claims, competitive comparisons, financial projections, or legal/compliance guidance.
+
+**Model behaviour.**
+This tool delegates to GitHub Copilot models via the GitHub Copilot SDK. It does not fine-tune or modify model weights. All model usage is subject to the [GitHub Copilot Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features#github-copilot) and [Microsoft Responsible AI principles](https://www.microsoft.com/en-us/ai/responsible-ai).
+
+---
 
 ## Content Levels
 
