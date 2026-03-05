@@ -4,6 +4,8 @@
 
 ![VBD-Copilot](assets/screenshots/vbd-copilot.png)
 
+> [Pitch deck: VBD-Copilot.pptx](presentations/VBD-Copilot.pptx)
+
 ---
 
 ## Quick Index
