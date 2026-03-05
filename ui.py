@@ -210,6 +210,10 @@ class CopilotUI:
                 )
                 self.console.print()
         try:
+            # Ensure terminal is in a clean state after long streaming runs:
+            # reset ANSI attributes and flush so prompt_toolkit renders correctly
+            sys.stdout.write("\033[0m")
+            sys.stdout.flush()
             result = await self.prompt_session.prompt_async(
                 self._get_prompt_message()
             )
@@ -622,6 +626,10 @@ class CopilotUI:
         self.console.print("[green bold]Assistant >>>[/green bold]")
 
     def print_response_end(self) -> None:
+        self._flush_newline()
+        # Reset any lingering ANSI attributes (dim/italic from reasoning deltas)
+        sys.stdout.write("\033[0m")
+        sys.stdout.flush()
         print()
         self.console.print()
 
