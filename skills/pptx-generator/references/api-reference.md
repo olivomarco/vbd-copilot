@@ -4,7 +4,15 @@ Quick reference for all functions in `pptx_utils.py`. Functions are grouped by
 usage frequency: **Core** (use often), **Composites** (pre-built layouts), and
 **Advanced** (rarely needed directly).
 
-> **Key design principles (v2):**
+> **Key design principles (v3):**
+> - **Native bullets**: `add_bullet_list()`, `add_checklist()`, and `add_header_card_with_bullets()` use
+>   real PowerPoint bullets (`a:buChar`/`a:buAutoNum`), not Unicode text prefixes. Bullets are
+>   editable, indentable, and style-changeable in the PowerPoint UI.
+> - **Auto-grouping**: Composite elements (callout boxes, metric cards, header cards, code blocks,
+>   card grids, speech panels) auto-group their sub-shapes into a single selectable/movable unit.
+>   Users can ungroup in PowerPoint for editing.
+> - **Premium typography**: Lead/section/impact titles use `Segoe UI Light` with letter spacing.
+>   Standard slide titles use `Segoe UI Semibold`. Body text uses `Segoe UI`.
 > - Composite elements embed text in shapes via `_set_shape_text()` - shapes are
 >   single selectable units in PowerPoint, not floating textboxes on top.
 > - Internal offsets scale proportionally with container size - no hardcoded Inches.
@@ -88,6 +96,8 @@ Adds a blank slide (layout index 6).
 | `CONTENT_WIDTH` | 11.0" | Max content width |
 | `CONTENT_BOTTOM` | 6.8" | Bottom of content area |
 | `FONT_FAMILY` | "Segoe UI" | Default font |
+| `FONT_SEMIBOLD` | "Segoe UI Semibold" | Headings, slide titles |
+| `FONT_LIGHT` | "Segoe UI Light" | Display/lead titles |
 | `FONT_MONO` | "Cascadia Code" | Monospace font for code |
 
 ---
@@ -148,8 +158,25 @@ add_textbox(slide, "Long text...", x, y, w, h,
             font_size=14, shrink_to_fit=True, v_align='middle')
 ```
 
-### `add_bullet_list(slide, items, left, top, width, height=Inches(5), font_size=14, color=MS_TEXT, spacing=Pt(8)) -> shape`
-Bullet list. Items can be strings or tuples `(bold_prefix, rest_text)`.
+### `add_bullet_list(slide, items, left, top, width, height=Inches(5), font_size=14, color=MS_TEXT, spacing=Pt(8), bullet_char="\u2022", bullet_color=None) -> shape`
+Native PowerPoint bullet list. Uses real `a:buChar` bullets (editable in PPT UI).
+Items can be:
+- `str`: plain text bullet
+- `(bold_prefix, rest_text)`: mixed bold/normal
+- `(text, {"level": 1})`: nested bullet (level 0-8)
+- `(bold_prefix, rest_text, {"level": 1})`: bold prefix + nested
+
+```python
+add_bullet_list(slide, [
+    "First item",
+    ("Bold:", " rest text"),
+    ("Nested item", {"level": 1}),
+], CONTENT_LEFT, CONTENT_TOP, Inches(5))
+```
+
+### `add_numbered_list(slide, items, left, top, width, height=Inches(5), font_size=14, color=MS_TEXT, spacing=Pt(8), scheme='arabicPeriod', number_color=None) -> shape`
+Native PowerPoint auto-numbered list (1. 2. 3.). Numbers auto-renumber when items are added/removed.
+`scheme`: `'arabicPeriod'` (1. 2. 3.), `'arabicParenR'` (1) 2) 3)), `'alphaLcPeriod'` (a. b. c.).
 
 ### `add_gradient_textbox(slide, text, left, top, width, height, color_start, color_end, ...) -> shape`
 Text with native gradient fill on characters. Premium look for headings.
@@ -178,7 +205,7 @@ Right-pointing chevron arrow.
 Downward-pointing chevron arrow.
 
 ### `add_header_card(slide, left, top, width, height, header_text, color, header_height=Inches(0.5)) -> (header_shape, body_shape)`
-Card with colored header banner and white body.
+Card with colored header banner and white body. **Auto-grouped** into one unit.
 
 ### `add_badge(slide, text, left, top, bg_color=MS_BLUE, text_color=MS_WHITE, font_size=9, width=None, height=Inches(0.28)) -> shape`
 Pill-shaped status badge. Text embedded in shape. Contrast auto-checked.
@@ -191,7 +218,9 @@ add_badge(slide, "Preview", x, y, bg_color=MS_ORANGE)
 Subtle horizontal divider.
 
 ### `add_checklist(slide, items, left, top, width, ...) -> shape`
-Checklist with green checkmarks. `items = [str]` or `[(str, bool)]`.
+Checklist with native bullet characters (green checkmarks / gray circles).
+Uses `a:buChar` so glyphs are real bullets, not text prefixes.
+`items = [str]` or `[(str, bool)]`.
 
 ---
 
@@ -201,19 +230,26 @@ These build complete visual components. Most embed text in shapes.
 
 ### `add_callout_box(slide, text, left, top, width, height=None, bg=MS_CALLOUT_BG, accent=MS_BLUE, font_size=13) -> height`
 Callout with left accent bar. Text embedded in card. `height=None` auto-sizes.
+**Auto-grouped** (card + accent bar). Includes subtle paper shadow.
 Returns actual height for vertical chaining.
 
 ### `add_warning_box(slide, text, left, top, width, height=None) -> height`
-Orange warning callout.
+Orange warning callout. **Auto-grouped**.
 
-### `add_code_block(slide, code, left, top, width, height) -> shape`
-Dark-themed code block. Text embedded in background rectangle (single unit).
+### `add_code_block(slide, code, left, top, width, height, language="") -> shape`
+Dark-themed code block with rounded corners and blue left border.
+**Auto-grouped** (background + accent + optional language label).
+`language`: optional label (e.g. `'Python'`, `'YAML'`) shown in top-right corner.
+```python
+add_code_block(slide, 'kubectl get pods', x, y, w, h, language='Shell')
+```
 
 ### `add_styled_table(slide, data, left, top, width, col_widths=None, header_color=MS_DARK_BLUE, font_size=12) -> table_shape`
 Professional table with dark header and alternating rows.
 
 ### `add_metric_card(slide, metric, label, x, y, w=Inches(3.5), h=Inches(2.5), color=MS_BLUE, sublabel="", trend="", trend_positive=True) -> shape`
 Big-number metric card with all text embedded in shape. Scales proportionally.
+**Auto-grouped** (card + top accent bar).
 Optional `trend` adds colored arrow (replaces old `add_kpi_card`).
 ```python
 add_metric_card(slide, "98.5%", "Uptime SLA", x, y,
@@ -229,7 +265,8 @@ Striped items with numbered circles. Offsets scale with item_height.
 `items = [(title, description), ...]`
 
 ### `add_card_grid(slide, cards, left, top, cols=2, card_w=Inches(5.5), card_h=Inches(2.3), ...)`
-Grid of cards. Offsets scale with card_h. `cards = [(color, title, desc), ...]`
+Grid of cards. Each card **auto-grouped** (5 shapes per card into one unit).
+Offsets scale with card_h. `cards = [(color, title, desc), ...]`
 
 ### `add_pillar_cards(slide, pillars, left=CONTENT_LEFT, top=CONTENT_TOP, height=Inches(5.2))`
 Vertical pillar cards, proportionally laid out. `pillars = [(color, num, title, desc), ...]`
@@ -263,10 +300,10 @@ Horizontal flow with boxes and chevron arrows. Text embedded in boxes.
 ## Microsoft-Style Components
 
 ### `add_blue_speech_panel(slide, text, left, top, width, height, ...) -> shape`
-Blue panel with white text embedded in shape. Contrast auto-checked.
+Blue panel with white text embedded in shape. Contrast auto-checked. **Auto-grouped** when accent bar is present.
 
 ### `add_header_card_with_bullets(slide, header_text, bullets, left, top, width, height, ...) -> (header_shape, body_shape, textbox)`
-Card with colored header banner and bullet list body.
+Card with colored header banner and **native-bulleted** body. Uses real PowerPoint bullets.
 
 ### `add_timeline(slide, phases, left=CONTENT_LEFT, ...) -> [shapes]`
 Horizontal timeline. Milestone text embedded in boxes.
@@ -280,13 +317,13 @@ Horizontal workstream bars. Text embedded with auto contrast.
 ## Slide Templates
 
 ### `create_standard_slide(prs, title, page_num=None, total=None, notes="") -> slide`
-Standard content slide. Content starts at `CONTENT_TOP` (1.2").
+Standard content slide. Title uses **Segoe UI Semibold**. Content starts at `CONTENT_TOP` (1.2").
 
 ### `create_section_divider(prs, title, subtitle="", notes="") -> slide`
-Dark navy section divider.
+Dark navy section divider. Title uses **Segoe UI Light** with letter spacing.
 
 ### `create_lead_slide(prs, title, subtitle="", meta="", notes="", level="", use_bg_image=True) -> slide`
-Title/lead slide. `level`: `"L100"` | `"L200"` | `"L300"` | `"L400"`.
+Title/lead slide. Title uses **Segoe UI Light** with letter spacing. `level`: `"L100"` | `"L200"` | `"L300"` | `"L400"`.
 ```python
 create_lead_slide(prs, "GitHub Copilot Deep Dive",
     subtitle="Architecture Patterns",
@@ -303,10 +340,60 @@ Split-background slide. Returns layout coordinates.
 Standard slide + numbered agenda list.
 
 ### `create_impact_slide(prs, headline, subtext="", stats=None, ...) -> slide`
-High-impact statement on gradient background.
+High-impact statement on gradient background. Headline uses **Segoe UI Light** with wide letter spacing.
 
 ### `create_gradient_slide(prs, title, color_start=MS_BLUE, color_end=MS_DARK_BLUE, ...) -> slide`
 Full-bleed gradient background. Use white text.
+
+---
+
+## New Primitives
+
+### `add_image_card(slide, image_path, left, top, width, height, caption="", border_color=None, corner_radius=0.05, shadow="subtle") -> shape`
+Rounded card containing an image with optional caption. **Auto-grouped**.
+Shows a placeholder if the image file doesn't exist.
+```python
+add_image_card(slide, "screenshot.png", x, y, Inches(4), Inches(3),
+               caption="Architecture Diagram")
+```
+
+### `add_hyperlink(run, url) -> run`
+Make a text run clickable (native PowerPoint hyperlink).
+Styles the run as blue + underline.
+```python
+tb = add_textbox(slide, "Visit docs", x, y, w, h, color=MS_BLUE)
+add_hyperlink(tb.text_frame.paragraphs[0].runs[0],
+              "https://learn.microsoft.com")
+```
+
+### `set_shape_transparency(shape, alpha_pct) -> shape`
+Set fill transparency. `alpha_pct`: 0 = opaque, 100 = fully transparent.
+```python
+overlay = add_rect(slide, 0, 0, SLIDE_WIDTH, SLIDE_HEIGHT, MS_DARK_BLUE)
+set_shape_transparency(overlay, 40)  # 40% transparent
+```
+
+### `add_bar_chart(slide, data, left, top, width, height, chart_title="", colors=None) -> chart_shape`
+Styled bar chart with Microsoft brand colors.
+```python
+add_bar_chart(slide, {
+    "categories": ["Q1", "Q2", "Q3", "Q4"],
+    "series": [("Revenue", [100, 120, 140, 160])],
+}, x, y, Inches(8), Inches(4.5), chart_title="Quarterly Results")
+```
+
+### `add_donut_chart(slide, data, left, top, width, height, chart_title="", colors=None, hole_size=50) -> chart_shape`
+Styled donut/pie chart. `hole_size=0` for full pie.
+```python
+add_donut_chart(slide, {
+    "categories": ["Desktop", "Mobile", "Tablet"],
+    "values": [60, 30, 10],
+}, x, y, Inches(5), Inches(4), chart_title="Platform Mix")
+```
+
+### `add_connector_line(slide, start_shape, end_shape, color=MS_BLUE, width_pt=1.5, dash=False) -> connector`
+Native PowerPoint connector between two shapes. Reflows when shapes are moved.
+Alternative to chevron arrows for editable flow diagrams.
 
 ---
 
@@ -347,7 +434,8 @@ Extract speaker notes from slide markdown by index (0-based).
 |---|---|
 | A single big number/metric | `add_metric_card()` |
 | A row of 2-5 stats | `add_stats_row()` |
-| Numbered steps/items | `add_numbered_items()` |
+| Numbered steps/items (visual circles) | `add_numbered_items()` |
+| Auto-numbered list (1. 2. 3.) | `add_numbered_list()` |
 | Cards in a 2-col grid | `add_card_grid()` |
 | Cards in a 3-col grid | `add_feature_grid()` |
 | Vertical pillars | `add_pillar_cards()` |
@@ -355,6 +443,7 @@ Extract speaker notes from slide markdown by index (0-based).
 | Before/After comparison | `add_comparison_columns()` |
 | Architecture layers | `add_layered_architecture()` |
 | Process flow with arrows | `add_process_flow()` |
+| Process flow with connectors | `add_connector_line()` |
 | Timeline with milestones | `add_timeline()` |
 | A prominent callout | `add_callout_box()` |
 | A warning notice | `add_warning_box()` |
@@ -362,3 +451,8 @@ Extract speaker notes from slide markdown by index (0-based).
 | Code/CLI/YAML block | `add_code_block()` |
 | Data table | `add_styled_table()` |
 | Status badge (GA/Preview) | `add_badge()` |
+| Image with caption | `add_image_card()` |
+| Bar/column chart | `add_bar_chart()` |
+| Donut/pie chart | `add_donut_chart()` |
+| Clickable link | `add_hyperlink()` |
+| Semi-transparent overlay | `set_shape_transparency()` |
