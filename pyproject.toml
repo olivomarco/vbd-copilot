@@ -17,4 +17,5 @@ dependencies = [
 vbd-copilot = "app:main_entry"
 
 [tool.setuptools]
-py-modules = ["app", "agents", "router", "tools", "ui", "pptx_utils"]
+py-modules = ["app", "agents", "router", "tools", "ui", "pptx_utils", "pricing", "store", "collector", "queries"]
+packages = ["commands"]

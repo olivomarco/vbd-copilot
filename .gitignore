@@ -25,3 +25,5 @@ outputs/slides/*
 outputs/demos/*
 !outputs/slides/.gitkeep
 !outputs/demos/.gitkeep
+
+.img_cache
