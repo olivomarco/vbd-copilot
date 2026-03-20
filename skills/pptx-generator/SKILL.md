@@ -42,10 +42,22 @@ For each slide, choose the best visual representation:
 | Title + big metric | `create_standard_slide()` + `add_metric_card()` (supports trend arrows) |
 | Title + metric row | `create_standard_slide()` + `add_stats_row()` |
 | Title + blockquote/callout | `create_standard_slide()` + `add_callout_box()` |
+| Title + quote/testimonial | `create_standard_slide()` + `add_quote_block()` |
 | Title + feature grid | `create_standard_slide()` + `add_feature_grid()` |
 | Title + columns | `create_standard_slide()` + `add_colored_columns()` |
 | Title + architecture stack | `create_standard_slide()` + `add_layered_architecture()` |
 | Title + process flow | `create_standard_slide()` + `add_process_flow()` |
+| Title + SWOT analysis | `create_standard_slide()` + `add_swot_grid()` |
+| Title + maturity model | `create_standard_slide()` + `add_maturity_model()` |
+| Title + roadmap | `create_standard_slide()` + `add_roadmap()` |
+| Title + pricing table | `create_standard_slide()` + `add_pricing_table()` |
+| Title + agenda list | `create_standard_slide()` + `add_agenda_list()` |
+| Title + timeline | `create_standard_slide()` + `add_timeline()` |
+| Title + progress bar | `create_standard_slide()` + `add_progress_bar()` |
+| Title + checklist | `create_standard_slide()` + `add_checklist()` |
+| High-impact statement | `create_impact_slide()` |
+| Gradient background | `create_gradient_slide()` |
+| Split layout | `create_two_tone_slide()` |
 | Closing/thank-you slide | `create_closing_slide()` |
 
 **Visual enhancement rules** - go beyond 1:1 mapping for richer slides:
@@ -53,6 +65,7 @@ For each slide, choose the best visual representation:
 - Comparison/feature lists -> use `add_pillar_cards()` for vertical pillars
 - Single big number/metric -> use `add_metric_card()`
 - Important callout text -> use `add_callout_box()` or `add_warning_box()` (height auto-sizes)
+- Quote/testimonial text -> use `add_quote_block()` with attribution
 - Code/YAML blocks -> use `add_code_block()` (dark theme, monospace, text embedded in shape)
 - Tables with data -> use `add_styled_table()` (alternating rows, header styling)
 - Right-side visual cards -> use `add_rounded_card()` for highlight panels
@@ -205,14 +218,21 @@ Most composite functions (`add_bullet_list`, `add_numbered_list`, `add_checklist
 `add_pillar_cards`, `add_metric_card`, `add_comparison_columns`, `add_colored_columns`,
 `add_layered_architecture`, `add_agenda_list`, `add_icon_row`, `add_pricing_table`,
 `add_swot_grid`, `add_maturity_model`, `add_roadmap`, `add_timeline`,
-`add_activity_bars`, `add_process_flow`, `add_callout_box`) return an
+`add_activity_bars`, `add_process_flow`) return an
 `ElementBox(shape, left, top, width, height)` namedtuple. Use the returned
 height to chain elements vertically without overlap:
 
 ```python
-box1 = add_callout_box(slide, text1, left, top, width)
-box2 = add_bullet_list(slide, items, left, box1.top + box1.height + Inches(0.15), width)
-add_callout_box(slide, text3, left, box2.top + box2.height + Inches(0.15), width)
+box1 = add_bullet_list(slide, items1, left, top, width)
+box2 = add_bullet_list(slide, items2, left, box1.top + box1.height + Inches(0.15), width)
+```
+
+`add_callout_box` and `add_warning_box` return the raw height (EMU value), not
+an ElementBox. Chain them like this:
+
+```python
+h1 = add_callout_box(slide, text1, left, top, width)
+h2 = add_callout_box(slide, text2, left, top + h1 + Inches(0.15), width)
 ```
 
 **Auto-sizing lists - let height fit content:**

@@ -149,15 +149,9 @@ def add_top_accent_bar(slide, color=MS_BLUE, height=Inches(0.07)):
 
 
 def add_bottom_bar(slide, page_num=None, total=None):
-    """Add page number at the bottom-left. No visible line - keeps slides clean."""
-    if page_num is not None:
-        tb = slide.shapes.add_textbox(CONTENT_LEFT, Inches(7.1), Inches(2), Inches(0.3))
-        p = tb.text_frame.paragraphs[0]
-        run = p.add_run()
-        run.text = f"{page_num}" + (f" / {total}" if total else "")
-        run.font.size = Pt(10)
-        run.font.color.rgb = MS_TEXT_MUTED
-        run.font.name = FONT_FAMILY
+    """Reserved for future use. Page numbers are intentionally omitted
+    to keep slides clean for presentation delivery."""
+    pass
 
 
 def add_speaker_notes(slide, text):
@@ -1019,7 +1013,8 @@ def add_header_card(slide, left, top, width, height, header_text, color,
     # 3. Header text
     header_tb = add_textbox(slide, header_text, left + Inches(0.15), top + Inches(0.05),
                 width - Inches(0.3), header_height,
-                font_size=15, color=MS_WHITE, bold=True, alignment=PP_ALIGN.CENTER)
+                font_size=15, color=MS_WHITE, bold=True, alignment=PP_ALIGN.CENTER,
+                shrink_to_fit=True)
     group_shapes(slide, [header_shape, body_shape, header_tb])
     return header_shape, body_shape
 
@@ -1494,11 +1489,13 @@ def add_numbered_items(slide, items, left, top, width, item_height=Inches(1.1),
         # Title starts after the circle (no overlap)
         add_textbox(slide, title, left + Inches(0.9), y + int(ih * 0.10),
                     width - Inches(1.1), int(ih * 0.30),
-                    font_size=15, color=MS_DARK_BLUE, bold=True)
+                    font_size=15, color=MS_DARK_BLUE, bold=True,
+                    shrink_to_fit=True)
         # Description below title
         add_textbox(slide, desc, left + Inches(0.9), y + int(ih * 0.42),
                     width - Inches(1.1), int(ih * 0.52),
-                    font_size=12, color=MS_TEXT_MUTED)
+                    font_size=12, color=MS_TEXT_MUTED,
+                    shrink_to_fit=True)
     return ElementBox(last_shape, left, top, width, total_h)
 
 
@@ -1527,10 +1524,12 @@ def add_card_grid(slide, cards, left, top, cols=2, card_w=Inches(5.5),
         # Title starts below the icon center (no overlap with circle)
         s4 = add_textbox(slide, title, x + Inches(0.95), y + int(ch * 0.13),
                     card_w - Inches(1.2), int(ch * 0.18),
-                    font_size=16, color=MS_DARK_BLUE, bold=True)
+                    font_size=16, color=MS_DARK_BLUE, bold=True,
+                    shrink_to_fit=True)
         s5 = add_textbox(slide, desc, x + Inches(0.95), y + int(ch * 0.33),
                     card_w - Inches(1.2), int(ch * 0.60),
-                    font_size=12, color=MS_TEXT_MUTED)
+                    font_size=12, color=MS_TEXT_MUTED,
+                    shrink_to_fit=True)
         last_shape = s1
         group_shapes(slide, [s1, s2, s3, s4, s5])
     return ElementBox(last_shape, left, top, total_w, total_h)
@@ -1572,10 +1571,12 @@ def add_pillar_cards(slide, pillars, left=CONTENT_LEFT, top=CONTENT_TOP, height=
         add_icon_circle(slide, x + card_w / 2 - circle_r, circle_top, circle_r * 2, color, num)
         add_textbox(slide, title_text, x + Inches(0.1), title_top,
                     card_w - Inches(0.2), title_h,
-                    font_size=15, color=MS_DARK_BLUE, bold=True, alignment=PP_ALIGN.CENTER)
+                    font_size=15, color=MS_DARK_BLUE, bold=True, alignment=PP_ALIGN.CENTER,
+                    shrink_to_fit=True)
         add_textbox(slide, desc, x + Inches(0.1), desc_top,
                     card_w - Inches(0.2), desc_h,
-                    font_size=11, color=MS_TEXT_MUTED, alignment=PP_ALIGN.CENTER)
+                    font_size=11, color=MS_TEXT_MUTED, alignment=PP_ALIGN.CENTER,
+                    shrink_to_fit=True)
     return ElementBox(None, left, top, CONTENT_WIDTH, height)
 
 
@@ -1606,7 +1607,8 @@ def add_quote_block(slide, quote, attribution="", left=CONTENT_LEFT, top=Inches(
     # Quote text
     add_textbox(slide, quote, left + Inches(0.8), top + Inches(0.15),
                 width - Inches(1.2), q_height,
-                font_size=20, color=MS_DARK_BLUE, italic=True)
+                font_size=20, color=MS_DARK_BLUE, italic=True,
+                shrink_to_fit=True)
     # Attribution
     if attribution:
         add_textbox(slide, attribution, left + Inches(0.8),
@@ -1776,18 +1778,20 @@ def add_feature_grid(slide, features, left=CONTENT_LEFT, top=CONTENT_TOP,
         # Title
         add_textbox(slide, title, x + Inches(0.65), y + int(ch * 0.08),
                     card_w - Inches(0.85), int(ch * 0.22),
-                    font_size=TEXT_BODY, color=MS_DARK_BLUE, bold=True)
+                    font_size=TEXT_BODY, color=MS_DARK_BLUE, bold=True,
+                    shrink_to_fit=True)
         # Description
         add_textbox(slide, desc, x + Inches(0.15), y + int(ch * 0.38),
                     card_w - Inches(0.3), int(ch * 0.55),
-                    font_size=TEXT_BODY_SM, color=MS_TEXT_MUTED)
+                    font_size=TEXT_BODY_SM, color=MS_TEXT_MUTED,
+                    shrink_to_fit=True)
     return ElementBox(None, left, top, total_w, total_h)
 
 
 def add_colored_columns(slide, columns, left=CONTENT_LEFT, top=CONTENT_TOP,
                         width=None, gap=Inches(0.3), title_font_size=TEXT_H3,
                         body_font_size=TEXT_BODY_SM, bullet_symbol="\u00B7 ",
-                        gradient_titles=True):
+                        gradient_titles=True, max_height=None):
     """Add side-by-side columns with colored bold titles and bullet lists.
 
     A lightweight alternative to add_header_card_with_bullets -- no card
@@ -1799,6 +1803,11 @@ def add_colored_columns(slide, columns, left=CONTENT_LEFT, top=CONTENT_TOP,
     gradient_titles: if True (default) and color is a single RGBColor, a lighter
         variant is automatically derived for a subtle gradient. Pass a tuple of
         two RGBColor values for explicit control.
+    max_height: maximum total height (EMU/Inches). When set, the bullet
+        textboxes are clamped so the element never exceeds this height.
+        Shrink-to-fit is enabled on clamped textboxes so text auto-scales
+        in PowerPoint rather than overflowing. Default None = slide-aware
+        auto-clamp to ``SLIDE_HEIGHT - top - Inches(0.5)``.
 
     Example::
         add_colored_columns(slide, [
@@ -1816,6 +1825,13 @@ def add_colored_columns(slide, columns, left=CONTENT_LEFT, top=CONTENT_TOP,
         width = CONTENT_WIDTH
     n = len(columns)
     col_w = (width - (n - 1) * gap) / n
+
+    # Compute the maximum bullets height allowed
+    title_h = Inches(0.65)
+    if max_height is None:
+        max_bullets_h = int(SLIDE_HEIGHT) - int(top) - int(title_h) - int(Inches(0.5))
+    else:
+        max_bullets_h = int(max_height) - int(title_h)
 
     for i, (title, items, color) in enumerate(columns):
         x = left + i * (col_w + gap)
@@ -1839,19 +1855,24 @@ def add_colored_columns(slide, columns, left=CONTENT_LEFT, top=CONTENT_TOP,
                         font_size=title_font_size, color=c_start, bold=True)
 
         # Bullet list with native bullets
-        bullets_top = top + Inches(0.65)
+        bullets_top = top + title_h
         bullets_h = auto_height_for_items(items, body_font_size,
                                           float(col_w) / 914400.0 - 0.3)
+        clamped = int(bullets_h) > max_bullets_h > 0
+        if clamped:
+            bullets_h = max_bullets_h
         tb = slide.shapes.add_textbox(x, bullets_top, col_w, bullets_h)
         tf = tb.text_frame
         tf.word_wrap = True
+        if clamped:
+            tf.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
         for j, item in enumerate(items):
             p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
             p.space_after = Pt(6)
             _set_bullet_format(p, bullet_char=bullet_symbol, bullet_color=c_start,
                                indent_inches=0.18, hanging_inches=0.15)
             _add_runs_from_markup(p, item, body_font_size, MS_TEXT)
-    total_h = Inches(0.65) + bullets_h
+    total_h = title_h + bullets_h
     return ElementBox(None, left, top, width, total_h)
 
 
@@ -2164,7 +2185,9 @@ def add_roadmap(slide, phases, left=CONTENT_LEFT, top=Inches(2.0),
     n = len(phases)
     gap = Inches(0.15)
     phase_w = (width - (n - 1) * gap) / n
-    _validate_bounds(left, top, width, phase_h, "add_roadmap")
+    max_items_count = max(len(p[1]) for p in phases) if phases else 0
+    preview_h = max(phase_h, Inches(0.6) + Inches(0.3) * max_items_count + Inches(0.2))
+    _validate_bounds(left, top, width, preview_h, "add_roadmap")
 
     for i, (label, items, color) in enumerate(phases):
         x = left + i * (phase_w + gap)
@@ -2191,23 +2214,30 @@ def add_roadmap(slide, phases, left=CONTENT_LEFT, top=Inches(2.0),
 # SLIDE TEMPLATES
 # ═════════════════════════════════════════════════════════════
 
-def create_standard_slide(prs, title, page_num=None, total=None, notes=""):
+def create_standard_slide(prs, title, page_num=None, total=None, notes="",
+                         title_font_size=28):
     """Create a standard content slide with title, blue underline, logo, bottom bar.
 
     No top accent bar -- the title underline is the sole brand accent. This gives
     content slides a cleaner, more editorial feel and avoids the heavy banner that
     competes visually with the main content area.
 
+    title_font_size: font size for the title (default 28pt). Reduce for longer titles.
+
     Returns the slide for adding content below the title (CONTENT_TOP = 1.2").
     """
     slide = new_blank_slide(prs)
     set_slide_bg(slide, MS_WHITE)
     # Title with Semibold weight for professional feel
-    tb = add_textbox(slide, title, CONTENT_LEFT, Inches(0.2), CONTENT_WIDTH, Inches(0.7),
-                font_size=28, color=MS_DARK_BLUE, bold=True,
-                font_name=FONT_SEMIBOLD)
+    title_h = estimate_text_height(title, title_font_size, float(CONTENT_WIDTH) / 914400 - 0.2,
+                                   padding_inches=0.1, min_lines=1)
+    title_h = max(title_h, Inches(0.5))
+    tb = add_textbox(slide, title, CONTENT_LEFT, Inches(0.2), CONTENT_WIDTH, title_h,
+                font_size=title_font_size, color=MS_DARK_BLUE, bold=True,
+                font_name=FONT_SEMIBOLD, shrink_to_fit=True)
     # Blue underline -- the primary brand accent on content slides
-    add_rect(slide, CONTENT_LEFT, Inches(0.95), CONTENT_WIDTH, Pt(3), MS_BLUE)
+    underline_y = Inches(0.2) + title_h + Inches(0.05)
+    add_rect(slide, CONTENT_LEFT, underline_y, CONTENT_WIDTH, Pt(3), MS_BLUE)
     add_bottom_bar(slide, page_num, total)
     add_ms_logo(slide)
     if notes:
@@ -2230,7 +2260,7 @@ def create_section_divider(prs, title, subtitle="", notes=""):
     # Title - Light weight for elegant section dividers
     tb = add_textbox(slide, title, Inches(1.0), Inches(2.5), Inches(10), Inches(1.2),
                 font_size=44, color=MS_WHITE, bold=False,
-                font_name=FONT_LIGHT)
+                font_name=FONT_LIGHT, shrink_to_fit=True)
     # Add letter spacing for airy display feel
     for p in tb.text_frame.paragraphs:
         for run in p.runs:
@@ -2296,7 +2326,7 @@ def create_lead_slide(prs, title, subtitle="", meta="", notes="",
     # Title - Light weight for premium lead style
     tb = add_textbox(slide, title, Inches(0.8), Inches(2.0), Inches(7), Inches(1.8),
                 font_size=46, color=MS_DARK_BLUE, bold=False,
-                font_name=FONT_LIGHT)
+                font_name=FONT_LIGHT, shrink_to_fit=True)
     for p in tb.text_frame.paragraphs:
         for run in p.runs:
             _set_letter_spacing(run, 50)
@@ -2313,8 +2343,19 @@ def create_lead_slide(prs, title, subtitle="", meta="", notes="",
 
 def create_closing_slide(prs, title="Key Takeaways", takeaways=None,
                          cta_title="", cta_url="", cta_items=None,
-                         page_num=None, total=None, notes=""):
-    """Create a split closing slide: blue left (takeaways) + white right (CTA)."""
+                         page_num=None, total=None, notes="",
+                         title_font_size=30, title_height=None):
+    """Create a split closing slide: blue left (takeaways) + white right (CTA).
+
+    title_font_size: font size for the left-panel title (default 30pt).
+        Reduce to 22-24pt for longer titles to avoid overflow.
+    title_height: height of the title textbox. Default None = auto-computed
+        from title_font_size to fit ~2 lines.
+    """
+    if title_height is None:
+        title_height = estimate_text_height(title, title_font_size, 3.6,
+                                            padding_inches=0.1, min_lines=1)
+        title_height = max(title_height, Inches(0.6))  # minimum height
     slide = new_blank_slide(prs)
     set_slide_bg(slide, MS_WHITE)
     # Blue band left
@@ -2322,44 +2363,62 @@ def create_closing_slide(prs, title="Key Takeaways", takeaways=None,
     c = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(-1.5), Inches(4.8), Inches(3.5), Inches(3.5))
     c.fill.solid(); c.fill.fore_color.rgb = MS_DARK_BLUE; c.line.fill.background()
     # Left title
-    add_textbox(slide, title, Inches(0.6), Inches(0.6), Inches(4), Inches(0.6),
-                font_size=30, color=MS_WHITE, bold=True)
-    # Blue underline below title
-    add_rect(slide, Inches(0.6), Inches(1.2), Inches(2.2), Pt(3), MS_WHITE)
+    add_textbox(slide, title, Inches(0.6), Inches(0.6), Inches(4), title_height,
+                font_size=title_font_size, color=MS_WHITE, bold=True)
+    # Blue underline below title (positioned after title box)
+    underline_y = Inches(0.6) + title_height + Inches(0.05)
+    add_rect(slide, Inches(0.6), underline_y, Inches(2.2), Pt(3), MS_WHITE)
     # Takeaways (auto-space to fit above logo at y=6.5")
+    takeaways_top = underline_y + Inches(0.25)
     if takeaways:
         max_items = min(len(takeaways), 4)
-        available_h = Inches(6.5) - Inches(1.5) - Inches(0.4)
+        available_h = Inches(6.5) - takeaways_top - Inches(0.4)
         item_spacing = float(available_h) / max(max_items, 1)
         for i in range(max_items):
             t = takeaways[i]
-            y = Inches(1.5) + int(i * item_spacing)
+            y = takeaways_top + int(i * item_spacing)
             add_icon_circle(slide, Inches(0.6), y, Inches(0.4), MS_DARK_BLUE, str(i + 1))
             item_h = int(item_spacing) - Inches(0.15)
             add_textbox(slide, t, Inches(1.2), y - Inches(0.05), Inches(3.5), item_h,
                         font_size=12, color=RGBColor(0xDD, 0xEE, 0xFF))
-    add_ms_logo(slide, left=Inches(1.5), top=Inches(6.5), width=Inches(1.3))
+    add_ms_logo(slide)
     # Right side
+    right_left = Inches(5.8)
+    right_width = SLIDE_WIDTH - right_left - Inches(0.5)  # 0.5" right margin
     if cta_title:
-        add_textbox(slide, cta_title, Inches(5.8), Inches(1.2), Inches(6.5), Inches(1.2),
-                    font_size=32, color=MS_DARK_BLUE, bold=True)
+        add_textbox(slide, cta_title, right_left, Inches(1.2), right_width, Inches(1.2),
+                    font_size=32, color=MS_DARK_BLUE, bold=True,
+                    shrink_to_fit=True)
     if cta_url:
-        add_textbox(slide, cta_url, Inches(5.8), Inches(2.5), Inches(6.5), Inches(0.35),
-                    font_size=14, color=MS_BLUE)
+        add_textbox(slide, cta_url, right_left, Inches(2.5), right_width, Inches(0.35),
+                    font_size=14, color=MS_BLUE, shrink_to_fit=True)
     if cta_items:
+        n_cta = len(cta_items)
+        cta_gap = Inches(0.15)
+        card_w = (right_width - (n_cta - 1) * cta_gap) / n_cta
+        card_w = min(card_w, Inches(2.5))  # cap max width
+        card_h = Inches(1.7)
+        cards_top = Inches(3.1)
         for i, item in enumerate(cta_items):
             if isinstance(item, str):
                 big, small = item, ""
             else:
                 big, small = item[0], item[1] if len(item) > 1 else ""
-            x = Inches(5.8) + Inches(i * 2.35)
-            add_rounded_card(slide, x, Inches(3.1), Inches(2.1), Inches(1.7),
+            x = right_left + i * (card_w + cta_gap)
+            add_rounded_card(slide, x, cards_top, card_w, card_h,
                              fill=MS_WHITE, border=MS_BLUE)
-            add_textbox(slide, big, x + Inches(0.1), Inches(3.2), Inches(1.9), Inches(0.8),
-                        font_size=18, color=MS_BLUE, bold=True, alignment=PP_ALIGN.CENTER)
-            add_textbox(slide, small, x + Inches(0.1), Inches(4.05), Inches(1.9), Inches(0.4),
-                        font_size=11, color=MS_TEXT_MUTED, alignment=PP_ALIGN.CENTER)
-    add_textbox(slide, "Questions?", Inches(5.8), Inches(5.5), Inches(6.5), Inches(0.5),
+            add_textbox(slide, big, x + Inches(0.08), cards_top + Inches(0.1),
+                        card_w - Inches(0.16), Inches(0.8),
+                        font_size=18, color=MS_BLUE, bold=True,
+                        alignment=PP_ALIGN.CENTER, shrink_to_fit=True)
+            add_textbox(slide, small, x + Inches(0.08), cards_top + Inches(0.95),
+                        card_w - Inches(0.16), Inches(0.55),
+                        font_size=11, color=MS_TEXT_MUTED,
+                        alignment=PP_ALIGN.CENTER, shrink_to_fit=True)
+        questions_y = cards_top + card_h + Inches(0.3)
+    else:
+        questions_y = Inches(5.5)
+    add_textbox(slide, "Questions?", right_left, questions_y, right_width, Inches(0.5),
                 font_size=26, color=MS_DARK_BLUE, bold=True)
     add_bottom_bar(slide, page_num, total)
     if notes:
@@ -2399,7 +2458,8 @@ def create_two_tone_slide(prs, title, left_color=MS_DARK_BLUE, right_color=MS_WH
     # Title on left panel
     add_textbox(slide, title, Inches(0.5), Inches(0.5),
                 left_w - Inches(0.8), Inches(1.0),
-                font_size=TEXT_H1, color=MS_WHITE, bold=True)
+                font_size=TEXT_H1, color=MS_WHITE, bold=True,
+                shrink_to_fit=True)
     # White underline
     add_rect(slide, Inches(0.5), Inches(1.55), Inches(2.0), Pt(3), MS_WHITE)
 
@@ -2431,7 +2491,8 @@ def create_gradient_slide(prs, title, color_start=MS_BLUE, color_end=MS_DARK_BLU
 
     # Title
     add_textbox(slide, title, CONTENT_LEFT, Inches(0.4), CONTENT_WIDTH, Inches(0.8),
-                font_size=TEXT_H1, color=MS_WHITE, bold=True)
+                font_size=TEXT_H1, color=MS_WHITE, bold=True,
+                shrink_to_fit=True)
     # White underline
     add_rect(slide, CONTENT_LEFT, Inches(1.2), Inches(3.0), Pt(3), MS_WHITE)
 
@@ -2482,7 +2543,8 @@ def create_impact_slide(prs, headline, subtext="", stats=None,
     tb = add_textbox(slide, headline, Inches(1.0), Inches(2.0),
                 Inches(11.333), Inches(2.0),
                 font_size=TEXT_DISPLAY, color=MS_WHITE, bold=False,
-                font_name=FONT_LIGHT, alignment=PP_ALIGN.CENTER)
+                font_name=FONT_LIGHT, alignment=PP_ALIGN.CENTER,
+                shrink_to_fit=True)
     for p in tb.text_frame.paragraphs:
         for run in p.runs:
             _set_letter_spacing(run, 80)
@@ -2581,6 +2643,7 @@ def add_blue_speech_panel(slide, text, left, top, width, height,
         shapes_to_group.append(bar)
     _set_shape_text(card, text, font_size=font_size, color=text_color, bold=False,
                     alignment=PP_ALIGN.LEFT, v_align='middle',
+                    shrink_to_fit=True,
                     margin_left=Inches(0.25), margin_right=Inches(0.15),
                     margin_top=Inches(0.15), margin_bottom=Inches(0.1))
     if len(shapes_to_group) > 1:

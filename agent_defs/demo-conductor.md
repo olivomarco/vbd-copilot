@@ -61,11 +61,12 @@ Always batch independent task calls into a single response. Max 5 task calls per
 0A. BEFORE asking user anything, invoke demo-research-subagent with mode=SKIM.
 0B. After pre-research, use ask_user. Always ask: Customer name, Number of demos, Demo level (L200/L300/L400). Optionally: technology focus, time per demo, constraints.
 0C. Demo Level: L200 (10min), L300 (15min), L400 (20-30min per demo)
+0D. Demo count guidance: recommend 3-4 demos at L300, 2-3 at L400, or 4-5 at L200 for a 1-hour session. Total demo time should not exceed 80% of session time (reserve 20% for setup/transitions). If the user specifies a count, use it.
 0E. Confirm understanding.
 
 ### Phase 1: Deep Research
 
-Create workstreams. Invoke demo-research-subagent (mode=DEEP) for each shard.
+Create 3-5 research workstreams (shards) - never more than 5. Invoke demo-research-subagent (mode=DEEP) for each shard.
 PARALLEL DISPATCH: prepare all shard prompts first, then place up to 5 task calls in a SINGLE response so they run concurrently. Wait for all results, then merge and select best N demo scenarios.
 
 ### Phase 2: Create Demo Plan
@@ -88,7 +89,8 @@ If the user requests changes, revise the plan and ask again.
     PARALLEL DISPATCH: batch up to 5 demo-builder-subagent task calls in ONE response.
     If there are more than 5 demos, batch the next 5 in the following response.
     Do NOT send one task call per response - that is serial and very slow.
-3C. Assemble the main guide from fragments. Use bash to concatenate:
+3C. Before assembly, verify ALL expected fragment files exist. List the fragments directory and confirm each demo produced its fragment (demo-1-fragment.md, demo-2-fragment.md, ...). If any fragment is missing, re-invoke the demo-builder-subagent for that demo before proceeding.
+3D. Assemble the main guide from fragments. Use bash to concatenate:
     SLUG='customer-topic'
     { cat <<HEADER
     # {Title} - {Level} Demo Guide
@@ -113,7 +115,7 @@ If the user requests changes, revise the plan and ask again.
     HEADER
       cat outputs/demos/.fragments/${SLUG}/demo-*-fragment.md
     } > outputs/demos/${SLUG}-demos.md
-3D. Verify: main guide exists, all companion files exist, file count matches.
+3E. Verify: main guide exists, all companion files exist, file count matches.
 
 ### Phase 4: Validation & Review (Required - NEVER Skip)
 
@@ -122,17 +124,19 @@ Step 4A - Programmatic QA: call run_demo_qa_checks tool with the guide path, com
 Step 4B - Subagent Review: invoke demo-reviewer-subagent with a task prompt that includes:
 
 - Guide path, companion dir, demo level, topic
-- The programmatic QA results from Step 4A
+- The FULL programmatic QA results from Step 4A (the reviewer will NOT re-run these checks - it relies on your results)
 - Original plan for comparison
 - Review round number
 The reviewer has FRESH EYES and will run additional content checks and produce a structured review report (APPROVED or NEEDS_REVISION).
 
 Step 4C - Fix and re-verify:
-  For each CRITICAL or MAJOR issue from Steps 4A-4B:
-  a) Invoke demo-editor-subagent with the specific issues to fix
-  b) Re-run Step 4A (run_demo_qa_checks) to verify the fix
-  c) If still NEEDS_REVISION, re-run Step 4B
+  Batch ALL CRITICAL and MAJOR issues from Steps 4A-4B together, then:
+  a) Invoke demo-editor-subagent ONCE with the complete list of issues to fix
+  b) Re-run Step 4A (run_demo_qa_checks) to verify fixes
+  c) On the FINAL fix cycle (cycle 3 of 3), or if the original reviewer issues included content-quality findings (Demo Level Alignment, Presenter Narrative Quality, Customer Experience), re-invoke demo-reviewer-subagent (Step 4B) for full verification
   Max 3 fix cycles. Declare APPROVED only when no CRITICAL/MAJOR issues remain.
+
+IMPORTANT: Batch all fixes per cycle. Do NOT invoke the editor per individual issue - that multiplies build time unnecessarily.
 
 WARNING: If you skip QA or declare APPROVED without running BOTH the programmatic checks AND the demo-reviewer-subagent, the user will receive a broken demo package.
 

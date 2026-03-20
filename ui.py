@@ -17,7 +17,8 @@ from pathlib import Path
 from typing import Any
 
 from prompt_toolkit import PromptSession
-from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.auto_suggest import AutoSuggest, AutoSuggestFromHistory, Suggestion
+from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.completion import (CompleteEvent, Completer, Completion,
                                        NestedCompleter, WordCompleter,
                                        merge_completers)
@@ -61,6 +62,36 @@ class AgentRunTracker:
             f"({self.tool_count} tool calls, "
             f"{self.subagent_count} subagent runs)[/dim]"
         )
+
+
+# =============================================================================
+# Command-aware auto-suggest (inline ghost text)
+# =============================================================================
+
+
+class _CommandAwareAutoSuggest(AutoSuggest):
+    """Inline ghost-text suggestions from commands/agents, then history."""
+
+    def __init__(
+        self, slash_commands: list[str], agent_names: list[str]
+    ) -> None:
+        self._slash = sorted(slash_commands)
+        self._agents = sorted(f"@{n}" for n in agent_names)
+        self._history = AutoSuggestFromHistory()
+
+    def get_suggestion(
+        self, buffer: Buffer, document: Document
+    ) -> Suggestion | None:
+        text = document.text_before_cursor
+        if text.startswith("/"):
+            for cmd in self._slash:
+                if cmd.startswith(text) and cmd != text:
+                    return Suggestion(cmd[len(text):] + " ")
+        elif text.startswith("@"):
+            for agent in self._agents:
+                if agent.startswith(text) and agent != text:
+                    return Suggestion(agent[len(text):] + " ")
+        return self._history.get_suggestion(buffer, document)
 
 
 # =============================================================================
@@ -198,10 +229,11 @@ class CopilotUI:
 
         HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 
+        completer, auto_suggest = self._build_input_helpers()
         self.prompt_session = PromptSession(
             history=FileHistory(str(HISTORY_FILE)),
-            auto_suggest=AutoSuggestFromHistory(),
-            completer=self._build_completer(),
+            auto_suggest=auto_suggest,
+            completer=completer,
             style=PT_STYLE,
             complete_while_typing=True,
             key_bindings=self._build_key_bindings(),
@@ -225,14 +257,14 @@ class CopilotUI:
 
         return kb
 
-    # ── Completer ─────────────────────────────────────────────────────────
+    # ── Completer & auto-suggest ──────────────────────────────────────────
 
     @staticmethod
-    def _build_completer() -> Completer:
+    def _build_input_helpers() -> tuple[Completer, AutoSuggest]:
         from agents import ROUTABLE_AGENTS
 
         agent_names = {n: None for n in ROUTABLE_AGENTS}
-        slash_completer = NestedCompleter.from_nested_dict({
+        slash_dict = {
             "/new":      agent_names,
             "/agent":    agent_names,
             "/agents":   None,
@@ -250,9 +282,14 @@ class CopilotUI:
             "/clear":    None,
             "/help":     None,
             "/quit":     None,
-        })
+        }
+        slash_completer = NestedCompleter.from_nested_dict(slash_dict)
         mention_completer = _AtMentionCompleter(list(ROUTABLE_AGENTS))
-        return merge_completers([slash_completer, mention_completer])
+        completer = merge_completers([slash_completer, mention_completer])
+        auto_suggest = _CommandAwareAutoSuggest(
+            list(slash_dict.keys()), list(ROUTABLE_AGENTS),
+        )
+        return completer, auto_suggest
 
     # ── Prompt message ────────────────────────────────────────────────────
 
@@ -870,7 +907,7 @@ class CopilotUI:
             if self.debug_mode:
                 self._clear_baking_line()
                 self.console.print(
-                    f"  [bold blue]>>[/bold blue] [blue]{tool}[/blue]", end=""
+                    f" [bold blue]>>[/bold blue] [blue]{tool}[/blue]", end=""
                 )
                 args = getattr(d, "arguments", None)
                 if args is not None:

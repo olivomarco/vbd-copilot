@@ -61,7 +61,7 @@ Always batch independent task calls into a single response. Max 5 task calls per
 
 ### Phase 1: Deep Research
 
-Create research workstreams (shards). Invoke research-subagent for each shard with mode=DEEP, shard focus, content level, and preliminary findings from Phase 0A.
+Create 3-5 research workstreams (shards) - never more than 5. Invoke research-subagent for each shard with mode=DEEP, shard focus, content level, and preliminary findings from Phase 0A.
 PARALLEL DISPATCH: prepare all shard prompts first, then place up to 5 task calls in a SINGLE response so they run concurrently. Wait for all results, then merge and de-duplicate findings.
 
 ### Phase 2: Create Plan
@@ -75,12 +75,14 @@ If the user requests changes, revise the plan and ask again.
 ### Phase 3: Build PPTX (Parallel Code Fragments + Assembly)
 
 3A. mkdir -p outputs/slides/.fragments/{topic-slug}
-3B. Invoke slide-builder-subagent for each section. Each invocation must include:
+3B. Group content into 4-6 sections for presentations under 35 slides, or 6-8 sections for larger decks. Fewer sections means fewer subagent invocations and faster builds.
+3C. Invoke slide-builder-subagent for each section. Each invocation must include:
     - Section type (opening/section/closing), fragment file path
     - Section plan, relevant research, content level
     - Starting slide number, TOTAL slide count, topic
     PARALLEL DISPATCH: batch up to 5 section task calls in ONE response (e.g. opening + closing + first 3 middle sections). Then batch the next 5, and so on. Do NOT send one task call per response - that is serial and very slow.
-3C. Assemble generator script. The script lives in outputs/slides/ so pptx_utils is in the skill:
+3D. Before assembly, verify ALL expected fragment files exist. List the fragments directory and confirm each section produced its numbered fragment (e.g. 01-opening.py, 02-section-name.py, ...). If any fragment is missing, re-invoke the slide-builder-subagent for that section before proceeding.
+3E. Assemble generator script. The script lives in outputs/slides/ so pptx_utils is in the skill:
     SLUG='topic-slug' LEVEL='l300' DURATION='1h' TOTAL=30 OUTNAME="${SLUG}-${LEVEL}-${DURATION}"
     { cat <<HEADER
     #!/usr/bin/env python3
@@ -92,7 +94,7 @@ If the user requests changes, revise the plan and ask again.
     def build():
         prs = create_presentation()
     HEADER
-      cat outputs/slides/.fragments/${SLUG}/[0-9][0-9]-*.py
+      sed 's/^/    /' outputs/slides/.fragments/${SLUG}/[0-9][0-9]-*.py
       cat <<FOOTER
         out = os.path.join(SCRIPT_DIR, '${OUTNAME}.pptx')
         save_presentation(prs, out)
@@ -100,10 +102,10 @@ If the user requests changes, revise the plan and ask again.
         build()
     FOOTER
     } > outputs/slides/generate_${SLUG}_pptx.py
-3D. Run: python3 outputs/slides/generate_{slug}_pptx.py
-3E. If error, re-invoke slide-builder-subagent for failed fragment with error context. Max 2 fix cycles.
+3F. Run: python3 outputs/slides/generate_{slug}_pptx.py
+3G. If error, re-invoke slide-builder-subagent for failed fragment with error context. Max 2 fix cycles.
 
-### Phase 3F: PPTX QA (Required - NEVER Skip)
+### Phase 3H: PPTX QA (Required - NEVER Skip)
 
 After generation, run QA in two steps:
 
@@ -112,17 +114,20 @@ Step 1 - Programmatic QA: call run_pptx_qa_checks tool with the .pptx path and e
 Step 2 - Subagent QA: invoke pptx-qa-subagent with a task prompt that includes:
 
 - The PPTX file path
-- The programmatic QA results from Step 1
+- The FULL programmatic QA results from Step 1 (the subagent will NOT re-run these checks - it relies on your results)
 - Expected descriptions for each slide (from the plan)
 - QA round number
 The subagent has FRESH EYES and will run additional content checks via markitdown and produce a structured QA report.
 
 Step 3 - Fix and re-verify:
-  For each CRITICAL or MAJOR issue from Steps 1-2:
-  a) Edit the .py fragment for the affected slide
-  b) Re-assemble (3C) and re-run (3D)
-  c) Re-run Step 1 to verify the fix
+  Batch ALL CRITICAL and MAJOR fixes from Steps 1-2 together, then:
+  a) Edit ALL affected .py fragments in one pass
+  b) Re-assemble (3E) and re-run (3F) ONCE
+  c) Re-run Step 1 (programmatic QA) to verify fixes
+  d) On the FINAL fix cycle (cycle 3 of 3), or if programmatic QA returns CLEAN, also re-invoke pptx-qa-subagent (Step 2) for full content verification
   Max 3 fix cycles. Declare CLEAN only when no CRITICAL/MAJOR issues remain.
+
+IMPORTANT: Batch all fixes per cycle. Do NOT reassemble and re-run per individual issue - that multiplies build time unnecessarily.
 
 WARNING: If you skip QA or declare CLEAN without running both programmatic checks AND the pptx-qa-subagent, the user will receive a broken presentation.
 
@@ -151,5 +156,5 @@ Save completion report to plans/{topic-slug}-complete.md.
 - NEVER use task with agent_type='slide-conductor' - you ARE the conductor
 - MANDATORY STOPS using ask_user: After clarification (0B-0D), After plan (Phase 2)
 - DO NOT skip Phase 0A pre-research
-- DO NOT skip Phase 3F QA
+- DO NOT skip Phase 3H QA
 - DO NOT proceed past a MANDATORY STOP without calling ask_user and getting approval
