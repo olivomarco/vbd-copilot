@@ -192,6 +192,7 @@ Quick checklist:
 18. **Shrink-to-fit** - use `shrink_to_fit=True` on `add_textbox()` when text length is unpredictable.
 19. **Use `add_metric_card()` for both metrics and KPIs** - it supports optional `trend` and `trend_positive` parameters. Do NOT use `add_kpi_card()` (deprecated alias).
 20. **Function Decision Guide** - see the table in `references/api-reference.md` to pick the right function for your content pattern.
+21. **Bold markup** - use `**word**` (double-asterisk) inside any text string to make a word or phrase bold in the rendered slide. This works in `add_textbox()`, `add_bullet_list()` (plain string items), `add_numbered_list()`, `add_callout_box()`, `add_styled_table()` (data cells), `add_card_grid()`, `add_pillar_cards()`, `add_feature_grid()`, `add_numbered_items()`, `add_colored_columns()`, `add_header_card_with_bullets()`, `add_checklist()`, `_set_shape_text()`, and `_add_shape_paragraph()`. Use bold markup to emphasize key terms, product names, or important phrases - for example: `"Use **GitHub Copilot** to accelerate development"`. Do NOT overuse - limit to 1-3 bold phrases per text block. The tuple format `(bold_prefix, rest)` in bullet lists still works unchanged.
 
 ## Overlap Prevention and Layer Order Rules
 
