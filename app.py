@@ -584,6 +584,22 @@ async def main() -> None:
                     status="timeout",
                 )
                 continue
+            except (KeyboardInterrupt, asyncio.CancelledError):
+                turn_status = "cancelled"
+                ui.print_response_end()
+                ui.stop_agent_display()
+                ui.print_input_lock_state(False)
+                ui.console.print(
+                    "\n  [yellow]Cancelled.[/yellow] [dim]The agent was interrupted. "
+                    "You can keep chatting or use [cyan]/new[/cyan] for a fresh session.[/dim]"
+                )
+                collector.on_turn_end(
+                    turn_id,
+                    assistant_response="".join(ui._current_response),
+                    model=ui.current_model,
+                    status="cancelled",
+                )
+                continue
 
             if not ui.received_deltas and reply:
                 content = getattr(reply.data, "content", None)
@@ -611,19 +627,22 @@ async def main() -> None:
     except KeyboardInterrupt:
         ui.stop_agent_display()
         ui.console.print("\n  [dim]Interrupted.[/dim]")
-
-    # ── Clean up ──────────────────────────────────────────────────────────────
-    ui.stop_resize_watcher()
-    ui.print_info("Cleaning up...")
-    try:
-        if session:
-            collector.on_session_ended(session.session_id, resumable=True)
-            session._event_handlers.clear()
-        await client.stop()
-    except Exception:
-        pass
-    event_store.close()
-    ui.print_success("Done! Goodbye.")
+    except asyncio.CancelledError:
+        ui.stop_agent_display()
+        ui.console.print("\n  [dim]Cancelled.[/dim]")
+    finally:
+        # ── Clean up ─────────────────────────────────────────────────────
+        ui.stop_resize_watcher()
+        ui.print_info("Cleaning up...")
+        try:
+            if session:
+                collector.on_session_ended(session.session_id, resumable=True)
+                session._event_handlers.clear()
+            await client.stop()
+        except Exception:
+            pass
+        event_store.close()
+        ui.print_success("Done! Goodbye.")
 
 
 # =============================================================================
@@ -632,7 +651,10 @@ async def main() -> None:
 
 def main_entry() -> None:
     """Synchronous entry point (for pyproject.toml console_scripts)."""
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == "__main__":
