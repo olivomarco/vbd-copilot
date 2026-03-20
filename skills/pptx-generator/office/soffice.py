@@ -3,7 +3,7 @@
 LibreOffice headless wrapper for PPTX to PDF conversion.
 
 Usage:
-    python scripts/office/soffice.py --headless --convert-to pdf <input.pptx>
+    python skills/pptx-generator/office/soffice.py --headless --convert-to pdf <input.pptx>
 
 This is a thin wrapper that invokes LibreOffice in headless mode
 for file format conversion, handling output directory placement.

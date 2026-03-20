@@ -7,7 +7,9 @@ are activated by the conductors via delegation tools.
 
 Routing strategy:
 1. Explicit prefix:  "@slide-conductor ...", "@demo-conductor ..."
-2. Keyword heuristics: looks for signal words in the prompt.
+2. Automatic intent routing for unmentioned prompts:
+    - slide-related requests -> slide-conductor
+    - demo-related requests -> demo-conductor
 3. Fallback: no agent is selected (uses the default Copilot agent).
 """
 
@@ -19,8 +21,7 @@ from copilot import CopilotSession
 
 from agents import AGENT_MODELS, DEFAULT_MODEL, ROUTABLE_AGENTS
 
-# ── Keyword patterns per routable agent ───────────────────────────────────────
-
+# Keyword signals for automatic routing when there is no explicit @mention.
 _PATTERNS: dict[str, re.Pattern[str]] = {
     "slide-conductor": re.compile(
         r"\b(slide|presentation|pptx|powerpoint|deck|create\s+(a\s+)?deck"
@@ -42,27 +43,24 @@ def detect_agent(prompt: str) -> str | None:
     Determine which top-level agent should handle the prompt.
     Returns the agent name, or None to use the default Copilot agent.
     """
-
-    # 1. Explicit @mention
     mention = re.match(r"^@([\w-]+)\s", prompt)
     if mention:
         name = mention.group(1).lower()
         if name in ROUTABLE_AGENTS:
             return name
 
-    # 2. Keyword scoring
+    # Automatic routing for unmentioned prompts.
     scores: dict[str, int] = {}
     for agent_name, pattern in _PATTERNS.items():
+        if agent_name not in ROUTABLE_AGENTS:
+            continue
         matches = pattern.findall(prompt)
         if matches:
             scores[agent_name] = len(matches)
 
     if scores:
-        best = max(scores, key=lambda k: scores[k])
-        if scores[best] >= 1:
-            return best
+        return max(scores, key=scores.get)
 
-    # 3. No clear match - fallback
     return None
 
 

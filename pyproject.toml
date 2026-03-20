@@ -1,6 +1,6 @@
 [project]
 name = "vbd-copilot"
-version = "1.0.0"
+version = "1.1.0"
 description = "VBD-Copilot: AI-powered presentation and demo builder for Microsoft Cloud Solution Architects"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -11,11 +11,12 @@ dependencies = [
     "rich>=13.0",
     "python-pptx>=1.0.2",
     "markitdown>=0.1.0",
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]
 vbd-copilot = "app:main_entry"
 
 [tool.setuptools]
-py-modules = ["app", "agents", "router", "tools", "ui", "pptx_utils", "pricing", "store", "collector", "queries"]
-packages = ["commands"]
+py-modules = ["app", "router", "tools", "ui", "pricing", "store", "collector", "queries"]
+packages = ["agents", "commands"]

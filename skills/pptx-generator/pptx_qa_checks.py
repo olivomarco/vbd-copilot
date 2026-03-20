@@ -7,7 +7,7 @@ the most common generation issues WITHOUT requiring visual inspection.
 Returns a structured JSON report with severity-tagged findings.
 
 Usage:
-    python scripts/pptx_qa_checks.py <path-to-pptx> [--expected-slides N]
+    python skills/pptx-generator/pptx_qa_checks.py <path-to-pptx> [--expected-slides N]
 
 Exit codes:
     0 = CLEAN (no CRITICAL or MAJOR issues)
@@ -27,13 +27,18 @@ from pathlib import Path
 from pptx import Presentation
 from pptx.util import Emu, Inches, Pt
 
-# ── Layout constants (must match pptx_utils.py) ──────────────────────────────
-SLIDE_WIDTH_EMU = Inches(13.333)
-SLIDE_HEIGHT_EMU = Inches(7.5)
-CONTENT_LEFT_EMU = Inches(0.8)
-CONTENT_TOP_EMU = Inches(1.2)
-CONTENT_WIDTH_EMU = Inches(11.0)
-CONTENT_BOTTOM_EMU = Inches(6.8)
+# ── Layout constants (imported from sibling pptx_utils.py) ────────────────────
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location("pptx_utils", Path(__file__).with_name("pptx_utils.py"))
+_mod = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_mod)
+
+SLIDE_WIDTH_EMU = _mod.SLIDE_WIDTH
+SLIDE_HEIGHT_EMU = _mod.SLIDE_HEIGHT
+CONTENT_LEFT_EMU = _mod.CONTENT_LEFT
+CONTENT_TOP_EMU = _mod.CONTENT_TOP
+CONTENT_WIDTH_EMU = _mod.CONTENT_WIDTH
+CONTENT_BOTTOM_EMU = _mod.CONTENT_BOTTOM
 
 # Tolerances
 OVERFLOW_TOLERANCE_EMU = Inches(0.15)  # shapes may exceed by up to 0.15" (decorative bleed)
@@ -108,11 +113,31 @@ def _check_shape_bounds(
 ):
     """Recursively check shape bounds, accounting for group offsets."""
     if hasattr(shape, "shapes"):
-        # This is a group shape - recurse into children with group offset
-        grp_x = (shape.left or 0) + offset_x
-        grp_y = (shape.top or 0) + offset_y
+        # This is a group shape - recurse into children with corrected offset.
+        # In OOXML, absolute_child = group.off + (child.coord - group.chOff).
+        # group_shapes() in pptx_utils sets chOff == off, so children store
+        # absolute slide coordinates; the net added offset is (off - chOff) = 0.
+        # Standard groups use chOff=(0,0), so the added offset is just off.
+        # General formula: child_offset = parent_offset + group.off - group.chOff
+        grp_off_x = shape.left or 0
+        grp_off_y = shape.top or 0
+        ch_off_x, ch_off_y = 0, 0
+        try:
+            from pptx.oxml.ns import qn as _qn
+            grpSpPr = shape._element.find(_qn('p:grpSpPr'))
+            if grpSpPr is not None:
+                xfrm = grpSpPr.find(_qn('a:xfrm'))
+                if xfrm is not None:
+                    chOff = xfrm.find(_qn('a:chOff'))
+                    if chOff is not None:
+                        ch_off_x = int(chOff.get('x', 0))
+                        ch_off_y = int(chOff.get('y', 0))
+        except Exception:
+            pass
+        child_offset_x = offset_x + grp_off_x - ch_off_x
+        child_offset_y = offset_y + grp_off_y - ch_off_y
         for child in shape.shapes:
-            _check_shape_bounds(child, slide_idx, sw, sh, tol, issues, grp_x, grp_y)
+            _check_shape_bounds(child, slide_idx, sw, sh, tol, issues, child_offset_x, child_offset_y)
         return
 
     left = (shape.left or 0) + offset_x
@@ -426,6 +451,7 @@ def check_shape_overlap(prs: Presentation) -> list[dict]:
             shape_type_name = getattr(shape, "name", "") or ""
             is_background = not has_text and (
                 "Rectangle" in shape_type_name or "Oval" in shape_type_name
+                or "Group" in shape_type_name or not shape_type_name
             )
 
             content_shapes.append({

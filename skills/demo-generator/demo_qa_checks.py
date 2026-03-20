@@ -8,7 +8,7 @@ requiring manual review.  Returns a structured JSON report with
 severity-tagged findings.
 
 Usage:
-    python scripts/demo_qa_checks.py <guide-path> [--companion-dir DIR] [--expected-demos N]
+    python skills/demo-generator/demo_qa_checks.py <guide-path> [--companion-dir DIR] [--expected-demos N]
 
 Exit codes:
     0 = CLEAN (no CRITICAL or MAJOR issues)

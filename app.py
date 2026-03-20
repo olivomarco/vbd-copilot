@@ -29,7 +29,7 @@ from copilot.types import (
     UserInputResponse,
 )
 
-from agents import AGENT_MODELS, AGENT_TIMEOUTS, ALL_AGENT_CONFIGS, DEFAULT_MODEL, DEFAULT_TIMEOUT
+from agents import AGENT_MODELS, AGENT_TIMEOUTS, ALL_AGENT_CONFIGS, ALL_SKILL_DIRS, DEFAULT_MODEL, DEFAULT_TIMEOUT
 from collector import EventCollector
 from router import route_to_agent
 from store import EventStore
@@ -38,7 +38,6 @@ from ui import CopilotUI
 
 # ── Resolve paths ─────────────────────────────────────────────────────────────
 APP_DIR = Path(__file__).resolve().parent
-SKILLS_DIR = str(APP_DIR / "skills")
 OUTPUTS_DIR = APP_DIR / "outputs"
 PLANS_DIR = APP_DIR / "plans"
 DB_DIR = Path.home() / ".vbd-copilot"
@@ -185,7 +184,7 @@ async def main() -> None:
                 "streaming": True,
                 "custom_agents": ALL_AGENT_CONFIGS,
                 "tools": ALL_CUSTOM_TOOLS,
-                "skill_directories": [SKILLS_DIR],
+                "skill_directories": ALL_SKILL_DIRS,
                 "on_permission_request": handle_permission,
                 "on_user_input_request": handle_user_input,
                 "working_directory": str(APP_DIR),
@@ -412,7 +411,7 @@ async def main() -> None:
                                     "streaming": True,
                                     "custom_agents": ALL_AGENT_CONFIGS,
                                     "tools": ALL_CUSTOM_TOOLS,
-                                    "skill_directories": [SKILLS_DIR],
+                                    "skill_directories": ALL_SKILL_DIRS,
                                     "on_permission_request": handle_permission,
                                     "on_user_input_request": handle_user_input,
                                     "working_directory": str(APP_DIR),

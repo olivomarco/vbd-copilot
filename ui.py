@@ -194,7 +194,7 @@ class CopilotUI:
         self._last_input_tokens: int = 0
         self._seen_event_ids: set[str] = set()
         self._last_event_time: float = 0.0
-        self._stall_warned: bool = False
+        self._dead_notified: bool = False
 
         HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -300,7 +300,7 @@ class CopilotUI:
             model=self.current_model,
         )
         self._last_event_time = 0.0
-        self._stall_warned = False
+        self._dead_notified = False
         self._start_baking_indicator()
 
     def stop_agent_display(self) -> None:
@@ -370,7 +370,7 @@ class CopilotUI:
         NORM = "\033[22m"
         RESET = "\033[0m"
         ERASE = "\033[2K"
-        stall_threshold = 30
+        _DEAD_CHECK_INTERVAL = 30
         try:
             while self._tracker is not None:
                 if self._needs_newline or self._in_reasoning:
@@ -381,26 +381,21 @@ class CopilotUI:
                     await asyncio.sleep(0.5)
                     continue
 
-                # Check for stall
-                if self._last_event_time > 0:
-                    silence = time.time() - self._last_event_time
-                elif self._tracker:
-                    silence = time.time() - self._tracker.start_time
-                else:
-                    silence = 0
-
-                if silence >= stall_threshold and not self._stall_warned:
-                    self._stall_warned = True
-                    self._clear_baking_line()
-                    self.console.print(
-                        f"\n  [yellow bold]Warning:[/yellow bold] "
-                        f"[yellow]No response from Copilot CLI for {int(silence)}s.[/yellow]"
-                    )
-                    if self._cli_health_check:
+                # Silent dead-process check (no user-visible warning for normal waits)
+                if not self._dead_notified and self._cli_health_check:
+                    if self._last_event_time > 0:
+                        silence = time.time() - self._last_event_time
+                    elif self._tracker:
+                        silence = time.time() - self._tracker.start_time
+                    else:
+                        silence = 0
+                    if silence >= _DEAD_CHECK_INTERVAL:
                         alive, detail = self._cli_health_check()
                         if not alive:
+                            self._dead_notified = True
+                            self._clear_baking_line()
                             self.console.print(
-                                f"  [red bold]CLI process is dead:[/red bold] [red]{detail}[/red]"
+                                f"\n  [red bold]CLI process is dead:[/red bold] [red]{detail}[/red]"
                             )
                             self.console.print(
                                 "  [yellow]Troubleshooting:[/yellow]\n"
@@ -409,11 +404,7 @@ class CopilotUI:
                                 "    3. Re-authenticate: npx @anthropic-ai/copilot auth login\n"
                                 "    4. Check architecture: docker run --rm --entrypoint uname vbd-copilot -m"
                             )
-                        else:
-                            self.console.print(
-                                f"  [dim]CLI process is alive ({detail}). Waiting for response...[/dim]"
-                            )
-                    continue
+                            continue
 
                 term_width = shutil.get_terminal_size().columns
                 spin = spinner[i % len(spinner)]

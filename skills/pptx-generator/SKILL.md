@@ -102,7 +102,7 @@ Create a file named `generate_{topic}_pptx.py` inside `outputs/slides/` followin
 """Generate {TOPIC} PowerPoint presentation using pptx_utils."""
 import os, sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(os.path.dirname(SCRIPT_DIR)))  # repo root
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(SCRIPT_DIR)), 'skills', 'pptx-generator'))
 from pptx_utils import *
 
 TOTAL = <number_of_slides>
@@ -167,7 +167,7 @@ Verify:
 After generating the `.pptx`, run the programmatic QA checks, then invoke pptx-qa-subagent for content review.
 
 Quick checklist:
-1. Run programmatic QA via `run_pptx_qa_checks` tool or: `python scripts/pptx_qa_checks.py outputs/slides/{OUTNAME}.pptx --expected-slides {TOTAL}`
+1. Run programmatic QA via `run_pptx_qa_checks` tool or: `python skills/pptx-generator/pptx_qa_checks.py outputs/slides/{OUTNAME}.pptx --expected-slides {TOTAL}`
 2. Invoke `pptx-qa-subagent` with PPTX path, programmatic results, and expected slide descriptions
 3. Fix CRITICAL/MAJOR issues and re-verify until `CLEAN`
 
@@ -197,6 +197,39 @@ Quick checklist:
 ## Overlap Prevention and Layer Order Rules
 
 These rules prevent the most common visual bugs:
+
+**ElementBox return pattern - chain elements without overlap:**
+
+Most composite functions (`add_bullet_list`, `add_numbered_list`, `add_checklist`,
+`add_numbered_items`, `add_card_grid`, `add_feature_grid`, `add_stats_row`,
+`add_pillar_cards`, `add_metric_card`, `add_comparison_columns`, `add_colored_columns`,
+`add_layered_architecture`, `add_agenda_list`, `add_icon_row`, `add_pricing_table`,
+`add_swot_grid`, `add_maturity_model`, `add_roadmap`, `add_timeline`,
+`add_activity_bars`, `add_process_flow`, `add_callout_box`) return an
+`ElementBox(shape, left, top, width, height)` namedtuple. Use the returned
+height to chain elements vertically without overlap:
+
+```python
+box1 = add_callout_box(slide, text1, left, top, width)
+box2 = add_bullet_list(slide, items, left, box1.top + box1.height + Inches(0.15), width)
+add_callout_box(slide, text3, left, box2.top + box2.height + Inches(0.15), width)
+```
+
+**Auto-sizing lists - let height fit content:**
+
+`add_bullet_list()`, `add_numbered_list()`, and `add_checklist()` default to
+`height=None` which auto-sizes the container to its content. Pass explicit
+`height=Inches(X)` only when you need a fixed-size container. Auto-sizing
+prevents both overflow (text cut off) and wasted space (huge empty box).
+
+**Bounds validation:**
+
+Grid and stacking functions (`add_card_grid`, `add_feature_grid`, `add_pillar_cards`,
+`add_stats_row`, `add_icon_row`, `add_numbered_items`, `add_agenda_list`,
+`add_layered_architecture`, `add_timeline`, `add_activity_bars`, `add_process_flow`,
+`add_maturity_model`, `add_pricing_table`, `add_roadmap`) emit warnings when content
+would extend beyond slide boundaries. Minimum card width is `Inches(1.5)` -- grids
+with too many columns will warn when cards become too narrow to fit readable text.
 
 **Layer order (z-order = insertion order; last added = on top):**
 1. Background fills / color bands / full-slide images

@@ -181,7 +181,7 @@ class RunPptxQaChecksParams(BaseModel):
 def run_pptx_qa_checks(params: RunPptxQaChecksParams) -> str:
     import subprocess
     qa_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "scripts", "pptx_qa_checks.py")
+                             "skills", "pptx-generator", "pptx_qa_checks.py")
 
     if not os.path.exists(qa_script):
         return f"ERROR: QA script not found at {qa_script}"
@@ -232,7 +232,7 @@ class RunDemoQaChecksParams(BaseModel):
 def run_demo_qa_checks(params: RunDemoQaChecksParams) -> str:
     import subprocess
     qa_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "scripts", "demo_qa_checks.py")
+                             "skills", "demo-generator", "demo_qa_checks.py")
 
     if not os.path.exists(qa_script):
         return f"ERROR: Demo QA script not found at {qa_script}"
