@@ -831,10 +831,10 @@ class CopilotUI:
 
             self._received_deltas = True
             self._clear_baking_line()
-            if self._in_reasoning:
+            delta = getattr(d, "delta_content", None) or ""
+            if self._in_reasoning and delta:
                 self._flush_newline()
                 self._in_reasoning = False
-            delta = getattr(d, "delta_content", None) or ""
             if delta:
                 display = delta
                 if self._pending_assistant_prefix:

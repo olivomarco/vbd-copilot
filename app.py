@@ -178,21 +178,43 @@ async def main() -> None:
                 # Do NOT destroy - keep server-side state so /resume works.
                 session._event_handlers.clear()
 
-        session = await client.create_session(
-            {
-                "model": DEFAULT_MODEL,
-                "streaming": True,
-                "custom_agents": ALL_AGENT_CONFIGS,
-                "tools": ALL_CUSTOM_TOOLS,
-                "skill_directories": ALL_SKILL_DIRS,
-                "on_permission_request": handle_permission,
-                "on_user_input_request": handle_user_input,
-                "working_directory": str(APP_DIR),
-                "hooks": {
-                    "on_user_prompt_submitted": on_prompt_submitted,
-                },
-            }
-        )
+        # If the CLI subprocess died, restart it before creating a session.
+        try:
+            session = await client.create_session(
+                {
+                    "model": DEFAULT_MODEL,
+                    "streaming": True,
+                    "custom_agents": ALL_AGENT_CONFIGS,
+                    "tools": ALL_CUSTOM_TOOLS,
+                    "skill_directories": ALL_SKILL_DIRS,
+                    "on_permission_request": handle_permission,
+                    "on_user_input_request": handle_user_input,
+                    "working_directory": str(APP_DIR),
+                    "hooks": {
+                        "on_user_prompt_submitted": on_prompt_submitted,
+                    },
+                }
+            )
+        except (BrokenPipeError, OSError):
+            # Subprocess is dead - restart client and retry once.
+            with contextlib.suppress(Exception):
+                await client.stop()
+            await client.start()
+            session = await client.create_session(
+                {
+                    "model": DEFAULT_MODEL,
+                    "streaming": True,
+                    "custom_agents": ALL_AGENT_CONFIGS,
+                    "tools": ALL_CUSTOM_TOOLS,
+                    "skill_directories": ALL_SKILL_DIRS,
+                    "on_permission_request": handle_permission,
+                    "on_user_input_request": handle_user_input,
+                    "working_directory": str(APP_DIR),
+                    "hooks": {
+                        "on_user_prompt_submitted": on_prompt_submitted,
+                    },
+                }
+            )
         session.on(ui.handle_event)
         ui.current_agent = None
         ui.current_model = DEFAULT_MODEL
@@ -518,7 +540,13 @@ async def main() -> None:
                 break
 
             # ── Route to the appropriate agent ────────────────────────────
-            agent_name = await route_to_agent(session, user_input)
+            try:
+                agent_name = await route_to_agent(session, user_input)
+            except (BrokenPipeError, OSError):
+                ui.print_warning(
+                    "Session disconnected. Use /new to start a fresh session or quit."
+                )
+                continue
             if agent_name:
                 model = AGENT_MODELS.get(agent_name, DEFAULT_MODEL)
                 ui.current_agent = agent_name
@@ -581,6 +609,21 @@ async def main() -> None:
                     assistant_response="".join(ui._current_response),
                     model=ui.current_model,
                     status="timeout",
+                )
+                continue
+            except (BrokenPipeError, OSError):
+                turn_status = "error"
+                ui.print_response_end()
+                ui.stop_agent_display()
+                ui.print_input_lock_state(False)
+                ui.print_warning(
+                    "Session disconnected. Use /new to start a fresh session or quit."
+                )
+                collector.on_turn_end(
+                    turn_id,
+                    assistant_response="".join(ui._current_response),
+                    model=ui.current_model,
+                    status="error",
                 )
                 continue
             except (KeyboardInterrupt, asyncio.CancelledError):
