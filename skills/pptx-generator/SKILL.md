@@ -213,26 +213,34 @@ These rules prevent the most common visual bugs:
 
 **ElementBox return pattern - chain elements without overlap:**
 
-Most composite functions (`add_bullet_list`, `add_numbered_list`, `add_checklist`,
+All composite functions return an `ElementBox(shape, left, top, width, height)`
+namedtuple. This includes: `add_bullet_list`, `add_numbered_list`, `add_checklist`,
 `add_numbered_items`, `add_card_grid`, `add_feature_grid`, `add_stats_row`,
 `add_pillar_cards`, `add_metric_card`, `add_comparison_columns`, `add_colored_columns`,
 `add_layered_architecture`, `add_agenda_list`, `add_icon_row`, `add_pricing_table`,
 `add_swot_grid`, `add_maturity_model`, `add_roadmap`, `add_timeline`,
-`add_activity_bars`, `add_process_flow`) return an
-`ElementBox(shape, left, top, width, height)` namedtuple. Use the returned
-height to chain elements vertically without overlap:
+`add_activity_bars`, `add_process_flow`, `add_callout_box`, `add_warning_box`,
+and `add_quote_block`. Use the returned box to chain elements vertically:
 
 ```python
-box1 = add_bullet_list(slide, items1, left, top, width)
-box2 = add_bullet_list(slide, items2, left, box1.top + box1.height + Inches(0.15), width)
+eb1 = add_callout_box(slide, text1, left, top, width)
+eb2 = add_bullet_list(slide, items, left, eb1.top + eb1.height + Inches(0.15), width)
+eb3 = add_quote_block(slide, quote, left=left, top=eb2.top + eb2.height + Inches(0.2), width=width)
 ```
 
-`add_callout_box` and `add_warning_box` return the raw height (EMU value), not
-an ElementBox. Chain them like this:
+**Check remaining space before placing elements:**
+
+Use `remaining_height(from_top)` to check available vertical space before
+placing the next element. This prevents content from overflowing past
+`CONTENT_BOTTOM (6.8")`:
 
 ```python
-h1 = add_callout_box(slide, text1, left, top, width)
-h2 = add_callout_box(slide, text2, left, top + h1 + Inches(0.15), width)
+eb = add_bullet_list(slide, items, left, top, width)
+next_top = eb.top + eb.height + Inches(0.15)
+avail = remaining_height(next_top)
+# avail is EMU space left; compare with the height of the next element
+if avail < Inches(2.0):
+    # not enough room -- shrink card_h or move to next slide
 ```
 
 **Auto-sizing lists - let height fit content:**

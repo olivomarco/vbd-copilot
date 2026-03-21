@@ -254,12 +254,12 @@ Uses `a:buChar` so glyphs are real bullets, not text prefixes.
 
 These build complete visual components. Most embed text in shapes.
 
-### `add_callout_box(slide, text, left, top, width, height=None, bg=MS_CALLOUT_BG, accent=MS_BLUE, font_size=13) -> height`
+### `add_callout_box(slide, text, left, top, width, height=None, bg=MS_CALLOUT_BG, accent=MS_BLUE, font_size=13) -> ElementBox`
 Callout with left accent bar. Text embedded in card. `height=None` auto-sizes.
 **Auto-grouped** (card + accent bar). Includes subtle paper shadow.
-Returns actual height for vertical chaining.
+Returns `ElementBox` for vertical chaining.
 
-### `add_warning_box(slide, text, left, top, width, height=None) -> height`
+### `add_warning_box(slide, text, left, top, width, height=None) -> ElementBox`
 Orange warning callout. **Auto-grouped**.
 
 ### `add_code_block(slide, code, left, top, width, height, language="") -> shape`
@@ -290,9 +290,10 @@ Horizontal row of stat cards with text embedded in shapes.
 Striped items with numbered circles. Offsets scale with item_height.
 `items = [(title, description), ...]`
 
-### `add_card_grid(slide, cards, left, top, cols=2, card_w=Inches(5.5), card_h=Inches(2.3), gap_x=Inches(0.35), gap_y=Inches(0.35)) -> ElementBox`
+### `add_card_grid(slide, cards, left, top, cols=2, card_w=Inches(5.3), card_h=Inches(2.3), gap_x=Inches(0.35), gap_y=Inches(0.35)) -> ElementBox`
 Grid of cards. Each card **auto-grouped** (5 shapes per card into one unit).
-Offsets scale with card_h. `cards = [(color, title, desc), ...]`
+Offsets scale with card_h. Default `card_w=5.3"` fits 2 cols within `CONTENT_WIDTH`.
+`cards = [(color, title, desc), ...]`
 
 ### `add_pillar_cards(slide, pillars, left=CONTENT_LEFT, top=CONTENT_TOP, height=Inches(5.2), min_gap=Inches(0.15)) -> ElementBox`
 Vertical pillar cards, proportionally laid out. `pillars = [(color, num, title, desc), ...]`
@@ -322,12 +323,14 @@ Horizontal flow with boxes and chevron arrows. Text embedded in boxes.
 `steps = ["Step1", "Step2", ...]`
 `annotations`: optional list of `(step_index, text)` for bullets below a step.
 
-### `add_quote_block(slide, quote, attribution="", left=CONTENT_LEFT, top=Inches(2.0), width=Inches(10), accent_color=MS_BLUE) -> shape`
+### `add_quote_block(slide, quote, attribution="", left=CONTENT_LEFT, top=Inches(2.0), width=Inches(10), accent_color=MS_BLUE) -> ElementBox`
 Large quotation block with left accent bar and attribution.
 Professional style for testimonials, key statements, or expert opinions.
+Returns `ElementBox` for vertical chaining.
 ```python
-add_quote_block(slide, "Copilot reduced onboarding by 55%.",
+eb = add_quote_block(slide, "Copilot reduced onboarding by 55%.",
     "- VP Engineering, Contoso Ltd")
+next_top = eb.top + eb.height + Inches(0.2)
 ```
 
 ### `add_swot_grid(slide, strengths, weaknesses, opportunities, threats, left=CONTENT_LEFT, top=CONTENT_TOP, width=None, height=Inches(5.0)) -> ElementBox`
@@ -487,6 +490,15 @@ Estimate height for text. Wider character heuristic (0.58), handles long tokens,
 ### `auto_height_for_items(items, font_size, width_inches, spacing_pt=8, padding_inches=0.2) -> Inches`
 Calculate minimum container height for a list of text items.
 Uses `estimate_text_height` per item plus inter-item spacing.
+
+### `remaining_height(from_top, bottom=CONTENT_BOTTOM) -> int`
+Return available height (EMU) from `from_top` to the content bottom boundary.
+Use to check whether the next element fits before placing it.
+```python
+eb = add_bullet_list(slide, items, left, top, width)
+avail = remaining_height(eb.top + eb.height)
+# Compare avail with the next element's expected height
+```
 
 ### `group_shapes(slide, shapes_list) -> GroupShape`
 Group shapes into one selectable/movable unit. Ungroupable in PowerPoint.

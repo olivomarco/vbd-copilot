@@ -1300,6 +1300,18 @@ def auto_height_for_items(items, font_size, width_inches, spacing_pt=8,
     return Inches(total)
 
 
+def remaining_height(from_top, bottom=CONTENT_BOTTOM):
+    """Return available height from from_top to the content bottom boundary.
+
+    Use to check how much vertical space is left before placing an element::
+
+        eb = add_bullet_list(slide, items, left, top, width)
+        avail = remaining_height(eb.top + eb.height)
+        # avail is the EMU space left before CONTENT_BOTTOM
+    """
+    return int(bottom) - int(from_top)
+
+
 # ═════════════════════════════════════════════════════════════
 # COMPOSITE CONTENT ELEMENTS
 # ═════════════════════════════════════════════════════════════
@@ -1315,10 +1327,10 @@ def add_callout_box(slide, text, left, top, width, height=None,
 
     All sub-shapes are auto-grouped into a single selectable unit in PowerPoint.
 
-    Returns the actual height used so callers can chain vertical positions::
+    Returns an ElementBox for vertical chaining::
 
-        h = add_callout_box(slide, text1, left, top, width)
-        add_callout_box(slide, text2, left, top + h + Inches(0.15), width)
+        eb1 = add_callout_box(slide, text1, left, top, width)
+        eb2 = add_callout_box(slide, text2, left, eb1.top + eb1.height + Inches(0.15), width)
     """
     if height is None:
         height = estimate_text_height(
@@ -1335,7 +1347,7 @@ def add_callout_box(slide, text, left, top, width, height=None,
                     margin_left=Inches(0.3), margin_right=Inches(0.15),
                     margin_top=Inches(0.1), margin_bottom=Inches(0.05))
     group_shapes(slide, [card, accent_bar])
-    return height
+    return ElementBox(card, left, top, width, height)
 
 
 def add_warning_box(slide, text, left, top, width, height=None):
@@ -1499,7 +1511,7 @@ def add_numbered_items(slide, items, left, top, width, item_height=Inches(1.1),
     return ElementBox(last_shape, left, top, width, total_h)
 
 
-def add_card_grid(slide, cards, left, top, cols=2, card_w=Inches(5.5),
+def add_card_grid(slide, cards, left, top, cols=2, card_w=Inches(5.3),
                   card_h=Inches(2.3), gap_x=Inches(0.35), gap_y=Inches(0.35)):
     """Add cards in a grid. cards = [(color, title, desc), ...].
 
@@ -1615,7 +1627,8 @@ def add_quote_block(slide, quote, attribution="", left=CONTENT_LEFT, top=Inches(
                     top + q_height + Inches(0.15),
                     width - Inches(1.2), Inches(0.35),
                     font_size=TEXT_BODY_SM, color=MS_TEXT_MUTED, bold=True)
-    return card
+    card_height = total_h + Inches(0.4)
+    return ElementBox(card, left, top, width, card_height)
 
 
 def add_stats_row(slide, stats, left=CONTENT_LEFT, top=Inches(1.8),
