@@ -77,30 +77,38 @@ For each slide, choose the best visual representation:
 
 PPTX slides must be **distinctive and purposefully designed** -- not generic AI-output. Apply these principles on every slide:
 
-**1. Dominant color + sharp accent (not timid even palettes)**
+**1. Color Budget (MANDATORY -- highest priority rule)**
+- Maximum 2 accent hue families per deck: `MS_BLUE` / `MS_BLUE_DARKER` (primary) + `MS_DARK_BLUE` / `MS_NAVY_LIGHT` (structural). That is the full accent palette.
+- `MS_GREEN`, `MS_ORANGE`, `MS_RED` are ONLY for semantic meaning (success/warning/error callouts). Never use them to "make a card look different" or "add visual variety."
+- NEVER use `MS_PURPLE`, `MS_YELLOW`, or `MS_TEAL` -- they are deprecated.
+- For multi-element differentiation (card grids, columns, architecture layers), use **tonal variations** of blue (`MS_BLUE`, `MS_BLUE_DARKER`, `MS_DARK_BLUE`, `MS_NAVY_LIGHT`) or **neutral contrast** (gray vs blue).
+- Comparison columns: always `left_color=MS_MID_GRAY, right_color=MS_BLUE`. Never orange vs green.
+- Use `TONAL_BLUES` list from pptx_utils when you need 3-5 distinct shades for a single element.
+
+**2. Dominant color + sharp accent (not timid even palettes)**
 Use `MS_DARK_BLUE` (#243A5E) as the dominant structural color, `MS_BLUE` (#0078D4) as the single sharp accent. Do not scatter multiple accent colors across one slide. One color leads; the others support.
 
-**2. Visual hierarchy through contrast, not size alone**
+**3. Visual hierarchy through contrast, not size alone**
 - Title: 28pt bold dark blue | Section: 44pt bold white on dark | Body: 12-14pt muted
 - Use weight extremes: bold headings + light body text. Avoid mid-weight everything.
 - Key stat or metric: oversized (36-44pt) in accent blue against neutral background.
 
-**3. Layout variety -- no two adjacent slides the same pattern**
+**4. Layout variety -- no two adjacent slides the same pattern**
 Rotate between: 2-column split | full-width table | pillar cards | code+callout | metric row. Never use the same layout three slides in a row.
 
-**4. Whitespace is a design element**
+**5. Whitespace is a design element**
 Generous padding inside cards (`Inches(0.2)` minimum). Cards should not touch each other -- use `Inches(0.2-0.35)` gaps. Content should never fill the full slide edge-to-edge.
 
-**5. Depth through layering**
+**6. Depth through layering**
 Build slides in z-order layers (see Layer Order rule below). Use `add_rounded_card()` as backgrounds before adding text -- the subtle shadow/fill creates visual depth that flat text boxes lack.
 
-**6. Sizes to content -- no empty boxes**
+**7. Sizes to content -- no empty boxes**
 - Use `estimate_text_height()` to size callout boxes to their text
 - For card grids, measure title + desc length and choose `card_h` accordingly
 - Tables: `0.38 * row_count` inches -- never add extra empty rows
 - Code blocks: `line_count * 0.19 + 0.3` inches
 
-**7. Avoid generic patterns**
+**8. Avoid generic patterns**
 - Never center all text on all slides
 - Never use a bullet list when a card grid would communicate structure better
 - Dark-background section dividers should stand in sharp contrast to the white content slides they bracket
@@ -195,17 +203,17 @@ Quick checklist:
 7. **Section dividers use `MS_DARK_BLUE` background** (#243A5E) with white text and logo at bottom-right - dark background ensures the MS logo is clearly readable
 8. **Lead slides use the background image** from `assets/lead-bg.jpg`
 9. **Tables**: pass `col_widths` parameter to control column proportions, max ~8 rows
-10. **Code blocks**: keep to ~15 lines max, use `add_code_block()` for dark-themed rendering. Pass `height=None` (or omit) to auto-size the block to its code content. Returns `ElementBox` for vertical chaining.
+10. **Code blocks**: keep to ~15 lines max, use `add_code_block()` for light-themed rendering (light gray background, dark text). Pass `height=None` (or omit) to auto-size the block to its code content. Returns `ElementBox` for vertical chaining.
 11. **python-pptx must be installed**: `pip install python-pptx`
-12. **No top accent bar** - `create_standard_slide()` no longer draws a blue bar at the very top; the title underline is the sole brand accent. Do NOT call `add_top_accent_bar()` on standard slides.
+12. **Clean title style** - `create_standard_slide()` renders titles in `MS_BLUE` with Segoe UI Semibold and no underline or accent bar. Do NOT call `add_top_accent_bar()` or manually add underline rectangles on standard slides.
 14. **Rounded card borders** - `add_rounded_card()` defaults to no border. Only pass `border=` when a box needs explicit separation from a white background (rare).
-15. **Callout / warning box height** - pass `height=None` (or omit) to auto-size the box to its text content.
+15. **Callout / warning box line breaks** - When a callout box has multiple sentences, separate them with `\n` so each sentence renders on its own line. This avoids walls of text. Example: `"First point.\nSecond point.\nThird point."`. Height auto-sizes to content when `height=None`.
 16. **Embedded text** - composite helpers (`add_badge`, `add_callout_box`, `add_code_block`, `add_blue_speech_panel`, `add_metric_card`, `add_stats_row`, `add_layered_architecture`, `add_process_flow`, `add_activity_bars`, `add_timeline` boxes) embed text in shapes. Do NOT add separate `add_textbox()` overlays for these.
 17. **Auto contrast** - `add_icon_circle`, `add_badge`, `add_layered_architecture`, `add_activity_bars`, and `add_blue_speech_panel` use `auto_text_color()` / `ensure_contrast()`. You do NOT need to check light/dark fills manually.
 18. **Shrink-to-fit** - use `shrink_to_fit=True` on `add_textbox()` when text length is unpredictable. **Critical for custom card layouts**: whenever you place text inside a fixed-height card (e.g., `add_rounded_card` + `add_textbox` overlay, or `_set_shape_text` on a card), you MUST use `shrink_to_fit=True` so PowerPoint auto-scales text that exceeds the card height. Without this, long text overflows past the card boundary and overlaps with elements below.
 19. **Use `add_metric_card()` for both metrics and KPIs** - it supports optional `trend` and `trend_positive` parameters. Do NOT use `add_kpi_card()` (deprecated alias).
 20. **Function Decision Guide** - see the table in `references/api-reference.md` to pick the right function for your content pattern.
-21. **Bold markup** - use `**word**` (double-asterisk) inside any text string to make a word or phrase bold in the rendered slide. This works in `add_textbox()`, `add_bullet_list()` (plain string items), `add_numbered_list()`, `add_callout_box()`, `add_styled_table()` (data cells), `add_card_grid()`, `add_pillar_cards()`, `add_feature_grid()`, `add_numbered_items()`, `add_colored_columns()`, `add_header_card_with_bullets()`, `add_checklist()`, `_set_shape_text()`, and `_add_shape_paragraph()`. Use bold markup to emphasize key terms, product names, or important phrases - for example: `"Use **GitHub Copilot** to accelerate development"`. Do NOT overuse - limit to 1-3 bold phrases per text block. The tuple format `(bold_prefix, rest)` in bullet lists still works unchanged.
+21. **Bold markup** - use `**word**` (double-asterisk) inside any text string to make a word or phrase bold in the rendered slide. Bold runs automatically use **Segoe UI Semibold** for a polished typographic weight distinction (not just synthetic bold). This works in `add_textbox()`, `add_bullet_list()` (plain string items), `add_numbered_list()`, `add_callout_box()`, `add_styled_table()` (data cells), `add_card_grid()`, `add_pillar_cards()`, `add_feature_grid()`, `add_numbered_items()`, `add_colored_columns()`, `add_header_card_with_bullets()`, `add_checklist()`, `_set_shape_text()`, and `_add_shape_paragraph()`. Use bold markup **generously** to highlight key terms, product names, technical concepts, and important phrases within body text and bullet items - for example: `"Use **GitHub Copilot** to accelerate development"` or `"Runs on **GitHub Actions** with **read-only** permissions"`. Aim for 2-4 bold phrases per text block or bullet list. The tuple format `(bold_prefix, rest)` in bullet lists still works unchanged.
 
 ## Overlap Prevention and Layer Order Rules
 

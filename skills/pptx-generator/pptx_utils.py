@@ -22,10 +22,14 @@ import warnings
 # CONSTANTS
 # ═════════════════════════════════════════════════════════════
 
-# Microsoft Brand Colors
-MS_BLUE = RGBColor(0x00, 0x78, 0xD4)
-MS_DARK_BLUE = RGBColor(0x24, 0x3A, 0x5E)
+# ── BRAND PALETTE (use freely as accents) ──
+MS_BLUE = RGBColor(0x00, 0x78, 0xD4)           # Primary accent
+MS_DARK_BLUE = RGBColor(0x24, 0x3A, 0x5E)      # Structural / section dividers
 MS_LIGHT_BLUE = RGBColor(0x50, 0xE6, 0xFF)
+MS_BLUE_DARKER = RGBColor(0x00, 0x6C, 0xBE)    # Tonal variation of primary
+MS_ACCENT_LIGHT = RGBColor(0xCC, 0xE4, 0xFF)
+
+# ── NEUTRAL PALETTE (use freely) ──
 MS_WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 MS_LIGHT_GRAY = RGBColor(0xF2, 0xF2, 0xF2)
 MS_MID_GRAY = RGBColor(0xD2, 0xD2, 0xD2)
@@ -33,14 +37,18 @@ MS_DARK_GRAY = RGBColor(0x3D, 0x3D, 0x3D)
 MS_TEXT = RGBColor(0x21, 0x21, 0x21)
 MS_TEXT_MUTED = RGBColor(0x61, 0x61, 0x61)
 MS_CALLOUT_BG = RGBColor(0xEF, 0xF6, 0xFC)
-MS_GREEN = RGBColor(0x10, 0x7C, 0x10)
-MS_ORANGE = RGBColor(0xFF, 0x8C, 0x00)
-MS_PURPLE = RGBColor(0x88, 0x1C, 0x98)
-MS_RED = RGBColor(0xD1, 0x34, 0x38)
-MS_BLUE_DARKER = RGBColor(0x00, 0x6C, 0xBE)
-MS_CODE_BG = RGBColor(0x24, 0x29, 0x2F)
-MS_CODE_TEXT = RGBColor(0xEA, 0xF0, 0xF7)
-MS_ACCENT_LIGHT = RGBColor(0xCC, 0xE4, 0xFF)
+MS_CODE_BG = RGBColor(0xF2, 0xF2, 0xF2)
+MS_CODE_TEXT = RGBColor(0x21, 0x21, 0x21)
+
+# ── SEMANTIC ONLY (reserved for meaningful status -- never for decoration) ──
+MS_GREEN = RGBColor(0x10, 0x7C, 0x10)           # Success / positive / "after"
+MS_ORANGE = RGBColor(0xFF, 0x8C, 0x00)          # Warning / caution
+MS_RED = RGBColor(0xD1, 0x34, 0x38)             # Error / critical / danger
+
+# ── DEPRECATED (kept for backward compat -- avoid in new code) ──
+MS_PURPLE = RGBColor(0x88, 0x1C, 0x98)          # DEPRECATED: use MS_DARK_BLUE
+MS_YELLOW = RGBColor(0xFF, 0xB9, 0x00)          # DEPRECATED: use MS_ORANGE
+MS_TEAL = RGBColor(0x03, 0x83, 0x87)            # DEPRECATED: use MS_BLUE_DARKER
 
 # Semantic status colors (backgrounds for callout variants)
 MS_BLUE_LIGHT_BG = RGBColor(0xDE, 0xEC, 0xF9)   # Info / highlight bg
@@ -48,8 +56,9 @@ MS_NAVY_LIGHT = RGBColor(0x2E, 0x4A, 0x6E)       # Subtle dark layering
 MS_SUCCESS_BG = RGBColor(0xDF, 0xF6, 0xDD)        # Success / positive bg
 MS_WARNING_BG = RGBColor(0xFF, 0xF4, 0xE5)        # Warning bg
 MS_ERROR_BG = RGBColor(0xFD, 0xE7, 0xE9)          # Error / negative bg
-MS_YELLOW = RGBColor(0xFF, 0xB9, 0x00)             # Accent yellow
-MS_TEAL = RGBColor(0x03, 0x83, 0x87)               # Teal accent
+
+# Tonal blue palette for multi-element differentiation (cards, layers, grids)
+TONAL_BLUES = [MS_DARK_BLUE, MS_BLUE_DARKER, MS_BLUE, MS_NAVY_LIGHT, MS_ACCENT_LIGHT]
 
 # Typography Scale (pt) -- consistent hierarchy for all text
 TEXT_DISPLAY = 46    # Hero / title slides
@@ -396,7 +405,7 @@ def _add_runs_from_markup(paragraph, text, font_size, color,
         run.font.color.rgb = color
         run.font.bold = base_bold or is_markup_bold
         run.font.italic = italic
-        run.font.name = font_name
+        run.font.name = FONT_SEMIBOLD if (base_bold or is_markup_bold) else font_name
         runs.append(run)
     return runs
 
@@ -441,8 +450,14 @@ def _set_shape_text(shape, text, font_size=14, color=MS_WHITE, bold=False,
 
     p = tf.paragraphs[0]
     p.alignment = alignment
-    _add_runs_from_markup(p, text, font_size, color,
+    lines = text.split('\n')
+    _add_runs_from_markup(p, lines[0], font_size, color,
                           font_name=font_name, base_bold=bold, italic=italic)
+    for line in lines[1:]:
+        p = tf.add_paragraph()
+        p.alignment = alignment
+        _add_runs_from_markup(p, line, font_size, color,
+                              font_name=font_name, base_bold=bold, italic=italic)
     return shape
 
 
@@ -1194,18 +1209,12 @@ def add_gradient_card(slide, left, top, width, height, color_start, color_end,
 #   Pass 3: for item in items: draw_text(...)
 
 
-def estimate_text_height(text, font_size_pt, width_inches, padding_inches=0.22,
-                          line_spacing_factor=1.45, min_lines=1):
+def estimate_text_height(text, font_size_pt, width_inches, padding_inches=0.20,
+                          line_spacing_factor=1.3, min_lines=1):
     """Estimate the Inches height needed to display text at font_size_pt in width_inches.
 
-    Uses a character-width heuristic (Segoe UI) with a safety multiplier.
+    Uses a character-width heuristic (Segoe UI).
     Returns an Inches() EMU value ready to pass directly to shape constructors.
-
-    Changes from earlier version:
-        - Wider character estimate (0.58 vs 0.50) to avoid underflow.
-        - min_lines parameter to guarantee minimum height.
-        - Handles long unbreakable tokens (URLs, identifiers).
-        - 10% safety margin on final result.
 
     Example::
         h = estimate_text_height(long_note, 13, 10.0)
@@ -1235,7 +1244,7 @@ def estimate_text_height(text, font_size_pt, width_inches, padding_inches=0.22,
     lines = max(lines, min_lines)
     line_h = (font_size_pt * line_spacing_factor) / 72.0
     raw = lines * line_h + padding_inches
-    return Inches(raw * 1.10)  # 10% safety margin
+    return Inches(raw)
 
 
 # Minimum readable width for auto-computed card widths in grids
@@ -1320,23 +1329,24 @@ def add_callout_box(slide, text, left, top, width, height=None,
                     bg=MS_CALLOUT_BG, accent=MS_BLUE, font_size=13):
     """Add a callout box with a left accent bar, auto-sized to content.
 
+    Use ``\\n`` in the text to put each sentence on its own line::
+
+        add_callout_box(slide,
+            "First point.\\nSecond point.\\nThird point.",
+            left, top, width)
+
     When height is None (default) the box height is calculated from the text
     length, font_size, and width so the box is exactly as tall as it needs to
-    be -- no awkward empty space. Pass an explicit Inches() to force a fixed
-    height.
+    be. Pass an explicit Inches() to force a fixed height.
 
-    All sub-shapes are auto-grouped into a single selectable unit in PowerPoint.
-
-    Returns an ElementBox for vertical chaining::
-
-        eb1 = add_callout_box(slide, text1, left, top, width)
-        eb2 = add_callout_box(slide, text2, left, eb1.top + eb1.height + Inches(0.15), width)
+    Returns an ElementBox for vertical chaining.
     """
     if height is None:
         height = estimate_text_height(
             text, font_size,
             float(width) / 914400 - 0.45,  # account for 0.3+0.15 text inset
-            padding_inches=0.25,
+            padding_inches=0.18,
+            line_spacing_factor=1.2,
         )
     card = add_rounded_card(slide, left, top, width, height, fill=bg, border=None,
                             corner_radius=0.04)
@@ -1345,7 +1355,7 @@ def add_callout_box(slide, text, left, top, width, height=None,
     _set_shape_text(card, text, font_size=font_size, color=MS_DARK_BLUE, bold=True,
                     alignment=PP_ALIGN.LEFT, v_align='top',
                     margin_left=Inches(0.3), margin_right=Inches(0.15),
-                    margin_top=Inches(0.1), margin_bottom=Inches(0.05))
+                    margin_top=Inches(0.08), margin_bottom=Inches(0.08))
     group_shapes(slide, [card, accent_bar])
     return ElementBox(card, left, top, width, height)
 
@@ -1357,7 +1367,7 @@ def add_warning_box(slide, text, left, top, width, height=None):
 
 
 def add_code_block(slide, code, left, top, width, height=None, language=""):
-    """Add a dark-themed code block with rounded corners and blue left border.
+    """Add a light-themed code block with rounded corners and blue left border.
 
     height: None = auto-size to content (recommended). Pass explicit Inches()
             to force a fixed height.
@@ -1527,7 +1537,7 @@ def add_numbered_items(slide, items, left, top, width, item_height=Inches(1.1),
     Returns an ElementBox(shape, left, top, width, total_height).
     """
     if colors is None:
-        colors = [MS_BLUE, MS_DARK_BLUE, MS_GREEN, MS_ORANGE, MS_PURPLE] * 3
+        colors = [MS_BLUE, MS_BLUE_DARKER, MS_DARK_BLUE] * 5
     total_h = _compute_total_height(len(items), item_height, 0)
     _validate_bounds(left, top, width, total_h, "add_numbered_items")
     last_shape = None
@@ -2279,11 +2289,10 @@ def add_roadmap(slide, phases, left=CONTENT_LEFT, top=Inches(2.0),
 
 def create_standard_slide(prs, title, page_num=None, total=None, notes="",
                          title_font_size=28):
-    """Create a standard content slide with title, blue underline, logo, bottom bar.
+    """Create a standard content slide with title, logo, bottom bar.
 
-    No top accent bar -- the title underline is the sole brand accent. This gives
-    content slides a cleaner, more editorial feel and avoids the heavy banner that
-    competes visually with the main content area.
+    Clean editorial feel -- title in a lighter blue shade with no underline,
+    letting the content area breathe.
 
     title_font_size: font size for the title (default 28pt). Reduce for longer titles.
 
@@ -2296,11 +2305,8 @@ def create_standard_slide(prs, title, page_num=None, total=None, notes="",
                                    padding_inches=0.1, min_lines=1)
     title_h = max(title_h, Inches(0.5))
     tb = add_textbox(slide, title, CONTENT_LEFT, Inches(0.2), CONTENT_WIDTH, title_h,
-                font_size=title_font_size, color=MS_DARK_BLUE, bold=True,
+                font_size=title_font_size, color=MS_BLUE, bold=True,
                 font_name=FONT_SEMIBOLD, shrink_to_fit=True)
-    # Blue underline -- the primary brand accent on content slides
-    underline_y = Inches(0.2) + title_h + Inches(0.05)
-    add_rect(slide, CONTENT_LEFT, underline_y, CONTENT_WIDTH, Pt(3), MS_BLUE)
     add_bottom_bar(slide, page_num, total)
     add_ms_logo(slide)
     if notes:

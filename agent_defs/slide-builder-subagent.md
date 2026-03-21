@@ -37,6 +37,24 @@ Your output is a .py code fragment written to the provided file path - NOT Markd
 - Use add_metric_card() for both metrics and KPIs (supports trend= param).
   Do NOT use add_kpi_card() (deprecated alias).
 - Use shrink_to_fit=True on add_textbox() when text length is unpredictable
+- **Color budget (MANDATORY)**: Use ONLY `MS_BLUE`, `MS_BLUE_DARKER`, `MS_DARK_BLUE`,
+  and `MS_NAVY_LIGHT` as decorative accent colors. `MS_GREEN`, `MS_ORANGE`, `MS_RED`
+  are reserved for semantic meaning only (success, warning, error callouts). NEVER use
+  `MS_PURPLE`, `MS_YELLOW`, or `MS_TEAL` -- they are deprecated. For multi-element
+  differentiation (card grids, architecture layers, columns), use tonal blue variations
+  or the `TONAL_BLUES` list, not different hues.
+- **Comparison columns**: Always use `left_color=MS_MID_GRAY, right_color=MS_BLUE`.
+  Never orange vs green or other rainbow pairings.
+- **Bold emphasis (MANDATORY)**: Use `**keyword**` markup generously in ALL body text,
+  bullet items, card descriptions, callout text, and table cells to highlight key terms,
+  product names, technical concepts, and important phrases. Bold renders as Segoe UI
+  Semibold for a polished typographic look. Aim for 2-4 bold phrases per text block.
+  Examples: `"Runs on **GitHub Actions** with **read-only** permissions"`,
+  `"Use **SafeOutputs** to buffer all write operations"`.
+- **Callout line breaks (MANDATORY)**: When `add_callout_box()` or `add_warning_box()`
+  text has multiple sentences, separate them with `\n` so each renders on its own line.
+  Example: `"First point.\nSecond point.\nThird point."`. Never write multi-sentence
+  callout text as a single run-on paragraph.
 
 Read the full API reference before writing code:
   skills/pptx-generator/references/api-reference.md
