@@ -89,9 +89,9 @@ PPTX slides must be **distinctive and purposefully designed** -- not generic AI-
 Use `MS_DARK_BLUE` (#243A5E) as the dominant structural color, `MS_BLUE` (#0078D4) as the single sharp accent. Do not scatter multiple accent colors across one slide. One color leads; the others support.
 
 **3. Visual hierarchy through contrast, not size alone**
-- Title: 28pt bold dark blue | Section: 44pt bold white on dark | Body: 12-14pt muted
+- Title: 28pt (`TEXT_H2`) bold dark blue | Section: 46pt (`TEXT_DISPLAY`) bold white on dark | Body: 12-14pt muted
 - Use weight extremes: bold headings + light body text. Avoid mid-weight everything.
-- Key stat or metric: oversized (36-44pt) in accent blue against neutral background.
+- Key stat or metric: oversized (36-46pt) in accent blue against neutral background.
 
 **4. Layout variety -- no two adjacent slides the same pattern**
 Rotate between: 2-column split | full-width table | pillar cards | code+callout | metric row. Never use the same layout three slides in a row.
@@ -100,7 +100,7 @@ Rotate between: 2-column split | full-width table | pillar cards | code+callout 
 Generous padding inside cards (`Inches(0.2)` minimum). Cards should not touch each other -- use `Inches(0.2-0.35)` gaps. Content should never fill the full slide edge-to-edge.
 
 **6. Depth through layering**
-Build slides in z-order layers (see Layer Order rule below). Use `add_rounded_card()` as backgrounds before adding text -- the subtle shadow/fill creates visual depth that flat text boxes lack.
+Build slides in z-order layers: background fill first, then cards/panels, then text/icons on top. Use `add_rounded_card()` as backgrounds before adding text -- the subtle shadow/fill creates visual depth that flat text boxes lack.
 
 **7. Sizes to content -- no empty boxes**
 - Use `estimate_text_height()` to size callout boxes to their text
@@ -113,6 +113,20 @@ Build slides in z-order layers (see Layer Order rule below). Use `add_rounded_ca
 - Never use a bullet list when a card grid would communicate structure better
 - Dark-background section dividers should stand in sharp contrast to the white content slides they bracket
 - Vary left/right/split layouts -- do not always lead with text on the left
+
+### Vertical Chaining with ElementBox
+
+Most composite functions return an `ElementBox(shape, left, top, width, height)` namedtuple. Use it to stack elements vertically without hardcoding positions:
+
+```python
+eb = add_callout_box(slide, "Important note", CONTENT_LEFT, CONTENT_TOP, Inches(10))
+next_top = eb.top + eb.height + Inches(0.2)
+eb2 = add_code_block(slide, "kubectl get pods", CONTENT_LEFT, next_top, Inches(10))
+```
+
+Use `remaining_height(from_top)` to check whether the next element fits before placing it.
+
+> **Note**: `create_section_divider()` does not accept `page_num` / `total` parameters (unlike other slide templates). This is by design -- section dividers are full-bleed and unnumbered.
 
 ### Step 3: Write the generator script
 

@@ -50,19 +50,19 @@ Adds a blank slide (layout index 6).
 | `MS_CALLOUT_BG` | #EFF6FC | Callout box background |
 | `MS_GREEN` | #107C10 | Success, positive metrics |
 | `MS_ORANGE` | #FF8C00 | Warning, attention |
-| `MS_PURPLE` | #881C98 | AI/premium features |
+| `MS_PURPLE` | #881C98 | **DEPRECATED** -- use `MS_DARK_BLUE` |
 | `MS_RED` | #D13438 | Error, critical |
 | `MS_BLUE_DARKER` | #006CBE | Darker blue variant |
-| `MS_CODE_BG` | #24292F | Code block background |
-| `MS_CODE_TEXT` | #EAF0F7 | Code block text |
+| `MS_CODE_BG` | #F2F2F2 | Code block background (light theme) |
+| `MS_CODE_TEXT` | #212121 | Code block text |
 | `MS_ACCENT_LIGHT` | #CCE4FF | Light text on blue backgrounds |
 | `MS_BLUE_LIGHT_BG` | #DEECF9 | Info / highlight background |
 | `MS_NAVY_LIGHT` | #2E4A6E | Subtle dark layering |
 | `MS_SUCCESS_BG` | #DFF6DD | Success / positive background |
 | `MS_WARNING_BG` | #FFF4E5 | Warning background |
 | `MS_ERROR_BG` | #FDE7E9 | Error / negative background |
-| `MS_YELLOW` | #FFB900 | Accent yellow |
-| `MS_TEAL` | #038387 | Teal accent |
+| `MS_YELLOW` | #FFB900 | **DEPRECATED** -- use `MS_ORANGE` |
+| `MS_TEAL` | #038387 | **DEPRECATED** -- use `MS_BLUE_DARKER` |
 
 ### Typography Scale
 | Constant | Size (pt) | Usage |
@@ -98,7 +98,7 @@ Adds a blank slide (layout index 6).
 | `FONT_FAMILY` | "Segoe UI" | Default font |
 | `FONT_SEMIBOLD` | "Segoe UI Semibold" | Headings, slide titles |
 | `FONT_LIGHT` | "Segoe UI Light" | Display/lead titles |
-| `FONT_MONO` | "Cascadia Code" | Monospace font for code |
+| `FONT_MONO` | "Courier New" | Monospace font for code |
 
 ---
 
@@ -132,7 +132,7 @@ Add Microsoft logo watermark. Default position: bottom-right.
 Add a simple filled rectangle.
 
 ### `add_bottom_bar(slide, page_num=None, total=None)`
-Add page number at the bottom-left.
+Reserved for future use. Currently a no-op -- page numbers are intentionally omitted to keep slides clean.
 
 ### `add_speaker_notes(slide, text)`
 Set speaker notes on a slide.
@@ -236,8 +236,9 @@ add_badge(slide, "Preview", x, y, bg_color=MS_ORANGE)
 ### `add_divider_line(slide, left, top, width, color=MS_MID_GRAY, thickness=Pt(1)) -> shape`
 Subtle horizontal divider.
 
-### `add_progress_bar(slide, left, top, width, height=Inches(0.18), progress=0.7, bar_color=MS_BLUE, track_color=MS_LIGHT_GRAY, label="", show_pct=True) -> shape`
+### `add_progress_bar(slide, left, top, width, height=Inches(0.18), progress=0.7, bar_color=MS_BLUE, track_color=MS_LIGHT_GRAY, label="", show_pct=True) -> ElementBox`
 Horizontal progress/completion bar.
+Returns `ElementBox` for vertical chaining.
 `progress`: 0.0 to 1.0 (percentage complete).
 ```python
 add_progress_bar(slide, x, y, Inches(4), progress=0.85, label="Adoption")
@@ -275,12 +276,12 @@ next_top = eb.top + eb.height + Inches(0.15)  # chain vertically
 ### `add_styled_table(slide, data, left, top, width, col_widths=None, header_color=MS_DARK_BLUE, font_size=12) -> table_shape`
 Professional table with dark header and alternating rows.
 
-### `add_metric_card(slide, metric, label, x, y, w=Inches(3.5), h=Inches(2.5), color=MS_BLUE, sublabel="", trend="", trend_positive=True) -> ElementBox`
+### `add_metric_card(slide, metric, label, left, top, width=Inches(3.5), height=Inches(2.5), color=MS_BLUE, sublabel="", trend="", trend_positive=True) -> ElementBox`
 Big-number metric card with all text embedded in shape. Scales proportionally.
 **Auto-grouped** (card + top accent bar).
 Optional `trend` adds colored arrow (replaces old `add_kpi_card`).
 ```python
-add_metric_card(slide, "98.5%", "Uptime SLA", x, y,
+add_metric_card(slide, "98.5%", "Uptime SLA", left, top,
                 trend="+0.3%", trend_positive=True)
 ```
 
@@ -309,7 +310,7 @@ Side-by-side columns with gradient title text and bullets.
 ```python
 add_colored_columns(slide, [
     ("Scaling", ["Planning adoption", "Setting R&R"], MS_BLUE),
-    ("Strong IP", ["Playbook", "Workshops"], MS_GREEN),
+    ("Strong IP", ["Playbook", "Workshops"], MS_BLUE_DARKER),
 ])
 ```
 
@@ -360,7 +361,7 @@ Pricing/comparison table with tiered columns.
 `tiers = [(name, price, features_list, color), ...]`
 `highlight_index`: index of the recommended tier (elevated + badge).
 
-### `add_kpi_card(slide, value, label, trend="", trend_positive=True, x=CONTENT_LEFT, y=Inches(2.0), w=Inches(2.8), h=Inches(2.2), color=MS_BLUE) -> ElementBox`
+### `add_kpi_card(slide, value, label, trend="", trend_positive=True, left=CONTENT_LEFT, top=Inches(2.0), width=Inches(3.5), height=Inches(2.5), color=MS_BLUE) -> ElementBox`
 **Deprecated alias** for `add_metric_card`. Prefer `add_metric_card` directly.
 
 ---
@@ -370,8 +371,9 @@ Pricing/comparison table with tiered columns.
 ### `add_title_icon_badge(slide, left, top, symbol="\u2693", size=Inches(0.55), bg_color=MS_BLUE, text_color=MS_WHITE) -> shape`
 Circular icon badge next to a slide title. Common symbols: \u2699 Gear, \u2605 Star, \u26A1 Lightning, \u2714 Checkmark.
 
-### `add_blue_speech_panel(slide, text, left, top, width, height, bg_color=MS_BLUE, text_color=MS_WHITE, font_size=13, accent_bar=True) -> shape`
+### `add_blue_speech_panel(slide, text, left, top, width, height, bg_color=MS_BLUE, text_color=MS_WHITE, font_size=13, accent_bar=True) -> ElementBox`
 Blue panel with white text embedded in shape. Contrast auto-checked. **Auto-grouped** when accent bar is present.
+Returns `ElementBox` for vertical chaining.
 
 ### `add_header_card_with_bullets(slide, header_text, bullets, left, top, width, height, header_color=MS_BLUE, header_height=Inches(0.5), font_size=11, bullet_symbol="\u2022") -> (header_shape, body_shape, textbox)`
 Card with colored header banner and **native-bulleted** body. Uses real PowerPoint bullets.

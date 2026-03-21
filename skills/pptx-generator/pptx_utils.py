@@ -1100,6 +1100,7 @@ def add_progress_bar(slide, left, top, width, height=Inches(0.18),
 
     progress: 0.0 to 1.0 (percentage complete).
     Optionally shows percentage text and/or label.
+    Returns ElementBox for vertical chaining.
 
     Example::
         add_progress_bar(slide, x, y, Inches(4), progress=0.85, label="Adoption")
@@ -1121,7 +1122,7 @@ def add_progress_bar(slide, left, top, width, height=Inches(0.18),
         add_textbox(slide, pct_text, left + width + Inches(0.1), top - Inches(0.01),
                     Inches(0.5), height,
                     font_size=TEXT_CAPTION, color=MS_TEXT, bold=True)
-    return fill_bar
+    return ElementBox(fill_bar, left, top, width, height)
 
 
 def add_checklist(slide, items, left, top, width, height=None,
@@ -1485,7 +1486,7 @@ def add_styled_table(slide, data, left, top, width, col_widths=None,
     return ts
 
 
-def add_metric_card(slide, metric, label, x, y, w=Inches(3.5), h=Inches(2.5),
+def add_metric_card(slide, metric, label, left, top, width=Inches(3.5), height=Inches(2.5),
                     color=MS_BLUE, sublabel="", trend="", trend_positive=True):
     """Add a single big-number metric card.
 
@@ -1496,14 +1497,14 @@ def add_metric_card(slide, metric, label, x, y, w=Inches(3.5), h=Inches(2.5),
            a green up-arrow or red down-arrow based on trend_positive.
 
     Example::
-        add_metric_card(slide, "98.5%", "Uptime SLA", x, y,
+        add_metric_card(slide, "98.5%", "Uptime SLA", left, top,
                         trend="+0.3%", trend_positive=True)
     """
-    card = add_elevated_card(slide, x, y, w, h, fill=MS_WHITE,
+    card = add_elevated_card(slide, left, top, width, height, fill=MS_WHITE,
                              border=color, shadow="subtle")
-    accent_bar = add_rect(slide, x, y, w, Inches(0.06), color)
+    accent_bar = add_rect(slide, left, top, width, Inches(0.06), color)
     # All text embedded in card with proportional spacing and shrink-to-fit
-    h_emu = int(h)
+    h_emu = int(height)
     _set_shape_text(card, str(metric),
                     font_size=40, color=color, bold=True,
                     alignment=PP_ALIGN.CENTER, v_align='middle',
@@ -1527,7 +1528,7 @@ def add_metric_card(slide, metric, label, x, y, w=Inches(3.5), h=Inches(2.5),
                              alignment=PP_ALIGN.CENTER,
                              space_before=Pt(4))
     group_shapes(slide, [card, accent_bar])
-    return ElementBox(card, x, y, w, h)
+    return ElementBox(card, left, top, width, height)
 
 
 def add_numbered_items(slide, items, left, top, width, item_height=Inches(1.1),
@@ -1663,9 +1664,9 @@ def add_quote_block(slide, quote, attribution="", left=CONTENT_LEFT, top=Inches(
     q_height = estimate_text_height(quote, 20, float(width) / 914400 - 1.0)
     total_h = q_height + (Inches(0.5) if attribution else Inches(0.1))
 
-    # White card with shadow for elevation
+    # Light blue card with shadow for elevation
     card = add_elevated_card(slide, left, top, width, total_h + Inches(0.4),
-                             fill=MS_WHITE, border=MS_LIGHT_GRAY, shadow="subtle")
+                             fill=MS_CALLOUT_BG, border=MS_LIGHT_GRAY, shadow="subtle")
     # Left accent bar
     add_rect(slide, left, top, Pt(5), total_h + Inches(0.4), accent_color)
     # Opening quote mark (large, decorative)
@@ -1744,10 +1745,10 @@ def add_stats_row(slide, stats, left=CONTENT_LEFT, top=Inches(1.8),
 
 
 def add_kpi_card(slide, value, label, trend="", trend_positive=True,
-                 x=CONTENT_LEFT, y=Inches(2.0), w=Inches(2.8), h=Inches(2.2),
-                 color=MS_BLUE):
+                 left=CONTENT_LEFT, top=Inches(2.0), width=Inches(3.5),
+                 height=Inches(2.5), color=MS_BLUE):
     """Alias for add_metric_card with trend support. Prefer add_metric_card directly."""
-    return add_metric_card(slide, value, label, x, y, w, h, color,
+    return add_metric_card(slide, value, label, left, top, width, height, color,
                            trend=trend, trend_positive=trend_positive)
 
 
@@ -2016,18 +2017,20 @@ def add_agenda_list(slide, items, left=CONTENT_LEFT, top=Inches(1.5),
         is_active = (i == highlight_index)
 
         # Background card
-        bg_color = MS_BLUE if is_active else MS_LIGHT_GRAY
-        text_color = MS_WHITE if is_active else MS_TEXT
-        num_bg = MS_DARK_BLUE if is_active else MS_MID_GRAY
+        bg_color = MS_BLUE if is_active else MS_CALLOUT_BG
+        text_color = MS_WHITE if is_active else MS_DARK_BLUE
+        num_bg = MS_DARK_BLUE if is_active else MS_BLUE
+        num_text = MS_WHITE
 
-        card = add_rounded_card(slide, left, y, width, item_h,
-                                fill=bg_color, border=None, corner_radius=0.04)
-        if is_active:
-            add_shadow(card, blur_pt=4, offset_pt=2, opacity=0.15)
+        card = add_elevated_card(slide, left, y, width, item_h,
+                                 fill=bg_color,
+                                 border=MS_ACCENT_LIGHT if not is_active else None,
+                                 corner_radius=0.04,
+                                 shadow="subtle" if is_active else "paper")
 
         # Number circle
         add_icon_circle(slide, left + Inches(0.15), y + Inches(0.1),
-                        Inches(0.5), num_bg, str(i + 1))
+                        Inches(0.5), num_bg, str(i + 1), text_color=num_text)
         # Text
         add_textbox(slide, item, left + Inches(0.8), y + Inches(0.1),
                     width - Inches(1.0), item_h - Inches(0.2),
@@ -2718,7 +2721,7 @@ def add_blue_speech_panel(slide, text, left, top, width, height,
     Unlike add_callout_box (light background, dark text), this is a
     high-contrast branded panel for key statements.
 
-    Returns the background shape.
+    Returns ElementBox for vertical chaining.
     """
     text_color = ensure_contrast(text_color, bg_color)
     card = add_rounded_card(slide, left, top, width, height,
@@ -2734,7 +2737,7 @@ def add_blue_speech_panel(slide, text, left, top, width, height,
                     margin_top=Inches(0.15), margin_bottom=Inches(0.1))
     if len(shapes_to_group) > 1:
         group_shapes(slide, shapes_to_group)
-    return card
+    return ElementBox(card, left, top, width, height)
 
 
 def add_header_card_with_bullets(slide, header_text, bullets, left, top, width, height,
