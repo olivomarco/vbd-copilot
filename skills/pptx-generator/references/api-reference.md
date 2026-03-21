@@ -262,12 +262,14 @@ Returns `ElementBox` for vertical chaining.
 ### `add_warning_box(slide, text, left, top, width, height=None) -> ElementBox`
 Orange warning callout. **Auto-grouped**.
 
-### `add_code_block(slide, code, left, top, width, height, language="") -> shape`
+### `add_code_block(slide, code, left, top, width, height=None, language="") -> ElementBox`
 Dark-themed code block with rounded corners and blue left border.
 **Auto-grouped** (background + accent + optional language label).
+`height`: `None` = auto-size to content (recommended). Pass explicit `Inches()` to force fixed height.
 `language`: optional label (e.g. `'Python'`, `'YAML'`) shown in top-right corner.
 ```python
-add_code_block(slide, 'kubectl get pods', x, y, w, h, language='Shell')
+eb = add_code_block(slide, 'kubectl get pods', x, y, w, language='Shell')
+next_top = eb.top + eb.height + Inches(0.15)  # chain vertically
 ```
 
 ### `add_styled_table(slide, data, left, top, width, col_widths=None, header_color=MS_DARK_BLUE, font_size=12) -> table_shape`

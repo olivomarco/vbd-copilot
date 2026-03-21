@@ -82,7 +82,7 @@ CONTENT_BOTTOM = Inches(6.8)  # above bottom bar
 FONT_FAMILY = "Segoe UI"
 FONT_SEMIBOLD = "Segoe UI Semibold"
 FONT_LIGHT = "Segoe UI Light"
-FONT_MONO = "Cascadia Code"
+FONT_MONO = "Courier New"
 
 # Asset paths
 _ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
@@ -1356,12 +1356,31 @@ def add_warning_box(slide, text, left, top, width, height=None):
                            bg=RGBColor(0xFF, 0xF4, 0xE5), accent=MS_ORANGE)
 
 
-def add_code_block(slide, code, left, top, width, height, language=""):
+def add_code_block(slide, code, left, top, width, height=None, language=""):
     """Add a dark-themed code block with rounded corners and blue left border.
 
+    height: None = auto-size to content (recommended). Pass explicit Inches()
+            to force a fixed height.
     language: optional label (e.g. 'Python', 'YAML') shown in a subtle top bar.
     All sub-shapes are auto-grouped.
+
+    Returns an ElementBox(shape, left, top, width, height) for downstream stacking.
     """
+    if height is None:
+        # Auto-compute height from code content
+        code_font = 10
+        mono_char_w = (code_font * 0.62) / 72.0  # monospace is wider than proportional
+        width_in = float(width) / 914400.0 - 0.3  # account for left+right margins
+        chars_per_line = max(10, int(width_in / mono_char_w))
+        line_count = 0
+        for line in code.split('\n'):
+            line_count += max(1, -(-len(line) // chars_per_line))  # ceil division
+        # Line height: 10pt Courier New with forced single (100%) line spacing
+        # 10pt = 0.139" + font descenders/ascenders = ~0.22" per line.
+        text_h = line_count * 0.25
+        margin_top_in = 0.18 if language else 0.08
+        margin_h = margin_top_in + 0.08
+        height = Inches(text_h + margin_h)
     shapes_to_group = []
     # Rounded dark background
     bg = add_rounded_card(slide, left, top, width, height, fill=MS_CODE_BG,
@@ -1378,14 +1397,41 @@ def add_code_block(slide, code, left, top, width, height, language=""):
                               font_size=8, color=MS_TEXT_MUTED,
                               font_name=FONT_MONO, alignment=PP_ALIGN.RIGHT)
         shapes_to_group.append(lang_tb)
-    # Code text embedded in background shape
-    code_top_margin = Inches(0.3) if language else Inches(0.1)
-    _set_shape_text(bg, code, font_size=10, color=MS_CODE_TEXT, bold=False,
-                    font_name=FONT_MONO, alignment=PP_ALIGN.LEFT, v_align='top',
-                    margin_left=Inches(0.2), margin_right=Inches(0.1),
-                    margin_top=code_top_margin, margin_bottom=Inches(0.05))
+    # Code text -- split into separate paragraphs per line so PowerPoint
+    # correctly measures line count for auto-sizing and text-to-fit.
+    code_top_margin = Inches(0.03)
+    tf = bg.text_frame
+    tf.word_wrap = True
+    tf.margin_left = Inches(0.2)
+    tf.margin_right = Inches(0.1)
+    tf.margin_top = int(code_top_margin)
+    tf.margin_bottom = Inches(0.03)
+    tf.auto_size = MSO_AUTO_SIZE.NONE  # we size the shape ourselves
+
+    from lxml import etree
+    from pptx.oxml.ns import qn
+
+    code_lines = code.split('\n')
+    for i, line in enumerate(code_lines):
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        p.alignment = PP_ALIGN.LEFT
+        p.space_before = Pt(0)
+        p.space_after = Pt(0)
+        # Force single line spacing (100%) -- PowerPoint defaults to 115%
+        pPr = p._p.get_or_add_pPr()
+        for old_lnSpc in pPr.findall(qn('a:lnSpc')):
+            pPr.remove(old_lnSpc)
+        lnSpc = etree.SubElement(pPr, qn('a:lnSpc'))
+        spcPct = etree.SubElement(lnSpc, qn('a:spcPct'))
+        spcPct.set('val', '100000')
+        run = p.add_run()
+        run.text = line if line else " "  # empty lines need a space to render
+        run.font.size = Pt(10)
+        run.font.color.rgb = MS_CODE_TEXT
+        run.font.bold = False
+        run.font.name = FONT_MONO
     group_shapes(slide, shapes_to_group)
-    return bg
+    return ElementBox(bg, left, top, width, height)
 
 
 def add_styled_table(slide, data, left, top, width, col_widths=None,
@@ -1499,13 +1545,13 @@ def add_numbered_items(slide, items, left, top, width, item_height=Inches(1.1),
         add_icon_circle(slide, left + Inches(0.2), circle_y,
                         Inches(0.5), c, str(i + 1))
         # Title starts after the circle (no overlap)
-        add_textbox(slide, title, left + Inches(0.9), y + int(ih * 0.10),
-                    width - Inches(1.1), int(ih * 0.30),
-                    font_size=15, color=MS_DARK_BLUE, bold=True,
+        add_textbox(slide, title, left + Inches(0.9), y + int(ih * 0.08),
+                    width - Inches(1.1), int(ih * 0.45),
+                    font_size=14, color=MS_DARK_BLUE, bold=True,
                     shrink_to_fit=True)
         # Description below title
-        add_textbox(slide, desc, left + Inches(0.9), y + int(ih * 0.42),
-                    width - Inches(1.1), int(ih * 0.52),
+        add_textbox(slide, desc, left + Inches(0.9), y + int(ih * 0.52),
+                    width - Inches(1.1), int(ih * 0.44),
                     font_size=12, color=MS_TEXT_MUTED,
                     shrink_to_fit=True)
     return ElementBox(last_shape, left, top, width, total_h)
@@ -1890,13 +1936,17 @@ def add_colored_columns(slide, columns, left=CONTENT_LEFT, top=CONTENT_TOP,
 
 
 def add_layered_architecture(slide, layers, left=CONTENT_LEFT, top=Inches(1.5),
-                             width=None, layer_h=Inches(0.9), gap=Inches(0.08)):
+                             width=None, layer_h=Inches(0.9), gap=Inches(0.08),
+                             font_size=TEXT_BODY, alignment=PP_ALIGN.LEFT):
     """Add a horizontal layered architecture diagram (stacked bars).
 
     layers = [(label, color), ...] ordered top-to-bottom.
     Creates a classic architecture stack diagram where each layer spans
     the full width, perfect for showing technology stacks, OSI layers,
     or platform architectures.
+
+    font_size: text size in pt (default TEXT_BODY = 14pt).
+    alignment: PP_ALIGN.LEFT (default) or PP_ALIGN.CENTER.
 
     Example::
         add_layered_architecture(slide, [
@@ -1919,8 +1969,8 @@ def add_layered_architecture(slide, layers, left=CONTENT_LEFT, top=Inches(1.5),
                                 corner_radius=0.03, shadow="paper")
         # Label text embedded in bar (auto contrast)
         text_color = auto_text_color(color)
-        _set_shape_text(bar, label, font_size=TEXT_H3, color=text_color, bold=True,
-                        alignment=PP_ALIGN.CENTER, v_align='middle',
+        _set_shape_text(bar, label, font_size=font_size, color=text_color, bold=True,
+                        alignment=alignment, v_align='middle',
                         margin_left=Inches(0.3), margin_right=Inches(0.3),
                         margin_top=Inches(0.05), margin_bottom=Inches(0.05))
     return ElementBox(None, left, top, width, total_h)
@@ -2385,15 +2435,32 @@ def create_closing_slide(prs, title="Key Takeaways", takeaways=None,
     takeaways_top = underline_y + Inches(0.25)
     if takeaways:
         max_items = min(len(takeaways), 4)
-        available_h = Inches(6.5) - takeaways_top - Inches(0.4)
-        item_spacing = float(available_h) / max(max_items, 1)
+        available_h = float(Inches(6.5) - takeaways_top - Inches(0.4))
+        takeaway_font = 11
+        text_w_in = 3.5 - 0.3  # text width minus margins
+        # Compute proportional heights based on actual text length
+        raw_heights = []
+        for i in range(max_items):
+            h = float(estimate_text_height(takeaways[i], takeaway_font, text_w_in,
+                                           padding_inches=0.12))
+            raw_heights.append(h)
+        total_raw = sum(raw_heights)
+        # Scale proportionally to fit available space
+        if total_raw > available_h:
+            scale = available_h / total_raw
+            heights = [h * scale for h in raw_heights]
+        else:
+            heights = raw_heights
+        y = float(takeaways_top)
         for i in range(max_items):
             t = takeaways[i]
-            y = takeaways_top + int(i * item_spacing)
-            add_icon_circle(slide, Inches(0.6), y, Inches(0.4), MS_DARK_BLUE, str(i + 1))
-            item_h = int(item_spacing) - Inches(0.15)
-            add_textbox(slide, t, Inches(1.2), y - Inches(0.05), Inches(3.5), item_h,
-                        font_size=12, color=RGBColor(0xDD, 0xEE, 0xFF))
+            item_h = heights[i]
+            circle_y = int(y + item_h * 0.15)
+            add_icon_circle(slide, Inches(0.6), circle_y, Inches(0.4), MS_DARK_BLUE, str(i + 1))
+            add_textbox(slide, t, Inches(1.2), int(y), Inches(3.5), int(item_h),
+                        font_size=takeaway_font, color=RGBColor(0xDD, 0xEE, 0xFF),
+                        shrink_to_fit=True)
+            y += item_h
     add_ms_logo(slide)
     # Right side
     right_left = Inches(5.8)
