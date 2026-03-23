@@ -22,6 +22,7 @@ import time
 from pathlib import Path
 
 from copilot import CopilotClient
+from copilot.jsonrpc import JsonRpcError
 from copilot.types import (
     PermissionRequest,
     PermissionRequestResult,
@@ -542,6 +543,16 @@ async def main() -> None:
             # ── Route to the appropriate agent ────────────────────────────
             try:
                 agent_name = await route_to_agent(session, user_input)
+            except JsonRpcError as exc:
+                if "Session not found" in str(exc):
+                    ui.print_warning(
+                        "Session expired. Use /new to start a fresh session or quit."
+                    )
+                else:
+                    ui.print_warning(
+                        f"Session error: {exc}. Use /new to start a fresh session or quit."
+                    )
+                continue
             except (BrokenPipeError, OSError):
                 ui.print_warning(
                     "Session disconnected. Use /new to start a fresh session or quit."
@@ -619,6 +630,26 @@ async def main() -> None:
                 ui.print_warning(
                     "Session disconnected. Use /new to start a fresh session or quit."
                 )
+                collector.on_turn_end(
+                    turn_id,
+                    assistant_response="".join(ui._current_response),
+                    model=ui.current_model,
+                    status="error",
+                )
+                continue
+            except JsonRpcError as exc:
+                turn_status = "error"
+                ui.print_response_end()
+                ui.stop_agent_display()
+                ui.print_input_lock_state(False)
+                if "Session not found" in str(exc):
+                    ui.print_warning(
+                        "Session expired. Use /new to start a fresh session or quit."
+                    )
+                else:
+                    ui.print_warning(
+                        f"Session error: {exc}. Use /new to start a fresh session or quit."
+                    )
                 collector.on_turn_end(
                     turn_id,
                     assistant_response="".join(ui._current_response),
