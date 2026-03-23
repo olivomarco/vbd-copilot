@@ -46,7 +46,7 @@ DB_DIR = Path.home() / ".vbd-copilot"
 
 # ── Output file detection ─────────────────────────────────────────────────────
 
-_INTERESTING_SUFFIXES = {".pptx", ".md", ".py"}
+_INTERESTING_SUFFIXES = {".pptx", ".md", ".py", ".bicep", ".json", ".yaml", ".sh"}
 _SKIP_DIRS = {".fragments"}
 
 
