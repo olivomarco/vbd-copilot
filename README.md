@@ -27,6 +27,8 @@
   - [Usage Examples](#usage-examples)
     - [Generate a presentation](#generate-a-presentation)
     - [Generate demo guides](#generate-demo-guides)
+    - [Generate from your own notes](#generate-from-your-own-notes)
+    - [Generate a technical update briefing](#generate-a-technical-update-briefing)
     - [Direct @mentions](#direct-mentions)
 
 ---
@@ -41,6 +43,13 @@ This textual user interface app gives you two AI conductors that produce custome
 - **Demo Conductor** - generates a full step-by-step demo guide with all runnable companion scripts
 
 Both conductors research official docs first, plan with your input, build, and run automated quality review before delivering output.
+
+**Beyond customer decks.** The Slide Conductor is not limited to building presentations from scratch via online research. You can use it for:
+
+- **Technical update briefings** - monthly or quarterly technology updates for your team, stakeholders, or management. Ask for a briefing deck on recent changes to a service and the conductor will research what's new and assemble a ready-to-present update.
+- **Slides from your own research** - if you already have notes, outlines, or research collected in text or Markdown files, point the conductor at them. It will use your material as the primary source instead of doing its own web research, turning your raw notes into a structured, polished deck with speaker notes. Just reference the file path in your prompt.
+
+This makes the tool useful well beyond one-off customer sessions - any time you need a well-structured technical presentation, whether sourced from the web or from your own knowledge.
 
 > [!IMPORTANT]
 > **This is a deep research process, not a quick generation.** Do not expect it to run in minutes. Generating a full slide deck typically takes **1 hour or more** - and that time is intentional.
@@ -310,6 +319,34 @@ python app.py
   [Phase 0-5 proceeds automatically with approval stops]
   ...
   OK: Saved outputs/demos/contoso-aca-demos.md + 3 companion files
+```
+
+### Generate from your own notes
+
+If you already have research notes, outlines, or technical content in a file, pass it to the conductor and it will build the deck from your material:
+
+```text
+>>> Build a 30min L200 deck from my notes in notes/aks-security-review.md
+  >> routed -> slide-conductor | model: claude-sonnet-4.6
+
+  ? Agent reads your notes file, identifies key topics...
+  ...
+  [Phase 2-4 proceeds - planning from your content, then build + QA]
+  ...
+  OK: Saved outputs/slides/aks-security-review-l200-30m.pptx (18 slides)
+```
+
+### Generate a technical update briefing
+
+```text
+>>> Create a 15min L200 briefing on what's new in Azure Kubernetes Service this quarter
+  >> routed -> slide-conductor | model: claude-sonnet-4.6
+
+  ? Agent researches recent AKS announcements and changelog...
+  ...
+  [Phase 0-4 proceeds automatically with approval stops]
+  ...
+  OK: Saved outputs/slides/aks-quarterly-update-l200.pptx (12 slides)
 ```
 
 ### Direct @mentions
