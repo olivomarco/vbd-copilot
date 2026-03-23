@@ -1,6 +1,6 @@
 [project]
 name = "vbd-copilot"
-version = "1.1.0"
+version = "2.0.0"
 description = "VBD-Copilot: AI-powered presentation and demo builder for Microsoft Cloud Solution Architects"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -20,3 +20,29 @@ vbd-copilot = "app:main_entry"
 [tool.setuptools]
 py-modules = ["app", "router", "tools", "ui", "pricing", "store", "collector", "queries"]
 packages = ["agents", "commands"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "app.py",
+    "ui.py",
+    "tests/*",
+    "skills/*",
+    "agent_defs/*",
+    "scripts/*",
+    "outputs/*",
+    "plans/*",
+]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__",
+    "if TYPE_CHECKING",
+]
