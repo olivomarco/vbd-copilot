@@ -1,4 +1,4 @@
-# VBD-Copilot - Slides & Demos Builder
+# VBD-Copilot - The Ultimate CSA Copilot
 
 > AI-powered presentation and demo builder for Microsoft Cloud Solution Architects and Solution Engineers
 
@@ -10,7 +10,7 @@
 
 ## Quick Index
 
-- [VBD-Copilot - Slides \& Demos Builder](#vbd-copilot---slides--demos-builder)
+- [VBD-Copilot - The Ultimate CSA Copilot](#vbd-copilot---the-ultimate-csa-copilot)
   - [Quick Index](#quick-index)
   - [What This Is](#what-this-is)
   - [Sample Output](#sample-output)
@@ -30,6 +30,8 @@
     - [Generate from your own notes](#generate-from-your-own-notes)
     - [Generate a technical update briefing](#generate-a-technical-update-briefing)
     - [Direct @mentions](#direct-mentions)
+  - [AI project lifecycle](#ai-project-lifecycle)
+  - [Slash commands](#slash-commands)
 
 ---
 
@@ -354,4 +356,62 @@ If you already have research notes, outlines, or technical content in a file, pa
 ```text
 >>> @slide-conductor Make a 30min L200 deck on Microsoft Fabric
 >>> @demo-conductor Build 2 demos on GitHub Actions for Zava Industries
+>>> @ai-brainstorming Brainstorm AI use cases for a retail company improving CX
+>>> @ai-solution-architect Design the architecture for a customer service chatbot on Azure
+>>> @ai-implementor Implement the infrastructure and app code for the chatbot solution
 ```
+
+### AI project lifecycle
+
+Three agents guide you from idea to production on Azure:
+
+```text
+>>> @ai-brainstorming Brainstorm AI use cases for a healthcare company
+  >> routed -> ai-brainstorming | model: claude-opus-4.6
+
+  ? Agent researches customer context, industry trends...
+  ...
+  OK: Saved outputs/ai-projects/healthcare-ai/docs/brainstorming.md (10+ ranked ideas)
+```
+
+```text
+>>> @ai-solution-architect Design the architecture for idea #3
+  >> routed -> ai-solution-architect | model: claude-opus-4.6
+
+  ? Agent builds architecture documents, diagrams, cost estimates...
+  ...
+  OK: Saved 5 architecture documents to outputs/ai-projects/healthcare-ai/docs/
+```
+
+```text
+>>> @ai-implementor Implement the solution
+  >> routed -> ai-implementor | model: claude-sonnet-4.6
+
+  ? Agent plans 8 work packages, builds, runs 4 specialist reviews...
+  ...
+  OK: Saved infra + src + tests + scripts to outputs/ai-projects/healthcare-ai/
+```
+
+### Slash commands
+
+Once inside the app, these commands are available:
+
+| Command | Description |
+|---------|-------------|
+| `/new [agent]` | Start a new session (optionally pre-selecting an agent) |
+| `/resume [id\|name]` | Resume a previous session |
+| `/agent <name>` | Switch to a specific agent mid-session |
+| `/agents` | List all available agents with details |
+| `/model <id>` | Switch the LLM model |
+| `/compact` | Manually compact context window (free memory) |
+| `/debug` | Toggle debug mode (shows tool I/O, subagent flow, token usage) |
+| `/sessions` | List active and resumable sessions |
+| `/sessions all` | List all sessions including ended ones |
+| `/sessions name <nick>` | Set a session nickname |
+| `/usage` | Current session info, context window, and cost |
+| `/usage all` | Global token usage and cost summary |
+| `/samples` | Show sample output library |
+| `/tutorial` | Interactive guided walkthrough |
+| `/clear` | Clear the screen and redisplay the banner |
+| `/help` | Show quick command reference |
+| `/quit` | Exit VBD-Copilot (session remains resumable) |

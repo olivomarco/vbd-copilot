@@ -36,7 +36,7 @@ from rich.text import Text
 
 
 # ── Version ───────────────────────────────────────────────────────────────────
-VERSION = "1.1.0"
+VERSION = "2.0.0"
 
 
 # =============================================================================
@@ -163,8 +163,11 @@ COMPACT_ART = [
 
 # ── Workflow info ─────────────────────────────────────────────────────────────
 WORKFLOWS = [
-    ("slide-conductor", "Research -> Plan -> Build PPTX -> QA -> Deliver"),
-    ("demo-conductor",  "Research -> Plan -> Build -> Validate -> Review -> Deliver"),
+    ("slide-conductor",      "Research -> Plan -> Build PPTX -> QA -> Deliver"),
+    ("demo-conductor",       "Research -> Plan -> Build -> Validate -> Review -> Deliver"),
+    ("ai-brainstorming",     "Discover -> Research -> Ideate -> Prioritize -> Roadmap"),
+    ("ai-solution-architect", "Discover -> Plan -> Build Docs -> QA -> Review -> Deliver"),
+    ("ai-implementor",       "Plan -> Build (8 WPs) -> Review (4 specialists) -> Deliver"),
 ]
 
 # ── Content levels ────────────────────────────────────────────────────────────
@@ -689,23 +692,33 @@ class CopilotUI:
         qs.add_row(
             "[bold cyan]1.[/bold cyan]",
             '[white]Say [cyan]"I need a deck on Azure Container Apps"[/cyan][/white] '
-            "- launches Slide Conductor",
+            "- launches [bold]Slide Conductor[/bold]",
         )
         qs.add_row(
             "[bold cyan]2.[/bold cyan]",
             '[white]Say [cyan]"Create 3 L300 demos on GitHub Copilot"[/cyan][/white] '
-            "- launches Demo Conductor",
+            "- launches [bold]Demo Conductor[/bold]",
         )
         qs.add_row(
             "[bold cyan]3.[/bold cyan]",
-            "[white]Both agents [bold]research official docs[/bold], "
-            "[bold]plan with your input[/bold], [bold]build[/bold], and "
-            "[bold]auto-QA[/bold] before delivering[/white]",
+            '[white]Say [cyan]"Build a deck from my notes in notes/topic.md"[/cyan][/white] '
+            "- [bold]bring your own research[/bold]",
         )
         qs.add_row(
             "[bold cyan]4.[/bold cyan]",
-            "[white]Agents can [bold]run shell commands[/bold], "
-            "[bold]create files[/bold], and [bold]search the web[/bold][/white]",
+            '[white]Say [cyan]"Briefing on what\'s new in AKS this quarter"[/cyan][/white] '
+            "- [bold]technical update briefings[/bold]",
+        )
+        qs.add_row(
+            "[bold cyan]5.[/bold cyan]",
+            '[white]Say [cyan]"@ai-brainstorming brainstorm AI ideas for Contoso"[/cyan][/white] '
+            "- [bold]AI project lifecycle[/bold]",
+        )
+        qs.add_row(
+            "[bold cyan]6.[/bold cyan]",
+            "[white]All agents [bold]research official docs[/bold], "
+            "[bold]plan with your input[/bold], [bold]build[/bold], and "
+            "[bold]auto-QA[/bold] before delivering[/white]",
         )
         self.console.print(
             Panel(
@@ -722,8 +735,8 @@ class CopilotUI:
         self.console.print(
             "  [dim]Type [cyan]/help[/cyan] for commands  |  "
             "[cyan]/tutorial[/cyan] for a guided walkthrough  |  "
-            "[cyan]@agent[/cyan] to route directly  |  "
-            "or just start chatting[/dim]"
+            "[cyan]/samples[/cyan] for sample outputs  |  "
+            "[cyan]@agent[/cyan] to route directly[/dim]"
         )
         self.console.print()
         self.console.print(Rule(style="blue"))
@@ -754,7 +767,7 @@ class CopilotUI:
             table.add_row(left, right)
 
         version_line = Text()
-        version_line.append("  Slides & Demos Builder", style="bold white")
+        version_line.append("  The ultimate CSA Copilot", style="bold white")
         version_line.append("  |  ", style="dim")
         version_line.append(f"v{VERSION}", style="#58a6ff")
 
@@ -784,7 +797,7 @@ class CopilotUI:
         logo_line.append("  Microsoft", style="dim")
 
         subtitle = Text()
-        subtitle.append("Slides & Demos Builder", style="bold white")
+        subtitle.append("The ultimate CSA Copilot", style="bold white")
         subtitle.append("  |  ", style="dim")
         subtitle.append(f"v{VERSION}", style="#58a6ff")
 
@@ -1243,6 +1256,13 @@ class CopilotUI:
                 "5 L300 demos (~1h 45m)\n"
                 "  [cyan]demos/generic-github-agentic-workflows-demos.md[/cyan] - "
                 "3 L300 demos\n\n"
+                "[bold]AI Project Prompts:[/bold]\n"
+                "  [yellow]@ai-brainstorming[/yellow] Brainstorm AI use cases for a "
+                "retail company improving CX\n"
+                "  [yellow]@ai-solution-architect[/yellow] Design the architecture "
+                "for a customer service chatbot on Azure\n"
+                "  [yellow]@ai-implementor[/yellow] Implement the infrastructure "
+                "and app code for the chatbot solution\n\n"
                 "[dim]New outputs are saved to [cyan]outputs/[/cyan][/dim]",
                 title="[bold cyan]Samples[/bold cyan]",
                 border_style="#0055dd",
@@ -1341,22 +1361,24 @@ class CopilotUI:
         p1 = Panel(
             "[bold white]Welcome to VBD-Copilot![/bold white]\n\n"
             "VBD-Copilot is an AI-powered builder for Microsoft Cloud\n"
-            "Solution Architects and Solution Engineers. It has two conductors:\n\n"
+            "Solution Architects and Solution Engineers.\n\n"
             "  [cyan bold]>> Slide Conductor[/cyan bold]\n"
-            "    Generates a complete .pptx presentation from a single prompt.\n"
-            "    Researches official docs, plans with your input, builds slides\n"
-            "    with full speaker notes, and runs automated QA.\n\n"
+            "    Generates .pptx presentations with research and QA.\n\n"
             "  [cyan bold]>> Demo Conductor[/cyan bold]\n"
-            "    Generates step-by-step demo guides and companion scripts.\n"
-            "    Researches existing repos, plans demos, builds files,\n"
-            "    validates syntax, and reviews for quality.\n\n"
-            "[bold]Both conductors:[/bold]\n"
+            "    Generates demo guides and companion scripts.\n\n"
+            "  [yellow bold]>> AI Brainstorming[/yellow bold]\n"
+            "    Researches context and generates prioritized AI project ideas.\n\n"
+            "  [yellow bold]>> AI Solution Architect[/yellow bold]\n"
+            "    Designs Azure architectures with diagrams, cost estimates.\n\n"
+            "  [yellow bold]>> AI Implementor[/yellow bold]\n"
+            "    Builds full-stack Azure solutions with 4-reviewer QA.\n\n"
+            "[bold]All conductors:[/bold]\n"
             "  - Research from official Microsoft/GitHub sources first\n"
             "  - Ask you for input before proceeding\n"
             "  - Run automated quality checks\n"
             "  - Never publish without your approval",
             title="[bold cyan]Welcome[/bold cyan]",
-            subtitle="[dim]1 / 6[/dim]",
+            subtitle="[dim]1 / 8[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
@@ -1381,7 +1403,7 @@ class CopilotUI:
                 Text.from_markup('\n[dim]Try: "I need a 1-hour L300 deck on Azure Container Apps"[/dim]'),
             ),
             title="[bold cyan]Slide Conductor[/bold cyan]",
-            subtitle="[dim]2 / 6[/dim]",
+            subtitle="[dim]2 / 8[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
@@ -1406,12 +1428,61 @@ class CopilotUI:
                 Text.from_markup('\n[dim]Try: "Create 3 L300 demos on GitHub Copilot for Contoso"[/dim]'),
             ),
             title="[bold cyan]Demo Conductor[/bold cyan]",
-            subtitle="[dim]3 / 6[/dim]",
+            subtitle="[dim]3 / 8[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
 
-        # ── Page 4: Content Levels ────────────────────────────────────
+        # ── Page 4: AI Project Lifecycle ──────────────────────────────
+        ai_pipe = Table(show_header=False, box=box.SIMPLE, padding=(0, 2))
+        ai_pipe.add_column("Agent", style="bold yellow", width=22)
+        ai_pipe.add_column("Pipeline")
+        ai_pipe.add_row("AI Brainstorming", "Discover -> Research -> Ideate 10+ ideas -> Prioritize -> Roadmap")
+        ai_pipe.add_row("AI Solution Architect", "Discover -> Plan -> Build 5 docs -> QA -> Review -> Deliver")
+        ai_pipe.add_row("AI Implementor", "Plan 8 work packages -> Build -> 4 specialist reviews -> Deliver")
+
+        p3b = Panel(
+            Group(
+                Text.from_markup(
+                    "[bold white]AI Project Lifecycle[/bold white]\n\n"
+                    "Three agents guide you from idea to production on Azure:\n"
+                ),
+                ai_pipe,
+                Text.from_markup(
+                    '\n[dim]Try: "@ai-brainstorming brainstorm AI ideas for a healthcare company"[/dim]'
+                ),
+            ),
+            title="[bold yellow]AI Project Agents[/bold yellow]",
+            subtitle="[dim]4 / 8[/dim]",
+            border_style="#ee9944",
+            padding=(1, 3),
+        )
+
+        # ── Page 5: Bring Your Own Research ──────────────────────────
+        p_byor = Panel(
+            "[bold white]Bring Your Own Research[/bold white]\n\n"
+            "You don't have to start from scratch. If you already have notes,\n"
+            "outlines, or technical content collected in a file, point the\n"
+            "conductor at it and it will use YOUR material as the primary source.\n\n"
+            "[bold]Example prompts:[/bold]\n\n"
+            "  [cyan]Build a 30min L200 deck from my notes in notes/aks-review.md[/cyan]\n"
+            "  The Slide Conductor reads your file, skips web research on\n"
+            "  covered topics, and turns raw notes into polished slides.\n\n"
+            "  [cyan]Create a 15min L200 briefing on what's new in AKS this quarter[/cyan]\n"
+            "  The conductor researches recent announcements and changelog,\n"
+            "  then assembles a ready-to-present technical update deck.\n\n"
+            "[bold]How it works:[/bold]\n"
+            "  - Reference any .md, .txt, or text file path in your prompt\n"
+            "  - The conductor reads the file and uses it as source material\n"
+            "  - It still plans, builds, and QA-reviews the output as usual\n"
+            "  - Great for turning meeting notes or research into decks fast",
+            title="[bold cyan]Bring Your Own Research[/bold cyan]",
+            subtitle="[dim]5 / 8[/dim]",
+            border_style="#0055dd",
+            padding=(1, 3),
+        )
+
+        # ── Page 6: Content Levels ────────────────────────────────────
         levels = Table(show_header=True, header_style="bold cyan", box=box.SIMPLE, padding=(0, 2))
         levels.add_column("Level", style="bold white")
         levels.add_column("Audience")
@@ -1436,12 +1507,12 @@ class CopilotUI:
                 ),
             ),
             title="[bold cyan]Content Calibration[/bold cyan]",
-            subtitle="[dim]4 / 6[/dim]",
+            subtitle="[dim]6 / 8[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
 
-        # ── Page 5: Sessions & Usage ─────────────────────────────────
+        # ── Page 7: Sessions & Usage ─────────────────────────────────
         p5 = Panel(
             "[bold white]Session Management & Usage Tracking[/bold white]\n\n"
             "VBD-Copilot tracks all sessions, turns, and token usage:\n\n"
@@ -1458,12 +1529,12 @@ class CopilotUI:
             "  - Context window bar shows how full your LLM context is\n"
             "  - /compact removes older messages to free context space",
             title="[bold cyan]Sessions & Usage[/bold cyan]",
-            subtitle="[dim]5 / 6[/dim]",
+            subtitle="[dim]7 / 8[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
 
-        # ── Page 6: Commands & Tips ───────────────────────────────────
+        # ── Page 8: Commands & Tips ───────────────────────────────────
         cmds = Table(show_header=False, box=None, padding=(0, 2))
         cmds.add_column(style="cyan bold", width=22)
         cmds.add_column()
@@ -1489,20 +1560,22 @@ class CopilotUI:
                     "\n[bold white]Pro tips:[/bold white]\n"
                     "  >> Use [bold]arrow up/down[/bold] for command history\n"
                     "  >> [bold]Tab[/bold] auto-completes commands and agent names\n"
-                    "  >> Use [cyan]@slide-conductor[/cyan] or "
-                    "[cyan]@demo-conductor[/cyan] to route directly\n"
+                    "  >> Use [cyan]@slide-conductor[/cyan], "
+                    "[cyan]@demo-conductor[/cyan], [yellow]@ai-brainstorming[/yellow],\n"
+                    "     [yellow]@ai-solution-architect[/yellow], or "
+                    "[yellow]@ai-implementor[/yellow] to route directly\n"
                     "  >> History persists across sessions (~/.vbd-copilot/)\n"
                     "  >> Set BING_API_KEY env var for reliable web search\n"
                     "  >> Run inside the Dev Container for full functionality\n"
                 ),
             ),
             title="[bold cyan]Commands[/bold cyan]",
-            subtitle="[dim]6 / 6[/dim]",
+            subtitle="[dim]8 / 8[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
 
-        return [p1, p2, p3, p4, p5, p6]
+        return [p1, p2, p3, p3b, p_byor, p4, p5, p6]
 
     def print_info(self, msg: str) -> None:
         self.console.print(f"  [dim]{msg}[/dim]")

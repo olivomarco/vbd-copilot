@@ -1,0 +1,90 @@
+{
+  // ── Microsoft Brand Palette ────────────────────────────────────────────────
+  "workbench.colorCustomizations": {
+    "titleBar.activeBackground": "#0078D4",
+    "titleBar.activeForeground": "#ffffff",
+    "titleBar.inactiveBackground": "#005A9E",
+    "titleBar.inactiveForeground": "#cccccc",
+    "activityBar.background": "#0078D4",
+    "activityBar.foreground": "#ffffff",
+    "activityBar.inactiveForeground": "#ffffffaa",
+    "activityBarBadge.background": "#FFB900",
+    "activityBarBadge.foreground": "#000000",
+    "statusBar.background": "#0078D4",
+    "statusBar.foreground": "#ffffff",
+    "statusBar.debuggingBackground": "#D83B01",
+    "statusBar.debuggingForeground": "#ffffff",
+    "statusBar.noFolderBackground": "#50E6FF",
+    "sideBarTitle.foreground": "#0078D4",
+    "tab.activeBorderTop": "#0078D4",
+    "panel.border": "#0078D4",
+    "focusBorder": "#0078D4",
+    "progressBar.background": "#0078D4",
+    "notificationCenterHeader.background": "#0078D4",
+    "notificationCenterHeader.foreground": "#ffffff"
+  },
+
+  // ── Python ─────────────────────────────────────────────────────────────────
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoImportCompletions": true,
+
+  // ── Ruff (linter + formatter) ──────────────────────────────────────────────
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+
+  // ── Editor ─────────────────────────────────────────────────────────────────
+  "editor.rulers": [120],
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+
+  // ── File associations ──────────────────────────────────────────────────────
+  "files.associations": {
+    "*.md": "markdown",
+    "agent_defs/**/*.md": "markdown"
+  },
+
+  // ── YAML ───────────────────────────────────────────────────────────────────
+  "yaml.schemas": {},
+
+  // ── Markdown ───────────────────────────────────────────────────────────────
+  "markdownlint.config": {
+    "MD013": false,
+    "MD033": false
+  },
+
+  // ── Docker ─────────────────────────────────────────────────────────────────
+  "docker.defaultRegistryPath": "",
+
+  // ── Terminal ───────────────────────────────────────────────────────────────
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "terminal.integrated.env.linux": {
+    "PYTHONUNBUFFERED": "1"
+  },
+
+  // ── Search exclusions ──────────────────────────────────────────────────────
+  "search.exclude": {
+    "**/__pycache__": true,
+    "**/*.egg-info": true,
+    ".ruff_cache": true,
+    ".img_cache": true,
+    "uv.lock": true,
+    "outputs/slides/.fragments": true
+  },
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.egg-info": true,
+    ".ruff_cache": true
+  },
+
+  // ── Icon theme ─────────────────────────────────────────────────────────────
+  "workbench.iconTheme": "material-icon-theme"
+}

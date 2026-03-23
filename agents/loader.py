@@ -47,7 +47,7 @@ class FileSystemAgentSource:
 
     def load_all(self) -> list[AgentConfig]:
         agents: list[AgentConfig] = []
-        for md_file in sorted(self._defs_dir.glob("*.md")):
+        for md_file in sorted(self._defs_dir.rglob("*.md")):
             agents.append(load_agent(md_file))
         return agents
 

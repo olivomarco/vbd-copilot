@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.debugpy",
+    "charliermarsh.ruff",
+    "tamasfe.even-better-toml",
+    "redhat.vscode-yaml",
+    "DavidAnson.vscode-markdownlint",
+    "ms-azuretools.vscode-docker",
+    "eamodio.gitlens",
+    "PKief.material-icon-theme",
+    "esbenp.prettier-vscode",
+    "github.copilot",
+    "github.copilot-chat"
+  ]
+}

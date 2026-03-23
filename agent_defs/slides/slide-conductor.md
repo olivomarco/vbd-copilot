@@ -158,3 +158,12 @@ Save completion report to plans/{topic-slug}-complete.md.
 - DO NOT skip Phase 0A pre-research
 - DO NOT skip Phase 3H QA
 - DO NOT proceed past a MANDATORY STOP without calling ask_user and getting approval
+
+## Project-Scoped Presentations
+
+When the user refers to a specific project (e.g. an AI project with a slug), check whether architecture docs exist at outputs/ai-projects/<project-slug>/docs/. If they do:
+
+- Read the solution-design.md and other docs to inform the presentation content.
+- Save the generated presentation to outputs/ai-projects/<project-slug>/slides/ instead of outputs/slides/.
+- Reference architecture diagrams and design decisions from the project docs in the speaker notes.
+This mode is triggered when the user mentions a project slug or when outputs/ai-projects/<project-slug>/docs/ contains files.

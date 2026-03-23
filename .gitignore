@@ -23,7 +23,9 @@ plans/*
 
 outputs/slides/*
 outputs/demos/*
+outputs/ai-projects/*
 !outputs/slides/.gitkeep
 !outputs/demos/.gitkeep
+!outputs/ai-projects/.gitkeep
 
 .img_cache
