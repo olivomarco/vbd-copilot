@@ -710,12 +710,22 @@ class CopilotUI:
             "- [bold]technical update briefings[/bold]",
         )
         qs.add_row(
-            "[bold cyan]5.[/bold cyan]",
-            '[white]Say [cyan]"@ai-brainstorming brainstorm AI ideas for Contoso"[/cyan][/white] '
+            "[bold yellow]5.[/bold yellow]",
+            '[white]Say [yellow]"@ai-brainstorming brainstorm AI ideas for Contoso"[/yellow][/white] '
             "- [bold]AI project lifecycle[/bold]",
         )
         qs.add_row(
-            "[bold cyan]6.[/bold cyan]",
+            "[bold yellow]6.[/bold yellow]",
+            '[white]Say [yellow]"@ai-solution-architect design an architecture for a RAG chatbot on Azure"[/yellow][/white] '
+            "- [bold]solution architecture[/bold]",
+        )
+        qs.add_row(
+            "[bold yellow]7.[/bold yellow]",
+            '[white]Say [yellow]"@ai-implementor build the Bicep infra and app code for project X"[/yellow][/white] '
+            "- [bold]Bicep + app code[/bold]",
+        )
+        qs.add_row(
+            "[bold cyan]8.[/bold cyan]",
             "[white]All agents [bold]research official docs[/bold], "
             "[bold]plan with your input[/bold], [bold]build[/bold], and "
             "[bold]auto-QA[/bold] before delivering[/white]",
@@ -1378,57 +1388,32 @@ class CopilotUI:
             "  - Run automated quality checks\n"
             "  - Never publish without your approval",
             title="[bold cyan]Welcome[/bold cyan]",
-            subtitle="[dim]1 / 8[/dim]",
+            subtitle="[dim]1 / 7[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
 
-        # ── Page 2: Slide Conductor ───────────────────────────────────
-        pipeline = Table(show_header=False, box=box.SIMPLE, padding=(0, 2))
-        pipeline.add_column("Step", style="bold cyan", width=8)
-        pipeline.add_column("Action", style="bold white", width=20)
-        pipeline.add_column("What happens")
-        pipeline.add_row("0A", "Pre-Research", "Lightweight scan of official docs before asking you anything")
-        pipeline.add_row("0B", "Clarify", "Asks you about topic, level, duration, audience")
-        pipeline.add_row("1", "Deep Research", "Parallel research shards across official sources")
-        pipeline.add_row("2", "Plan", "Creates structured outline - waits for your approval")
-        pipeline.add_row("3", "Build PPTX", "Generates python-pptx code fragments, assembles, runs script")
-        pipeline.add_row("3F", "QA", "Content check + visual inspection of rendered slides")
-        pipeline.add_row("4", "Deliver", "Presents .pptx file path and completion report")
+        # ── Page 2: Content Conductors ────────────────────────────────
+        conductors = Table(show_header=False, box=box.SIMPLE, padding=(0, 2))
+        conductors.add_column("Agent", style="bold cyan", width=22)
+        conductors.add_column("Pipeline")
+        conductors.add_row("Slide Conductor", "Pre-Research -> Clarify -> Deep Research -> Plan -> Build PPTX -> QA -> Deliver")
+        conductors.add_row("Demo Conductor", "Pre-Research -> Clarify -> Deep Research -> Plan -> Build -> Review -> Deliver")
 
         p2 = Panel(
             Group(
-                Text.from_markup("[bold white]The Slide Conductor Pipeline[/bold white]\n"),
-                pipeline,
-                Text.from_markup('\n[dim]Try: "I need a 1-hour L300 deck on Azure Container Apps"[/dim]'),
+                Text.from_markup(
+                    "[bold white]Content Conductors[/bold white]\n\n"
+                    "Two conductors generate presentation and demo assets:\n"
+                ),
+                conductors,
+                Text.from_markup(
+                    '\n[dim]Try: "I need a 1-hour L300 deck on Azure Container Apps"[/dim]'
+                    '\n[dim]Try: "Create 3 L300 demos on GitHub Copilot for Contoso"[/dim]'
+                ),
             ),
-            title="[bold cyan]Slide Conductor[/bold cyan]",
-            subtitle="[dim]2 / 8[/dim]",
-            border_style="#0055dd",
-            padding=(1, 3),
-        )
-
-        # ── Page 3: Demo Conductor ────────────────────────────────────
-        demo_pipe = Table(show_header=False, box=box.SIMPLE, padding=(0, 2))
-        demo_pipe.add_column("Step", style="bold cyan", width=8)
-        demo_pipe.add_column("Action", style="bold white", width=20)
-        demo_pipe.add_column("What happens")
-        demo_pipe.add_row("0A", "Pre-Research", "Scans for existing sample repos and quickstarts")
-        demo_pipe.add_row("0B", "Clarify", "Asks: customer name, number of demos, level")
-        demo_pipe.add_row("1", "Deep Research", "Finds best demo scenarios with WOW moments")
-        demo_pipe.add_row("2", "Plan", "Creates demo plan - waits for your approval")
-        demo_pipe.add_row("3", "Build", "Creates guide .md + all companion scripts")
-        demo_pipe.add_row("4", "Validate + Review", "Syntax check, URL verify, structured review")
-        demo_pipe.add_row("5", "Deliver", "Presents guide path and demo inventory")
-
-        p3 = Panel(
-            Group(
-                Text.from_markup("[bold white]The Demo Conductor Pipeline[/bold white]\n"),
-                demo_pipe,
-                Text.from_markup('\n[dim]Try: "Create 3 L300 demos on GitHub Copilot for Contoso"[/dim]'),
-            ),
-            title="[bold cyan]Demo Conductor[/bold cyan]",
-            subtitle="[dim]3 / 8[/dim]",
+            title="[bold cyan]Content Conductors[/bold cyan]",
+            subtitle="[dim]2 / 7[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
@@ -1453,7 +1438,7 @@ class CopilotUI:
                 ),
             ),
             title="[bold yellow]AI Project Agents[/bold yellow]",
-            subtitle="[dim]4 / 8[/dim]",
+            subtitle="[dim]3 / 7[/dim]",
             border_style="#ee9944",
             padding=(1, 3),
         )
@@ -1477,7 +1462,7 @@ class CopilotUI:
             "  - It still plans, builds, and QA-reviews the output as usual\n"
             "  - Great for turning meeting notes or research into decks fast",
             title="[bold cyan]Bring Your Own Research[/bold cyan]",
-            subtitle="[dim]5 / 8[/dim]",
+            subtitle="[dim]4 / 7[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
@@ -1507,7 +1492,7 @@ class CopilotUI:
                 ),
             ),
             title="[bold cyan]Content Calibration[/bold cyan]",
-            subtitle="[dim]6 / 8[/dim]",
+            subtitle="[dim]5 / 7[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
@@ -1529,7 +1514,7 @@ class CopilotUI:
             "  - Context window bar shows how full your LLM context is\n"
             "  - /compact removes older messages to free context space",
             title="[bold cyan]Sessions & Usage[/bold cyan]",
-            subtitle="[dim]7 / 8[/dim]",
+            subtitle="[dim]6 / 7[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
@@ -1570,12 +1555,12 @@ class CopilotUI:
                 ),
             ),
             title="[bold cyan]Commands[/bold cyan]",
-            subtitle="[dim]8 / 8[/dim]",
+            subtitle="[dim]7 / 7[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
 
-        return [p1, p2, p3, p3b, p_byor, p4, p5, p6]
+        return [p1, p2, p3b, p_byor, p4, p5, p6]
 
     def print_info(self, msg: str) -> None:
         self.console.print(f"  [dim]{msg}[/dim]")
