@@ -1,6 +1,6 @@
 # VBD-Copilot - The Ultimate CSA Copilot
 
-> AI-powered presentation and demo builder for Microsoft Cloud Solution Architects and Solution Engineers
+> Your AI-powered engagement platform - from first meeting prep to production-ready Azure delivery
 
 ![VBD-Copilot](assets/screenshots/vbd-copilot.png)
 
@@ -10,63 +10,214 @@
 
 ## Quick Index
 
-- [VBD-Copilot - The Ultimate CSA Copilot](#vbd-copilot---the-ultimate-csa-copilot)
-  - [Quick Index](#quick-index)
-  - [What This Is](#what-this-is)
-  - [Sample Output](#sample-output)
-  - [Architecture](#architecture)
-  - [Responsible AI](#responsible-ai)
-  - [Content Levels](#content-levels)
-  - [Slide Session Durations](#slide-session-durations)
-  - [Prerequisites](#prerequisites)
-  - [Getting Started](#getting-started)
-    - [One-time setup: authenticate the GitHub CLI](#one-time-setup-authenticate-the-github-cli)
-    - [Option A - Docker (recommended)](#option-a---docker-recommended)
-    - [Option B - GitHub Codespaces (zero install)](#option-b---github-codespaces-zero-install)
-    - [Option C - Native install](#option-c---native-install)
-  - [Usage Examples](#usage-examples)
-    - [Generate a presentation](#generate-a-presentation)
-    - [Generate demo guides](#generate-demo-guides)
-    - [Generate from your own notes](#generate-from-your-own-notes)
-    - [Generate a technical update briefing](#generate-a-technical-update-briefing)
-    - [Direct @mentions](#direct-mentions)
-  - [AI project lifecycle](#ai-project-lifecycle)
-  - [Slash commands](#slash-commands)
+- [What This Is](#what-this-is)
+- [A Day in the Life](#a-day-in-the-life)
+- [Three Workflows](#three-workflows)
+  - [Presentations](#1-presentations)
+  - [Demos](#2-demos)
+  - [AI Projects](#3-ai-projects---idea-to-production)
+- [Sample Output](#sample-output)
+- [Architecture](#architecture)
+- [Quality and Trust](#quality-and-trust)
+- [Observability and Cost Tracking](#observability-and-cost-tracking)
+- [Content Levels](#content-levels)
+- [Slide Session Durations](#slide-session-durations)
+- [Responsible AI](#responsible-ai)
+- [Prerequisites](#prerequisites)
+- [Getting Started](#getting-started)
+  - [One-time setup: authenticate the GitHub CLI](#one-time-setup-authenticate-the-github-cli)
+  - [Option A - Docker (recommended)](#option-a---docker-recommended)
+  - [Option B - GitHub Codespaces (zero install)](#option-b---github-codespaces-zero-install)
+  - [Option C - Native install](#option-c---native-install)
+- [Usage Examples](#usage-examples)
+- [Slash Commands](#slash-commands)
 
 ---
 
 ## What This Is
 
-CSAs and Solution Engineers spend hours assembling custom presentations and demo scripts for every customer session. Official decks are often too generic, too old, or built for a different audience. Demo scripts are scattered and undocumented.
+You know the drill. A customer meeting lands on your calendar, and suddenly you need a 45-slide deck on a service you last touched three months ago. The official deck is two releases behind. Your demo scripts live in five different OneNote pages, none of them complete. You spend the evening before the session copy-pasting from MS Learn, wrangling PowerPoint layouts, and hoping your live demo won't blow up.
 
-This textual user interface app gives you two AI conductors that produce customer-ready technical content on any topic, calibrated to your customer's level and context:
+VBD-Copilot exists to kill that cycle.
 
-- **Slide Conductor** - generates a complete `.pptx` presentation with speaker notes from a single prompt
-- **Demo Conductor** - generates a full step-by-step demo guide with all runnable companion scripts
+It is a terminal-based AI platform built on the GitHub Copilot SDK that covers **three distinct workflows** a CSA or Solution Engineer deals with regularly:
 
-Both conductors research official docs first, plan with your input, build, and run automated quality review before delivering output.
+1. **Presentations** - Generate a complete `.pptx` with speaker notes from a single prompt. Research happens against official sources, not hallucinations.
+2. **Demos** - Generate step-by-step demo guides with runnable companion scripts, troubleshooting tables, and "say this" presenter cues.
+3. **AI Projects** - Go from a blank page to a production-ready Azure project: brainstorm ideas, design architecture with cost estimates, and generate Bicep infra + app code + CI/CD + tests - all reviewed by 4 specialist agents before delivery.
 
-**Beyond customer decks.** The Slide Conductor is not limited to building presentations from scratch via online research. You can use it for:
-
-- **Technical update briefings** - monthly or quarterly technology updates for your team, stakeholders, or management. Ask for a briefing deck on recent changes to a service and the conductor will research what's new and assemble a ready-to-present update.
-- **Slides from your own research** - if you already have notes, outlines, or research collected in text or Markdown files, point the conductor at them. It will use your material as the primary source instead of doing its own web research, turning your raw notes into a structured, polished deck with speaker notes. Just reference the file path in your prompt.
-
-This makes the tool useful well beyond one-off customer sessions - any time you need a well-structured technical presentation, whether sourced from the web or from your own knowledge.
+Each workflow is run by a **conductor agent** that orchestrates specialist subagents, asks for your approval at key stops, and runs automated quality checks before handing you the output. 19 agents work together behind the scenes, but you just type a prompt.
 
 > [!IMPORTANT]
-> **This is a deep research process, not a quick generation.** Do not expect it to run in minutes. Generating a full slide deck typically takes **1 hour or more** - and that time is intentional.
->
-> The conductors perform multi-step research against official sources (MS Learn, docs.github.com, devblogs) before writing a single slide. Every claim is sourced, every link is verified, and content is QA-reviewed before delivery. This is how the tool avoids the hallucinations and generic AI slop that make most AI-generated content unusable in front of a customer.
->
-> What it replaces is 4-8 hours of manual research, slide assembly, and script writing that you would have done anyway - often the night before. That is the acceleration. Not speed, but the elimination of your most painful preparation work. Kick off a generation and let it run while you do something else. Longer sessions (2h+) or higher content levels (L300/L400) can take even longer than 1 hour. Demo generation is usually 30-45 minutes.
+> **This is deep research, not instant generation.** A full slide deck typically takes **1 hour or more**. That time is real work: multi-step research against MS Learn and official docs, source verification, content QA, and humanization checks. What it replaces is the 4-8 hours of manual research and assembly you'd do yourself - often the night before. Kick it off and work on something else. Demo generation runs 30-45 minutes. AI project builds vary by scope.
 
-> **Accelerator, not autopilot.** Always review generated content before a customer session. The output is a strong, well-researched first draft, with acceptable graphics and minor things to tweak - you own it, you refine it, you present it. Feedback welcome.
+> **Accelerator, not autopilot.** The output is a strong first draft with sourced claims, tested code, and acceptable graphics. You own it, you refine it, you present it. Review before every customer session.
+
+---
+
+## A Day in the Life
+
+VBD-Copilot shows up at different points in a CSA's week. Here are the moments where it saves you real time.
+
+| Your situation | What you tell VBD-Copilot | What happens |
+|----------------|---------------------------|-------------|
+| **Monday standup** - your manager wants a tech update for the team | "Create a 15min L200 briefing on what's new in AKS this quarter" | Slide Conductor researches recent AKS announcements from MS Learn and devblogs, builds a 12-slide deck with speaker notes. Ready for your team sync. |
+| **Customer prep** - Contoso meeting Wednesday, they want deep Copilot coverage | "I need a 1-hour L300 deck on GitHub Copilot agent extensions for financial services" | Researches official docs, asks what sub-areas to focus on, presents a plan for your approval, builds 30 slides with full presenter transcripts in the notes. |
+| **You already have notes** - spent last week collecting research in a .md file | "Build a 30min L200 deck from my notes in notes/aks-security-review.md" | Reads your file, structures it into a presentation outline, builds the deck from your material instead of web research. Your knowledge, polished format. |
+| **Demo day** - customer wants to see Container Apps in action | "Create 3 L300 demos on Azure Container Apps for Contoso" | Demo Conductor produces a guide with step-by-step instructions, companion .sh and .py scripts, troubleshooting tables, and "say this" boxes so you know exactly what to tell the audience at each step. |
+| **Pre-sales brainstorm** - "what AI projects should we propose to this healthcare company?" | "@ai-brainstorming Brainstorm AI use cases for a healthcare company" | Researches the customer context, generates 10+ ranked ideas with impact scores, difficulty ratings, Azure services for each, and a phased roadmap (0-3 months, 3-9, 9-18). |
+| **Architecture engagement** - customer approved idea #3, need design docs | "@ai-solution-architect Design the architecture for idea #3" | Produces 5 documents: solution design, draw.io diagram, ASCII diagram, cost estimation with SKU-level pricing, and a delivery plan with phases and risks. All Azure-only. |
+| **Delivery kickoff** - time to build the thing | "@ai-implementor Implement the solution" | Generates Bicep infrastructure, application code, CI/CD pipelines, deploy scripts, unit tests (80% coverage gate), smoke tests, and README. Four specialist reviewers (code, infra, pipeline, docs) must all approve before delivery. |
+| **Pick up where you left off** - started a generation yesterday, want to continue | `/resume` | Loads your previous session with full context. Sessions survive across days and weeks. |
+
+---
+
+## Three Workflows
+
+### 1. Presentations
+
+The **Slide Conductor** takes a topic, audience level, and session length, then produces a finished `.pptx` file.
+
+**How it works:**
+
+0. **Pre-research** - Quick scan of official sources to understand the topic landscape. Asks you clarifying questions.
+1. **Deep research** - Dispatches parallel research subagents to gather detailed content from MS Learn, docs.github.com, devblogs, and Tech Community.
+2. **Plan** - Presents a slide-by-slide outline with section breakdown. Waits for your approval before building anything.
+3. **Build** - Dispatches builder subagents (one per section) that write python-pptx code fragments. Assembles fragments into a generator script, runs it to produce the `.pptx`.
+4. **QA** - Runs programmatic layout checks (shape overflow, font sizes, placeholder text) and content humanization scoring. If issues are found, fixes and re-runs.
+5. **Deliver** - Drops the `.pptx` and its generator `.py` script into `outputs/slides/`.
+
+**Agents involved:** slide-conductor, research-subagent, slide-builder-subagent, pptx-qa-subagent
+
+**Not just customer decks.** The Slide Conductor also handles:
+
+- **Technical update briefings** - quarterly "what's new" decks for your team or stakeholders, researched from official sources
+- **Slides from your own research** - point it at a .md file with your notes and it builds the deck from your material
+
+---
+
+### 2. Demos
+
+The **Demo Conductor** produces a complete demo guide in Markdown with companion scripts you can actually run.
+
+**How it works:**
+
+0. **Pre-research** - Scans Azure-Samples, MS Learn quickstarts, and official repos for existing demos on the topic.
+1. **Deep research** - Gathers implementation details, API patterns, and working code samples.
+2. **Plan** - Presents the demo structure: number of demos, focus areas, companion scripts needed. Waits for your approval.
+3. **Build** - Dispatches builder subagents for each demo. Each produces a guide fragment with step-by-step instructions, "say this" presenter cues, a WOW moment callout, and companion scripts (.sh, .py, .ps1).
+4. **Review** - A reviewer subagent checks accuracy, runnability, and presenter quality. If anything needs revision, an editor subagent makes targeted fixes and the reviewer checks again.
+5. **Deliver** - Drops the assembled guide and all companion files into `outputs/demos/`.
+
+**Agents involved:** demo-conductor, demo-research-subagent, demo-builder-subagent, demo-reviewer-subagent, demo-editor-subagent
+
+**What you get in each demo:**
+
+- Step-by-step instructions with expected output
+- "Say this" boxes - exactly what to tell the audience at each step
+- WOW moment - the one thing that makes the audience go "oh, that's cool"
+- Troubleshooting table - common failures and fixes
+- Companion scripts - ready to run, not pseudocode
+
+---
+
+### 3. AI Projects - Idea to Production
+
+This is the big one. Three conductor agents take you from a blank page to a deployable Azure project, with mandatory quality gates at every stage.
+
+#### Stage 1: Brainstorming
+
+**Agent:** `ai-brainstorming` (model: claude-opus-4.6)
+
+You describe a customer's industry, objectives, and constraints. The agent researches the customer context and generates **10+ prioritized AI project ideas**, each with:
+
+- Impact score (1-5) and difficulty rating (1-5)
+- Timeline to first value
+- Specific Azure services needed
+- One-line business case
+- A phased roadmap: quick wins (0-3 months), medium-term (3-9 months), strategic bets (9-18 months)
+
+**Output:** `outputs/ai-projects/{slug}/docs/ai-brainstorming.md`
+
+#### Stage 2: Solution Architecture
+
+**Agent:** `ai-solution-architect` (model: claude-opus-4.6)
+
+Pick an idea from the brainstorming output. The architect agent runs a discovery session (objectives, success criteria, team, constraints, integrations), then produces **5 architecture documents**:
+
+| Document | What it contains |
+|----------|-----------------|
+| `solution-design.md` | Executive summary, architecture decisions, data flows, security model, non-functional requirements |
+| `architecture-diagram.drawio` | Full draw.io diagram (importable XML) with all Azure components, data flows, and network boundaries |
+| `architecture-diagram.md` | ASCII art version of the same diagram for terminals and Markdown rendering |
+| `cost-estimation.md` | SKU-level Azure pricing, monthly and annual estimates, scaling considerations |
+| `delivery-plan.md` | Implementation phases, milestones, team structure, dependencies, risk register |
+
+An architecture reviewer subagent checks all 5 documents for technical accuracy, completeness, Azure mandate compliance, and placeholder-free content. If issues are found, targeted fixes are made and the review runs again until the reviewer returns CLEAN.
+
+**Output:** `outputs/ai-projects/{slug}/docs/`
+
+#### Stage 3: Implementation
+
+**Agent:** `ai-implementor` (model: claude-sonnet-4.6)
+
+This is where code gets written. The implementor breaks the approved architecture into **8 work packages**, built in strict order:
+
+1. **Infrastructure** - Bicep modules (networking, security, compute, data, monitoring), parameter files
+2. **Application code** - Source code with Azure SDK integration
+3. **CI/CD pipelines** - GitHub Actions workflows for infra and app deployment
+4. **Deploy script** - `scripts/deploy.sh` with `--infra-only`, `--app-only` flags, idempotent
+5. **Unit tests** - pytest/Jest/xunit with 80% coverage minimum
+6. **Smoke tests** - Health checks and endpoint validation for post-deployment
+7. **Validation script** - `tests/validate.sh` that runs Bicep build checks, unit tests, and optional `--live` smoke tests
+8. **README** - Project entry point with setup, deploy, validate, and demo guide sections
+
+**The 4-reviewer gate.** Before the implementor delivers anything, four specialist reviewers must all return APPROVED:
+
+| Reviewer | Scope | Checks for |
+|----------|-------|-----------|
+| **Code reviewer** | `src/` and `tests/` | Logic correctness, Azure SDK usage, no hardcoded secrets, error handling, test quality |
+| **Infra reviewer** | `infra/` | Bicep syntax, module decomposition, Key Vault + managed identity for secrets, RBAC, SKU consistency, naming conventions |
+| **Pipeline reviewer** | `.github/workflows/`, `deploy.sh`, `validate.sh` | YAML correctness, job dependencies, secrets via env vars, `set -euo pipefail`, idempotency |
+| **Docs reviewer** | `README.md` | All sections present, paths accurate, commands correct, env vars documented, no placeholders |
+
+If any reviewer returns NEEDS_REVISION, the implementor dispatches targeted fixes and re-runs that specific reviewer. Delivery only happens when all four say APPROVED.
+
+**Output structure:**
+
+```text
+outputs/ai-projects/{slug}/
+  +-- README.md
+  +-- docs/
+  |     +-- solution-design.md
+  |     +-- architecture-diagram.drawio
+  |     +-- architecture-diagram.md
+  |     +-- cost-estimation.md
+  |     +-- delivery-plan.md
+  +-- infra/
+  |     +-- main.bicep
+  |     +-- modules/
+  |     +-- params*.json
+  +-- src/
+  |     +-- (application code)
+  +-- tests/
+  |     +-- unit/
+  |     +-- smoke/
+  |     +-- validate.sh
+  +-- scripts/
+  |     +-- deploy.sh
+  +-- .github/workflows/
+        +-- infra-deploy.yml
+        +-- app-deploy.yml
+```
+
+All AI project workflows enforce an **Azure-only mandate** - no AWS, no GCP alternatives. Every service, SDK, and deployment target is Azure.
 
 ---
 
 ## Sample Output
 
-The slides and demos below - **un-edited on purpose** - were generated by the vbd-copilot utility of this repo on different topics.
+The slides and demos below - **un-edited on purpose** - were generated by VBD-Copilot on different topics.
 
 | | | | |
 |:---:|:---:|:---:|:---:|
@@ -86,10 +237,13 @@ Browse the full output library:
 
 ```mermaid
 flowchart TD
-    User(["User\nTUI prompt"]) -->|"free-text or @mention"| Router["router.py\nAgent Router"]
+    User(["User\nTUI prompt"]) -->|"free-text or @mention"| Router["router.py\nAgent Router\n(LLM classifier)"]
 
-    Router -->|"slides / deck / pptx keyword"| SC["slide-conductor\ninfer=True"]
-    Router -->|"demo / walkthrough keyword"| DC["demo-conductor\ninfer=True"]
+    Router -->|"slides / deck / pptx"| SC["slide-conductor"]
+    Router -->|"demo / walkthrough"| DC["demo-conductor"]
+    Router -->|"brainstorm / AI ideas"| AB["ai-brainstorming"]
+    Router -->|"architecture / design"| SA["ai-solution-architect"]
+    Router -->|"implement / build"| AI["ai-implementor"]
     Router -->|"no match"| Default["Default\nCopilot Agent"]
 
     subgraph Slide_Pipeline ["Slide Pipeline"]
@@ -110,6 +264,22 @@ flowchart TD
         DC4 --> DC5["5 - Deliver\nguide .md + scripts"]
     end
 
+    subgraph AI_Project_Pipeline ["AI Project Pipeline"]
+        AB --> AB1["Research customer context"]
+        AB1 --> AB2["Generate 10+ ranked ideas\nwith phased roadmap"]
+
+        SA --> SA0["0 - Discovery + clarify"]
+        SA0 --> SA1["1 - Plan -> user approval"]
+        SA1 --> SA2["2 - Build 5 architecture docs\n(parallel subagents)"]
+        SA2 --> SA3["3 - Architecture QA + review"]
+        SA3 --> SA4["4 - Deliver docs/"]
+
+        AI --> AI0["0 - Break into 8 work packages"]
+        AI0 --> AI1["1 - Build each package\n(sequential)"]
+        AI1 --> AI2["2 - 4-reviewer gate\n(code + infra + pipeline + docs)"]
+        AI2 --> AI3["3 - Deliver full project"]
+    end
+
     SC0 & SC1 -->|"task tool"| RSA[("research-subagent")]
     SC3 -->|"task tool"| SBA[("slide-builder-subagent")]
     SC3F -->|"task tool"| QA[("pptx-qa-subagent")]
@@ -119,11 +289,111 @@ flowchart TD
     DC4 -->|"task tool"| DRV[("demo-reviewer-subagent")]
     DC4 -->|"task tool"| DEA[("demo-editor-subagent")]
 
-    RSA & DRA -->|"bing_search + web_fetch"| Docs[("Official Sources - MS Learn - GitHub Docs - devblogs - Tech Community")]
+    SA2 -->|"task tool"| ARCH_B[("architecture-builder-subagent")]
+    SA3 -->|"task tool"| ARCH_R[("architecture-reviewer-subagent")]
+    AI1 -->|"task tool"| CODE_B[("code-builder-subagent")]
+    AI2 -->|"task tool"| CODE_R[("code-reviewer-subagent")]
+    AI2 -->|"task tool"| INFRA_R[("infra-reviewer-subagent")]
+    AI2 -->|"task tool"| PIPE_R[("pipeline-reviewer-subagent")]
+    AI2 -->|"task tool"| DOCS_R[("docs-reviewer-subagent")]
+
+    RSA & DRA -->|"bing_search + web_fetch"| Docs[("Official Sources\nMS Learn - GitHub Docs\ndevblogs - Tech Community")]
 
     SC4 --> OutS[("outputs/slides/")]
     DC5 --> OutD[("outputs/demos/")]
+    AB2 --> OutP[("outputs/ai-projects/{slug}/docs/")]
+    SA4 --> OutP
+    AI3 --> OutP2[("outputs/ai-projects/{slug}/\ninfra + src + tests + scripts")]
 ```
+
+**Routing.** The router uses a two-step strategy. If you type `@agent-name`, the message goes directly to that agent. Otherwise, a lightweight GPT-4.1 classifier reads your prompt, compares it against all routable agent descriptions, and picks the best match. If neither approach finds a match, the default Copilot agent handles it as free-form conversation.
+
+**Model selection.** When an agent is selected, the session automatically switches to that agent's preferred model. Slide and demo conductors use claude-sonnet-4.6. Brainstorming and architecture agents use claude-opus-4.6 for deeper reasoning. The implementor uses claude-sonnet-4.6 for speed. You can override anytime with `/model`.
+
+---
+
+## Quality and Trust
+
+The whole point of this tool is producing content you can put in front of a customer without embarrassment. Several mechanisms work together to make that happen.
+
+**Research from official sources only.** Every research subagent is restricted to MS Learn, docs.github.com, github.blog, devblogs.microsoft.com, and techcommunity.microsoft.com. No random blog posts, no Stack Overflow guesses, no made-up URLs. Every link in the output is real and was fetched during generation.
+
+**Human approval stops.** Every conductor pauses after the research phase and presents a plan. You approve, modify, or reject it before any content gets built. You also review the final output before it's considered done.
+
+**Automated QA checks.** Each workflow runs programmatic validation before delivery:
+
+- **PPTX QA** - shape overflow detection, placeholder text scanning, speaker notes presence, font size validation, slide count verification
+- **Architecture QA** - document completeness, Azure mandate compliance, placeholder-free content, diagram accuracy
+- **Infrastructure QA** - Bicep syntax, module decomposition, Key Vault usage, managed identity for secrets, RBAC configuration
+- **Pipeline QA** - YAML syntax, job dependencies, secrets via environment variables, deploy script safety
+- **Documentation QA** - section completeness, path accuracy, command correctness, environment variable documentation
+
+**Content humanization.** Generated text goes through AI-tell detection that flags filler words, hedging phrases, uniform sentence structure, and a blacklist of overused AI vocabulary. A humanity scoring system rates the output and triggers rewrites if the score is too low. The goal is content that reads like a person wrote it, not a chatbot.
+
+**4-reviewer gate for AI projects.** The implementor cannot deliver until four independent specialist reviewers (code, infra, pipeline, docs) each return APPROVED. If any one of them flags an issue, targeted fixes are applied and that reviewer runs again. No shortcuts.
+
+**80% test coverage.** Code projects must pass a `pytest --cov` threshold of 80% before the code reviewer will approve.
+
+---
+
+## Observability and Cost Tracking
+
+VBD-Copilot tracks token usage, timing, and estimated costs in a local SQLite database at `~/.vbd-copilot/vbd-copilot.db`. Nothing leaves your machine.
+
+**What gets tracked:**
+
+- Input and output tokens per turn, including cache reads and writes
+- Estimated USD cost per turn (based on published model pricing)
+- Tool call and subagent invocation counts
+- Session duration, turn count, and agent/model per session
+
+**How to access it:**
+
+| Command | What it shows |
+|---------|--------------|
+| `/usage` | Current session: token counts, estimated cost, context window capacity |
+| `/usage all` | Global aggregates: total tokens and cost broken down by agent, model, and time period |
+| `/usage today` | Today's usage across all sessions |
+| `/usage week` | This week's usage |
+| `/usage month` | This month's usage |
+| `/usage --agent slide-conductor` | Usage filtered to a specific agent |
+| `/usage --model claude-opus-4.6` | Usage filtered to a specific model |
+
+**Session inspection.** You can drill into any past session:
+
+| Command | What it shows |
+|---------|--------------|
+| `/sessions` | Active and resumable sessions |
+| `/sessions all` | All sessions, including ended ones |
+| `/sessions <id>` | Detail view of a specific session |
+| `/sessions <id> turn 3` | Content of a specific turn within a session |
+| `/sessions <id> invocations` | Full trace of tool calls and subagent dispatches for that session |
+| `/sessions name <id> <nick>` | Give a session a nickname for easy reference |
+| `/sessions end <id>` | End a specific session |
+| `/sessions cleanup` | Purge old sessions |
+
+Sessions are **resumable by default**. Start a generation on Monday, come back Thursday, type `/resume`, and pick up with full context.
+
+---
+
+## Content Levels
+
+| Level | Audience | Description |
+|-------|----------|-------------|
+| **L100** | Business / Executive | Value propositions, no code |
+| **L200** | Technical decision makers | Architecture, key concepts |
+| **L300** | Practitioners | Implementation, code samples, best practices |
+| **L400** | Experts | Internals, performance, advanced patterns |
+
+## Slide Session Durations
+
+| Duration | Approx. slides |
+|----------|---------------|
+| 15 min | 10-14 |
+| 30 min | 15-20 |
+| 1 hour | 25-35 |
+| 2 hours | 40-55 |
+| 4 hours | 70-90 |
 
 ---
 
@@ -150,25 +420,6 @@ The tool is scoped to technical education content for Microsoft Cloud products. 
 This tool delegates to GitHub Copilot models via the GitHub Copilot SDK. It does not fine-tune or modify model weights. All model usage is subject to the [GitHub Copilot Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features#github-copilot) and [Microsoft Responsible AI principles](https://www.microsoft.com/en-us/ai/responsible-ai).
 
 ---
-
-## Content Levels
-
-| Level | Audience | Description |
-|-------|----------|-------------|
-| **L100** | Business / Executive | Value propositions, no code |
-| **L200** | Technical decision makers | Architecture, key concepts |
-| **L300** | Practitioners | Implementation, code samples, best practices |
-| **L400** | Experts | Internals, performance, advanced patterns |
-
-## Slide Session Durations
-
-| Duration | Approx. slides |
-|----------|---------------|
-| 15 min | 10-14 |
-| 30 min | 15-20 |
-| 1 hour | 25-35 |
-| 2 hours | 40-55 |
-| 4 hours | 70-90 |
 
 ## Prerequisites
 
@@ -325,8 +576,6 @@ python app.py
 
 ### Generate from your own notes
 
-If you already have research notes, outlines, or technical content in a file, pass it to the conductor and it will build the deck from your material:
-
 ```text
 >>> Build a 30min L200 deck from my notes in notes/aks-security-review.md
   >> routed -> slide-conductor | model: claude-sonnet-4.6
@@ -351,7 +600,28 @@ If you already have research notes, outlines, or technical content in a file, pa
   OK: Saved outputs/slides/aks-quarterly-update-l200.pptx (12 slides)
 ```
 
+### Run the full AI project lifecycle
+
+```text
+>>> @ai-brainstorming Brainstorm AI use cases for a healthcare company
+  >> routed -> ai-brainstorming | model: claude-opus-4.6
+  ...
+  OK: Saved outputs/ai-projects/healthcare-ai/docs/brainstorming.md (10+ ranked ideas)
+
+>>> @ai-solution-architect Design the architecture for idea #3
+  >> routed -> ai-solution-architect | model: claude-opus-4.6
+  ...
+  OK: Saved 5 architecture documents to outputs/ai-projects/healthcare-ai/docs/
+
+>>> @ai-implementor Implement the solution
+  >> routed -> ai-implementor | model: claude-sonnet-4.6
+  ...
+  OK: Saved infra + src + tests + scripts to outputs/ai-projects/healthcare-ai/
+```
+
 ### Direct @mentions
+
+You can always skip the router and go straight to a specific agent:
 
 ```text
 >>> @slide-conductor Make a 30min L200 deck on Microsoft Fabric
@@ -361,40 +631,9 @@ If you already have research notes, outlines, or technical content in a file, pa
 >>> @ai-implementor Implement the infrastructure and app code for the chatbot solution
 ```
 
-### AI project lifecycle
+---
 
-Three agents guide you from idea to production on Azure:
-
-```text
->>> @ai-brainstorming Brainstorm AI use cases for a healthcare company
-  >> routed -> ai-brainstorming | model: claude-opus-4.6
-
-  ? Agent researches customer context, industry trends...
-  ...
-  OK: Saved outputs/ai-projects/healthcare-ai/docs/brainstorming.md (10+ ranked ideas)
-```
-
-```text
->>> @ai-solution-architect Design the architecture for idea #3
-  >> routed -> ai-solution-architect | model: claude-opus-4.6
-
-  ? Agent builds architecture documents, diagrams, cost estimates...
-  ...
-  OK: Saved 5 architecture documents to outputs/ai-projects/healthcare-ai/docs/
-```
-
-```text
->>> @ai-implementor Implement the solution
-  >> routed -> ai-implementor | model: claude-sonnet-4.6
-
-  ? Agent plans 8 work packages, builds, runs 4 specialist reviews...
-  ...
-  OK: Saved infra + src + tests + scripts to outputs/ai-projects/healthcare-ai/
-```
-
-### Slash commands
-
-Once inside the app, these commands are available:
+## Slash Commands
 
 | Command | Description |
 |---------|-------------|
@@ -406,10 +645,18 @@ Once inside the app, these commands are available:
 | `/compact` | Manually compact context window (free memory) |
 | `/debug` | Toggle debug mode (shows tool I/O, subagent flow, token usage) |
 | `/sessions` | List active and resumable sessions |
-| `/sessions all` | List all sessions including ended ones |
-| `/sessions name <nick>` | Set a session nickname |
-| `/usage` | Current session info, context window, and cost |
-| `/usage all` | Global token usage and cost summary |
+| `/sessions all` | All sessions including ended ones |
+| `/sessions <id>` | Detail view of a specific session |
+| `/sessions <id> turn <N>` | Show a specific turn within a session |
+| `/sessions <id> invocations` | Tool call and subagent trace for a session |
+| `/sessions name <id> <nick>` | Set a session nickname |
+| `/sessions end <id>` | End a specific session |
+| `/sessions cleanup` | Purge old sessions |
+| `/usage` | Current session: tokens, cost, context window |
+| `/usage all` | Global usage aggregates by agent, model, period |
+| `/usage today\|week\|month` | Usage filtered by time period |
+| `/usage --agent <name>` | Usage filtered to a specific agent |
+| `/usage --model <name>` | Usage filtered to a specific model |
 | `/samples` | Show sample output library |
 | `/tutorial` | Interactive guided walkthrough |
 | `/clear` | Clear the screen and redisplay the banner |
