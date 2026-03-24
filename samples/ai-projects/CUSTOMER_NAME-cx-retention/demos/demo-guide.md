@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Customer** | Eni CUSTOMER_NAME S.p.A. |
+| **Customer** | CUSTOMER_NAME |
 | **Project** | Intelligent Bill Explainer - AI Chatbot |
 | **Demo Level** | L300 |
 | **Target Audience** | Technical Decision Makers (CTOs, IT Directors) |

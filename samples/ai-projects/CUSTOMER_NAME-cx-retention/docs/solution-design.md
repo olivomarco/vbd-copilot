@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Customer** | Eni CUSTOMER_NAME S.p.A. |
+| **Customer** | CUSTOMER_NAME |
 | **Project** | Intelligent Bill Explainer - AI Chatbot |
 | **Version** | 1.0 |
 | **Status** | Draft |
@@ -12,7 +12,7 @@
 
 ## 1. Executive Summary
 
-Eni CUSTOMER_NAME S.p.A. serves approximately 10 million retail energy customers across six EU countries. A significant share of inbound call center volume - estimated at 35-40% - relates to billing inquiries: customers struggling to understand line items, tariff changes, consumption patterns, and regulatory charges on their energy bills. These calls are repetitive, high-volume, and costly to handle through human agents. CUSTOMER_NAME has identified an opportunity to deploy an AI-powered conversational chatbot that explains energy bills in plain, accessible Italian, reducing call center load while improving customer satisfaction.
+CUSTOMER_NAME serves approximately 10 million retail energy customers across six EU countries. A significant share of inbound call center volume - estimated at 35-40% - relates to billing inquiries: customers struggling to understand line items, tariff changes, consumption patterns, and regulatory charges on their energy bills. These calls are repetitive, high-volume, and costly to handle through human agents. CUSTOMER_NAME has identified an opportunity to deploy an AI-powered conversational chatbot that explains energy bills in plain, accessible Italian, reducing call center load while improving customer satisfaction.
 
 The proposed solution is a web-based chatbot widget that uses Microsoft Azure OpenAI Service and a Retrieval Augmented Generation (RAG) architecture to answer billing questions in two modes. In the first mode, customers ask general questions about tariffs, bill structure, regulatory charges, and payment options, and receive answers grounded in CUSTOMER_NAME's published documentation. In the second mode, customers provide a bill reference number or customer code, and the chatbot retrieves their actual billing data through CUSTOMER_NAME's backend APIs, then explains specific charges, consumption figures, and cost breakdowns in conversational language. No customer login is required - the bill reference acts as a lightweight identifier, keeping friction low.
 

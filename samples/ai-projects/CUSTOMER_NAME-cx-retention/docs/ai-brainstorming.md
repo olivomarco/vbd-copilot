@@ -4,7 +4,7 @@
 
 | Attribute | Detail |
 |-----------|--------|
-| **Company** | Eni CUSTOMER_NAME S.p.A. Societa Benefit |
+| **Company** | CUSTOMER_NAME Societa Benefit |
 | **Industry** | Energy retail, renewable energy, electric mobility |
 | **Revenue** | EUR 10.2B (2024) |
 | **Customers** | 10 million across Italy, France, Portugal, Greece, Spain, Slovenia |
