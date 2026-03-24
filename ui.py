@@ -780,6 +780,8 @@ class CopilotUI:
         version_line.append("  The ultimate CSA Copilot", style="bold white")
         version_line.append("  |  ", style="dim")
         version_line.append(f"v{VERSION}", style="#58a6ff")
+        version_line.append("  |  ", style="dim")
+        version_line.append("by @olivomarco", style="dim italic")
 
         content = Group(table, Text(""), version_line)
         panel = Panel(
@@ -810,6 +812,8 @@ class CopilotUI:
         subtitle.append("The ultimate CSA Copilot", style="bold white")
         subtitle.append("  |  ", style="dim")
         subtitle.append(f"v{VERSION}", style="#58a6ff")
+        subtitle.append("  |  ", style="dim")
+        subtitle.append("by @olivomarco", style="dim italic")
 
         content = Group(art_block, logo_line, Text(""), subtitle)
         panel = Panel(
