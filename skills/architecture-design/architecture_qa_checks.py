@@ -29,9 +29,11 @@ from pathlib import Path
 # ── Expected architecture files ───────────────────────────────────────────────
 
 EXPECTED_FILES = [
+    "executive-brief.md",
     "solution-design.md",
     "architecture-diagram.drawio",
-    "architecture-diagram.md",
+    "data-assessment.md",
+    "responsible-ai.md",
     "cost-estimation.md",
     "delivery-plan.md",
 ]
@@ -201,7 +203,10 @@ def check_md_structure(docs_dir: str) -> list[dict]:
 def check_md_length(docs_dir: str) -> list[dict]:
     """Check that markdown files have reasonable content length."""
     min_words = {
+        "executive-brief.md": 300,
         "solution-design.md": 800,
+        "data-assessment.md": 300,
+        "responsible-ai.md": 300,
         "cost-estimation.md": 150,
         "delivery-plan.md": 200,
     }
@@ -367,10 +372,10 @@ def check_azure_references(docs_dir: str) -> list[dict]:
     return issues
 
 
-def check_ascii_diagram(docs_dir: str) -> list[dict]:
-    """Validate that architecture-diagram.md contains an ASCII diagram."""
+def check_executive_brief(docs_dir: str) -> list[dict]:
+    """Validate that executive-brief.md has required sections."""
     issues = []
-    filepath = os.path.join(docs_dir, "architecture-diagram.md")
+    filepath = os.path.join(docs_dir, "executive-brief.md")
     if not os.path.exists(filepath):
         return issues  # Missing file is caught by check_expected_files
 
@@ -379,36 +384,105 @@ def check_ascii_diagram(docs_dir: str) -> list[dict]:
             content = f.read()
     except Exception as e:
         issues.append({
-            "file": "architecture-diagram.md",
+            "file": "executive-brief.md",
             "severity": "CRITICAL",
-            "check": "ascii_diagram_readable",
+            "check": "executive_brief_readable",
             "message": f"Cannot read file: {e}",
         })
         return issues
 
-    # Should contain ASCII art characters typical of diagrams (boxes, arrows, lines)
-    ascii_art_re = re.compile(r"[|+\->{}<\[\]]+")
-    code_block_re = re.compile(r"```", re.MULTILINE)
-    code_blocks = code_block_re.findall(content)
-    ascii_art_matches = ascii_art_re.findall(content)
-
-    if len(code_blocks) < 2:  # At least one fenced code block (open + close)
-        if len(ascii_art_matches) < 5:
+    content_lower = content.lower()
+    required_concepts = [
+        ("business challenge", "business challenge or problem statement"),
+        ("recommended", "recommended solution or projects"),
+        ("impact", "expected business impact or ROI"),
+        ("timeline", "high-level timeline"),
+        ("next step", "next steps or call to action"),
+    ]
+    for keyword, description in required_concepts:
+        if keyword not in content_lower:
             issues.append({
-                "file": "architecture-diagram.md",
+                "file": "executive-brief.md",
                 "severity": "MAJOR",
-                "check": "ascii_diagram_content",
-                "message": "File does not appear to contain an ASCII diagram (no code blocks or diagram characters found)",
+                "check": "executive_brief_sections",
+                "message": f"Missing expected content: {description}",
             })
 
-    word_count = len(content.split())
-    if word_count < 50:
+    return issues
+
+
+def check_data_assessment(docs_dir: str) -> list[dict]:
+    """Validate that data-assessment.md has required sections."""
+    issues = []
+    filepath = os.path.join(docs_dir, "data-assessment.md")
+    if not os.path.exists(filepath):
+        return issues  # Missing file is caught by check_expected_files
+
+    try:
+        with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+    except Exception as e:
         issues.append({
-            "file": "architecture-diagram.md",
-            "severity": "MAJOR",
-            "check": "ascii_diagram_length",
-            "message": f"Only {word_count} words - expected a meaningful diagram with labels and legend",
+            "file": "data-assessment.md",
+            "severity": "CRITICAL",
+            "check": "data_assessment_readable",
+            "message": f"Cannot read file: {e}",
         })
+        return issues
+
+    content_lower = content.lower()
+    required_concepts = [
+        ("data source", "required data sources"),
+        ("quality", "data quality prerequisites"),
+        ("privacy", "privacy and compliance"),
+        ("integration", "integration points"),
+    ]
+    for keyword, description in required_concepts:
+        if keyword not in content_lower:
+            issues.append({
+                "file": "data-assessment.md",
+                "severity": "MAJOR",
+                "check": "data_assessment_sections",
+                "message": f"Missing expected content: {description}",
+            })
+
+    return issues
+
+
+def check_responsible_ai(docs_dir: str) -> list[dict]:
+    """Validate that responsible-ai.md has required sections."""
+    issues = []
+    filepath = os.path.join(docs_dir, "responsible-ai.md")
+    if not os.path.exists(filepath):
+        return issues  # Missing file is caught by check_expected_files
+
+    try:
+        with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+    except Exception as e:
+        issues.append({
+            "file": "responsible-ai.md",
+            "severity": "CRITICAL",
+            "check": "responsible_ai_readable",
+            "message": f"Cannot read file: {e}",
+        })
+        return issues
+
+    content_lower = content.lower()
+    required_concepts = [
+        ("fairness", "fairness and bias assessment"),
+        ("transparency", "transparency and explainability"),
+        ("human", "human oversight or human-in-the-loop"),
+        ("monitor", "model monitoring"),
+    ]
+    for keyword, description in required_concepts:
+        if keyword not in content_lower:
+            issues.append({
+                "file": "responsible-ai.md",
+                "severity": "MAJOR",
+                "check": "responsible_ai_sections",
+                "message": f"Missing expected content: {description}",
+            })
 
     return issues
 
@@ -466,7 +540,9 @@ def run_all_checks(docs_dir: str, project_slug: str | None = None) -> dict:
         ("emoji", lambda: check_emoji(docs_dir)),
         ("em_dashes", lambda: check_em_dashes(docs_dir)),
         ("azure_references", lambda: check_azure_references(docs_dir)),
-        ("ascii_diagram", lambda: check_ascii_diagram(docs_dir)),
+        ("executive_brief", lambda: check_executive_brief(docs_dir)),
+        ("data_assessment", lambda: check_data_assessment(docs_dir)),
+        ("responsible_ai", lambda: check_responsible_ai(docs_dir)),
         ("cross_references", lambda: check_cross_references(docs_dir)),
     ]
 
