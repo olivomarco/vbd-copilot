@@ -4,7 +4,7 @@ display_name: AI Solution Architect
 description: "Conductor that orchestrates architecture design, documentation, and mandatory review cycles on Microsoft Azure."
 infer: true
 model: claude-opus-4.6
-timeout: 3600
+timeout: 7200
 tools:
   - task
   - ask_user

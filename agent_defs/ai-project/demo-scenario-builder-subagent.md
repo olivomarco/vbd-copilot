@@ -4,7 +4,7 @@ display_name: Demo Scenario Builder Subagent
 description: "Builds ONE demo scenario (guide fragment + companion scripts) from a generated AI project's artifacts, tailored to the solution's architecture and demo access method."
 infer: false
 model: claude-sonnet-4.6
-timeout: 900
+timeout: 1800
 tools:
   - bash
   - str_replace_editor

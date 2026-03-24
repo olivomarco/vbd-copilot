@@ -4,7 +4,7 @@ display_name: Demo Editor Subagent
 description: "Edits and improves demo guides based on reviewer feedback."
 infer: false
 model: claude-sonnet-4.6
-timeout: 600
+timeout: 00
 tools:
   - bash
   - str_replace_editor

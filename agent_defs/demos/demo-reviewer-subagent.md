@@ -4,7 +4,7 @@ display_name: Demo Reviewer Subagent
 description: "Reviews demo packages for accuracy, runnability, and presentation quality. Returns APPROVED or NEEDS_REVISION."
 infer: false
 model: claude-sonnet-4.6
-timeout: 300
+timeout: 900
 tools:
   - bash
   - web_fetch
