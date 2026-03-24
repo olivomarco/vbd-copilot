@@ -32,7 +32,7 @@ from copilot.types import (
 
 from agents import AGENT_MODELS, AGENT_TIMEOUTS, ALL_AGENT_CONFIGS, ALL_SKILL_DIRS, DEFAULT_MODEL, DEFAULT_TIMEOUT
 from collector import EventCollector
-from router import route_to_agent
+from router import init_router, route_to_agent
 from store import EventStore
 from tools import ALL_CUSTOM_TOOLS
 from ui import CopilotUI
@@ -141,6 +141,7 @@ async def main() -> None:
 
     client = CopilotClient(client_opts or None)
     await client.start()
+    await init_router(client)
 
     # ── Cache model context-window limits ─────────────────────────────────────
     model_limits: dict[str, int] = {}
