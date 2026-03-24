@@ -165,6 +165,7 @@ COMPACT_ART = [
 WORKFLOWS = [
     ("slide-conductor",      "Research -> Plan -> Build PPTX -> QA -> Deliver"),
     ("demo-conductor",       "Research -> Plan -> Build -> Validate -> Review -> Deliver"),
+    ("hackathon-conductor",  "Research -> Plan -> Build Challenges -> Coach Materials -> QA -> Deliver"),
     ("ai-brainstorming",     "Discover -> Research -> Ideate -> Prioritize -> Roadmap"),
     ("ai-solution-architect", "Discover -> Plan -> Build Docs -> QA -> Review -> Deliver"),
     ("ai-implementor",       "Plan -> Build (8 WPs) -> Review (4 specialists) -> Deliver"),
@@ -710,22 +711,27 @@ class CopilotUI:
             "- [bold]technical update briefings[/bold]",
         )
         qs.add_row(
-            "[bold yellow]5.[/bold yellow]",
+            "[bold green]5.[/bold green]",
+            '[white]Say [green]"@hackathon-conductor Create a 4-hour L300 hackathon on AKS"[/green][/white] '
+            "- [bold]Hackathon Conductor[/bold]",
+        )
+        qs.add_row(
+            "[bold yellow]6.[/bold yellow]",
             '[white]Say [yellow]"@ai-brainstorming brainstorm AI ideas for Contoso"[/yellow][/white] '
             "- [bold]Brainstorm AI project ideas[/bold]",
         )
         qs.add_row(
-            "[bold yellow]6.[/bold yellow]",
+            "[bold yellow]7.[/bold yellow]",
             '[white]Say [yellow]"@ai-solution-architect design an architecture for a RAG chatbot on Azure"[/yellow][/white] '
             "- [bold]Solution Architecture[/bold]",
         )
         qs.add_row(
-            "[bold yellow]7.[/bold yellow]",
+            "[bold yellow]8.[/bold yellow]",
             '[white]Say [yellow]"@ai-implementor build the Bicep infra and app code for project X"[/yellow][/white] '
             "- [bold]Bicep + app code[/bold]",
         )
         qs.add_row(
-            "[bold cyan]8.[/bold cyan]",
+            "[bold cyan]9.[/bold cyan]",
             "[white]All agents [bold]research official docs[/bold], "
             "[bold]plan with your input[/bold], [bold]build[/bold], and "
             "[bold]auto-QA[/bold] before delivering[/white]",
@@ -1266,6 +1272,9 @@ class CopilotUI:
                 "5 L300 demos (~1h 45m)\n"
                 "  [cyan]demos/generic-github-agentic-workflows-demos.md[/cyan] - "
                 "3 L300 demos\n\n"
+                "[bold]Hackathon Prompts:[/bold]\n"
+                "  [green]@hackathon-conductor[/green] Create a full-day L300 hackathon "
+                "on Azure Container Apps for developers\n\n"
                 "[bold]AI Project Prompts:[/bold]\n"
                 "  [yellow]@ai-brainstorming[/yellow] Brainstorm AI use cases for a "
                 "retail company improving CX\n"
@@ -1382,13 +1391,15 @@ class CopilotUI:
             "    Designs Azure architectures with diagrams, cost estimates.\n\n"
             "  [yellow bold]>> AI Implementor[/yellow bold]\n"
             "    Builds full-stack Azure solutions with 4-reviewer QA.\n\n"
+            "  [green bold]>> Hackathon Conductor[/green bold]\n"
+            "    Creates What-The-Hack-style hackathon events with progressive challenges.\n\n"
             "[bold]All conductors:[/bold]\n"
             "  - Research from official Microsoft/GitHub sources first\n"
             "  - Ask you for input before proceeding\n"
             "  - Run automated quality checks\n"
             "  - Never publish without your approval",
             title="[bold cyan]Welcome[/bold cyan]",
-            subtitle="[dim]1 / 7[/dim]",
+            subtitle="[dim]1 / 8[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
@@ -1413,7 +1424,7 @@ class CopilotUI:
                 ),
             ),
             title="[bold cyan]Content Conductors[/bold cyan]",
-            subtitle="[dim]2 / 7[/dim]",
+            subtitle="[dim]2 / 8[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
@@ -1438,7 +1449,7 @@ class CopilotUI:
                 ),
             ),
             title="[bold yellow]AI Project Agents[/bold yellow]",
-            subtitle="[dim]3 / 7[/dim]",
+            subtitle="[dim]3 / 8[/dim]",
             border_style="#ee9944",
             padding=(1, 3),
         )
@@ -1462,7 +1473,7 @@ class CopilotUI:
             "  - It still plans, builds, and QA-reviews the output as usual\n"
             "  - Great for turning meeting notes or research into decks fast",
             title="[bold cyan]Bring Your Own Research[/bold cyan]",
-            subtitle="[dim]4 / 7[/dim]",
+            subtitle="[dim]5 / 8[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
@@ -1492,7 +1503,7 @@ class CopilotUI:
                 ),
             ),
             title="[bold cyan]Content Calibration[/bold cyan]",
-            subtitle="[dim]5 / 7[/dim]",
+            subtitle="[dim]6 / 8[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
@@ -1514,7 +1525,7 @@ class CopilotUI:
             "  - Context window bar shows how full your LLM context is\n"
             "  - /compact removes older messages to free context space",
             title="[bold cyan]Sessions & Usage[/bold cyan]",
-            subtitle="[dim]6 / 7[/dim]",
+            subtitle="[dim]7 / 8[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
@@ -1546,8 +1557,9 @@ class CopilotUI:
                     "  >> Use [bold]arrow up/down[/bold] for command history\n"
                     "  >> [bold]Tab[/bold] auto-completes commands and agent names\n"
                     "  >> Use [cyan]@slide-conductor[/cyan], "
-                    "[cyan]@demo-conductor[/cyan], [yellow]@ai-brainstorming[/yellow],\n"
-                    "     [yellow]@ai-solution-architect[/yellow], or "
+                    "[cyan]@demo-conductor[/cyan], [green]@hackathon-conductor[/green],\n"
+                    "     [yellow]@ai-brainstorming[/yellow], "
+                    "[yellow]@ai-solution-architect[/yellow], or "
                     "[yellow]@ai-implementor[/yellow] to route directly\n"
                     "  >> History persists across sessions (~/.vbd-copilot/)\n"
                     "  >> Set BING_API_KEY env var for reliable web search\n"
@@ -1555,12 +1567,42 @@ class CopilotUI:
                 ),
             ),
             title="[bold cyan]Commands[/bold cyan]",
-            subtitle="[dim]7 / 7[/dim]",
+            subtitle="[dim]8 / 8[/dim]",
             border_style="#0055dd",
             padding=(1, 3),
         )
 
-        return [p1, p2, p3b, p_byor, p4, p5, p6]
+        # ── Page 4: Hackathon Events ─────────────────────────────────
+        hack_pipe = Table(show_header=False, box=box.SIMPLE, padding=(0, 2))
+        hack_pipe.add_column("Agent", style="bold green", width=22)
+        hack_pipe.add_column("Pipeline")
+        hack_pipe.add_row("Hackathon Conductor", "Research -> Plan Challenges -> Build Setup -> Build Challenges -> Coach Materials -> QA -> Deliver")
+
+        p_hack = Panel(
+            Group(
+                Text.from_markup(
+                    "[bold white]Hackathon Events[/bold white]\n\n"
+                    "Create What-The-Hack-style hackathon events with progressively\n"
+                    "harder challenges, coach materials, and dev containers:\n"
+                ),
+                hack_pipe,
+                Text.from_markup(
+                    "\n[bold white]What you get:[/bold white]\n"
+                    "  - Progressive challenges (challenge-00 through challenge-N)\n"
+                    "  - Step-by-step solutions for coaches\n"
+                    "  - Dev container for GitHub Codespaces (zero-install)\n"
+                    "  - Facilitation guide and scoring rubric\n"
+                    "  - Ready to push as a Git repo for your event\n"
+                    '\n[dim]Try: "@hackathon-conductor Create a full-day L300 hackathon on Azure Container Apps"[/dim]'
+                ),
+            ),
+            title="[bold green]Hackathon Events[/bold green]",
+            subtitle="[dim]4 / 8[/dim]",
+            border_style="#00aa44",
+            padding=(1, 3),
+        )
+
+        return [p1, p2, p3b, p_hack, p_byor, p4, p5, p6]
 
     def print_info(self, msg: str) -> None:
         self.console.print(f"  [dim]{msg}[/dim]")

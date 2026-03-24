@@ -121,3 +121,37 @@ Nested prompt.
         agents = source.load_all()
         assert len(agents) == 1
         assert agents[0].name == "nested-agent"
+
+
+class TestHackathonAgentLoading:
+    """Verify hackathon agents are discovered from agent_defs/hackathons/."""
+
+    def test_hackathon_conductor_is_routable(self):
+        """hackathon-conductor must have infer=True and be in ROUTABLE_AGENTS."""
+        from agents import ROUTABLE_AGENTS
+        assert "hackathon-conductor" in ROUTABLE_AGENTS
+
+    def test_hackathon_subagents_not_routable(self):
+        """Hackathon subagents must have infer=False and NOT be in ROUTABLE_AGENTS."""
+        from agents import ROUTABLE_AGENTS
+        subagent_names = [
+            "hackathon-research-subagent",
+            "hackathon-challenge-builder-subagent",
+            "hackathon-coach-builder-subagent",
+            "hackathon-reviewer-subagent",
+        ]
+        for name in subagent_names:
+            assert name not in ROUTABLE_AGENTS
+
+    def test_all_hackathon_agents_loaded(self):
+        """All 5 hackathon agents must be discovered by the loader."""
+        from agents import AGENTS
+        expected = [
+            "hackathon-conductor",
+            "hackathon-research-subagent",
+            "hackathon-challenge-builder-subagent",
+            "hackathon-coach-builder-subagent",
+            "hackathon-reviewer-subagent",
+        ]
+        for name in expected:
+            assert name in AGENTS, f"Agent '{name}' not found in AGENTS"

@@ -16,6 +16,7 @@
   - [Presentations](#1-presentations)
   - [Demos](#2-demos)
   - [AI Projects](#3-ai-projects---idea-to-production)
+  - [Hackathon Events](#4-hackathon-events)
 - [Sample Output](#sample-output)
 - [Architecture](#architecture)
 - [Quality and Trust](#quality-and-trust)
@@ -45,8 +46,9 @@ It is a terminal-based AI platform built on the GitHub Copilot SDK that covers *
 1. **Presentations** - Generate a complete `.pptx` with speaker notes from a single prompt. Research happens against official sources, not hallucinations.
 2. **Demos** - Generate step-by-step demo guides with runnable companion scripts, troubleshooting tables, and "say this" presenter cues.
 3. **AI Projects** - Go from a blank page to a production-ready Azure project: brainstorm ideas, design architecture with cost estimates, and generate Bicep infra + app code + CI/CD + tests - all reviewed by 4 specialist agents before delivery.
+4. **Hackathon Events** - Create complete What-The-Hack-style hackathon packages with progressively harder challenges, step-by-step solutions, coach materials, and dev containers - ready to push as a Git repo for your event.
 
-Each workflow is run by a **conductor agent** that orchestrates specialist subagents, asks for your approval at key stops, and runs automated quality checks before handing you the output. 19 agents work together behind the scenes, but you just type a prompt.
+Each workflow is run by a **conductor agent** that orchestrates specialist subagents, asks for your approval at key stops, and runs automated quality checks before handing you the output. 24 agents work together behind the scenes, but you just type a prompt.
 
 > [!IMPORTANT]
 > **This is deep research, not instant generation.** A full slide deck typically takes **1 hour or more**. That time is real work: multi-step research against MS Learn and official docs, source verification, content QA, and humanization checks. What it replaces is the 4-8 hours of manual research and assembly you'd do yourself - often the night before. Kick it off and work on something else. Demo generation runs 30-45 minutes. AI project builds vary by scope.
@@ -69,6 +71,7 @@ VBD-Copilot shows up at different points in a CSA's week. Here are the moments w
 | **Architecture engagement** - customer approved idea #3, need design docs | "@ai-solution-architect Design the architecture for idea #3" | Produces 5 documents: solution design, draw.io diagram, ASCII diagram, cost estimation with SKU-level pricing, and a delivery plan with phases and risks. All Azure-only. |
 | **Delivery kickoff** - time to build the thing | "@ai-implementor Implement the solution" | Generates Bicep infrastructure, application code, CI/CD pipelines, deploy scripts, unit tests (80% coverage gate), smoke tests, and README. Four specialist reviewers (code, infra, pipeline, docs) must all approve before delivery. |
 | **Pick up where you left off** - started a generation yesterday, want to continue | `/resume` | Loads your previous session with full context. Sessions survive across days and weeks. |
+| **Partner enablement event** - need a hands-on hackathon for a partner workshop | "@hackathon-conductor Create a full-day L300 hackathon on Azure Container Apps for developers" | Hackathon Conductor researches the topic, plans 8 progressively harder challenges, builds student guides + coach solutions + dev container + facilitation materials. Ready to push as a Git repo. |
 
 ---
 
@@ -215,6 +218,63 @@ All AI project workflows enforce an **Azure-only mandate** - no AWS, no GCP alte
 
 ---
 
+### 4. Hackathon Events
+
+The **Hackathon Conductor** creates complete What-The-Hack-style hackathon packages ready to push as a Git repo for customer or partner enablement events.
+
+**How it works:**
+
+0. **Pre-research** - Scans official learning paths, labs, and quickstarts on the topic.
+1. **Deep research** - Parallel research subagents gather implementation details, architecture patterns, and hands-on exercises.
+2. **Challenge plan** - Presents a numbered progression with difficulty curve, time estimates, and learning objectives. Waits for your approval.
+3. **Build setup** - Creates the dev container (GitHub Codespaces-ready), challenge-00 (prerequisites), reference architecture, and starter files.
+4. **Build challenges** - Dispatches builder subagents in parallel. Each produces a scenario-driven challenge file and its step-by-step solution.
+5. **Build coach materials** - Creates the landing page README, facilitation guide, and scoring rubric.
+6. **QA & review** - Programmatic structural checks plus a reviewer subagent that verifies technical accuracy, difficulty progression, and cross-challenge consistency.
+7. **Deliver** - Drops the complete hackathon folder into `outputs/hackathons/`.
+
+**Agents involved:** hackathon-conductor, hackathon-research-subagent, hackathon-challenge-builder-subagent, hackathon-coach-builder-subagent, hackathon-reviewer-subagent
+
+**What you get:**
+
+- Progressive challenges (challenge-00 through challenge-N) with increasing difficulty
+- Step-by-step solutions for each challenge (coaches only)
+- Dev container for GitHub Codespaces (participants open the repo and start coding)
+- Facilitation guide with per-challenge coaching tips, timing, and pivot strategies
+- Scoring rubric with verification commands per challenge
+- Top-level README as the event landing page
+
+**Difficulty curve:**
+
+| Duration | Challenges | Spread |
+|----------|-----------|--------|
+| 2 hours | 3-4 | setup + 2 easy + 1 medium |
+| 4 hours | 5-6 | setup + 2 easy + 2 medium + 1 hard |
+| 8 hours | 8-10 | setup + 2 easy + 3 medium + 2 hard + 1 expert |
+| 16 hours | 12-15 | setup + 3 easy + 4 medium + 3 hard + 2 expert |
+
+**Output structure:**
+
+```text
+outputs/hackathons/{event-slug}/
+  +-- README.md
+  +-- .devcontainer/
+  |     +-- devcontainer.json
+  |     +-- Dockerfile
+  +-- challenges/
+  |     +-- challenge-00.md ... challenge-{N}.md
+  +-- solutions/
+  |     +-- challenge-00/README.md ... challenge-{N}/README.md
+  +-- coach/
+  |     +-- facilitation-guide.md
+  |     +-- scoring-rubric.md
+  +-- resources/
+        +-- reference-architecture.md
+        +-- starter/
+```
+
+---
+
 ## Sample Output
 
 The slides and demos below - **un-edited on purpose** - were generated by VBD-Copilot on different topics.
@@ -241,6 +301,7 @@ flowchart TD
 
     Router -->|"slides / deck / pptx"| SC["slide-conductor"]
     Router -->|"demo / walkthrough"| DC["demo-conductor"]
+    Router -->|"hackathon / hack / challenges"| HC["hackathon-conductor"]
     Router -->|"brainstorm / AI ideas"| AB["ai-brainstorming"]
     Router -->|"architecture / design"| SA["ai-solution-architect"]
     Router -->|"implement / build"| AI["ai-implementor"]
@@ -280,6 +341,17 @@ flowchart TD
         AI2 --> AI3["3 - Deliver full project"]
     end
 
+    subgraph Hackathon_Pipeline ["Hackathon Pipeline"]
+        HC --> HC0["0 - Pre-research + clarify"]
+        HC0 --> HC1["1 - Deep research\n(parallel shards)"]
+        HC1 --> HC2["2 - Challenge plan\n-> user approval"]
+        HC2 --> HC3["3 - Build setup\n(devcontainer + challenge-00)"]
+        HC3 --> HC4["4 - Build challenges\n(parallel builders)"]
+        HC4 --> HC5["5 - Coach materials\n(README + guides)"]
+        HC5 --> HC6["6 - QA + review"]
+        HC6 --> HC7["7 - Deliver\nhackathon folder"]
+    end
+
     SC0 & SC1 -->|"task tool"| RSA[("research-subagent")]
     SC3 -->|"task tool"| SBA[("slide-builder-subagent")]
     SC3F -->|"task tool"| QA[("pptx-qa-subagent")]
@@ -289,6 +361,11 @@ flowchart TD
     DC4 -->|"task tool"| DRV[("demo-reviewer-subagent")]
     DC4 -->|"task tool"| DEA[("demo-editor-subagent")]
 
+    HC0 & HC1 -->|"task tool"| HRA[("hackathon-research-subagent")]
+    HC4 -->|"task tool"| HCB[("hackathon-challenge-builder-subagent")]
+    HC3 & HC5 -->|"task tool"| HCOA[("hackathon-coach-builder-subagent")]
+    HC6 -->|"task tool"| HREV[("hackathon-reviewer-subagent")]
+
     SA2 -->|"task tool"| ARCH_B[("architecture-builder-subagent")]
     SA3 -->|"task tool"| ARCH_R[("architecture-reviewer-subagent")]
     AI1 -->|"task tool"| CODE_B[("code-builder-subagent")]
@@ -297,10 +374,11 @@ flowchart TD
     AI2 -->|"task tool"| PIPE_R[("pipeline-reviewer-subagent")]
     AI2 -->|"task tool"| DOCS_R[("docs-reviewer-subagent")]
 
-    RSA & DRA -->|"bing_search + web_fetch"| Docs[("Official Sources\nMS Learn - GitHub Docs\ndevblogs - Tech Community")]
+    RSA & DRA & HRA -->|"bing_search + web_fetch"| Docs[("Official Sources\nMS Learn - GitHub Docs\ndevblogs - Tech Community")]
 
     SC4 --> OutS[("outputs/slides/")]
     DC5 --> OutD[("outputs/demos/")]
+    HC7 --> OutH[("outputs/hackathons/{slug}/")]
     AB2 --> OutP[("outputs/ai-projects/{slug}/docs/")]
     SA4 --> OutP
     AI3 --> OutP2[("outputs/ai-projects/{slug}/\ninfra + src + tests + scripts")]
@@ -327,6 +405,7 @@ The whole point of this tool is producing content you can put in front of a cust
 - **Infrastructure QA** - Bicep syntax, module decomposition, Key Vault usage, managed identity for secrets, RBAC configuration
 - **Pipeline QA** - YAML syntax, job dependencies, secrets via environment variables, deploy script safety
 - **Documentation QA** - section completeness, path accuracy, command correctness, environment variable documentation
+- **Hackathon QA** - sequential challenge numbering, required sections per challenge, matching solutions, coach materials, dev container validity, cross-reference consistency
 
 **Content humanization.** Generated text goes through AI-tell detection that flags filler words, hedging phrases, uniform sentence structure, and a blacklist of overused AI vocabulary. A humanity scoring system rates the output and triggers rewrites if the score is too low. The goal is content that reads like a person wrote it, not a chatbot.
 

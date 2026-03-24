@@ -443,10 +443,59 @@ CODE_PROJECT_TOOLS = [run_infra_qa_checks, run_pipeline_qa_checks, run_docs_qa_c
 
 
 # =============================================================================
+# Hackathon QA - Programmatic Checks
+# =============================================================================
+
+
+class RunHackathonQaChecksParams(BaseModel):
+    hackathon_dir: str = Field(description="Path to the hackathon directory to validate")
+    expected_challenges: int = Field(
+        default=0,
+        description="Expected number of challenges (0 to skip count check)",
+    )
+
+
+@define_tool(
+    description=(
+        "Run automated QA checks on a generated hackathon package. "
+        "Checks for: sequential challenge numbering, required sections per challenge "
+        "(Introduction, Description, Success Criteria, Learning Resources), "
+        "matching solution folders, coach materials, dev container validity, "
+        "top-level README structure, placeholder text, emoji, em-dashes, and "
+        "cross-reference consistency. Returns a structured report with "
+        "CRITICAL/MAJOR/MINOR issues. Exit code 0 = CLEAN, 1 = ISSUES_FOUND."
+    )
+)
+def run_hackathon_qa_checks(params: RunHackathonQaChecksParams) -> str:
+    import subprocess
+    qa_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "skills", "hackathon-generator", "hackathon_qa_checks.py")
+
+    if not os.path.exists(qa_script):
+        return f"ERROR: Hackathon QA script not found at {qa_script}"
+
+    cmd = [sys.executable, qa_script, params.hackathon_dir]
+    if params.expected_challenges and params.expected_challenges > 0:
+        cmd.extend(["--expected-challenges", str(params.expected_challenges)])
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        output = result.stdout
+        if result.returncode == 2:
+            output = f"ERROR running hackathon QA checks:\n{result.stderr}\n"
+        return output
+    except Exception as e:
+        return f"ERROR running hackathon QA checks: {e}"
+
+
+HACKATHON_TOOLS = [run_hackathon_qa_checks]
+
+
+# =============================================================================
 # Exported tool groups
 # =============================================================================
 
 ALL_CUSTOM_TOOLS = (
     RESEARCH_TOOLS + SLIDE_TOOLS + DEMO_TOOLS
-    + ARCHITECTURE_TOOLS + CODE_PROJECT_TOOLS
+    + ARCHITECTURE_TOOLS + CODE_PROJECT_TOOLS + HACKATHON_TOOLS
 )
