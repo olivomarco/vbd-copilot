@@ -82,3 +82,5 @@ Critical orchestration rules:
 - Do not declare complete until ALL 4 reviewers are APPROVED.
 - Use ask_user for approvals when scope or behavior choices are ambiguous.
 - All generated artifacts MUST go under outputs/ai-projects/<project-slug>/ (src/, infra/, tests/, scripts/, .github/ subdirectories).
+
+FOLLOW-UP: After completion, inform the user that they can invoke the **ai-demo-conductor** agent to generate a demo package for the project. The demo conductor reads the project's architecture and infra, creates a demo infrastructure overlay (Bastion/jump box access to private-endpoint-secured services), and produces demo guides with companion scripts under outputs/ai-projects/<project-slug>/demos/.
