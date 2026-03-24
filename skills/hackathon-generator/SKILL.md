@@ -30,13 +30,6 @@ outputs/hackathons/{event-slug}/
     challenge-01.md                  # First challenge (easiest)
     challenge-02.md                  # Progressive difficulty
     ...challenge-{N}.md
-  solutions/
-    challenge-00/
-      README.md                      # Step-by-step solution guide
-    challenge-01/
-      README.md
-    ...challenge-{N}/
-      README.md
   coach/
     facilitation-guide.md            # Timing, pacing, tips per challenge
     scoring-rubric.md                # Evaluation criteria per challenge
@@ -105,51 +98,6 @@ Be specific about the expected end-state.}
 deeper understanding or creative problem-solving.}
 ```
 
-## Solution File Template
-
-Each `solutions/challenge-{NN}/README.md` must follow this structure:
-
-```markdown
-# Challenge {NN}: {Title} - Solution
-
-## Overview
-
-{Brief summary of what this challenge teaches and the approach taken.}
-
-## Step-by-Step Solution
-
-### Step 1: {Action}
-
-{Explanation of what to do and why.}
-
-\`\`\`bash
-{Exact command or code}
-\`\`\`
-
-**Expected output:**
-\`\`\`
-{What the participant should see}
-\`\`\`
-
-### Step 2: {Action}
-
-{Continue with the next step...}
-
-## Key Concepts
-
-- **{Concept}**: {One-line explanation of why this matters}
-
-## Common Mistakes
-
-| Mistake | Symptom | Fix |
-|---------|---------|-----|
-| {What goes wrong} | {What they see} | {How to fix it} |
-
-## Verification
-
-{Commands or steps to confirm the solution is working correctly.}
-```
-
 ## Difficulty Curve Model
 
 Challenges must follow a progressive difficulty curve:
@@ -182,7 +130,6 @@ Content levels define the complexity ceiling of the challenge set:
 ## Writing Rules
 
 - **Scenario-driven challenges**: Describe the GOAL, not the steps. Challenges are NOT tutorials. Students must figure out the approach. That is the learning.
-- **Step-by-step solutions**: Solutions ARE tutorials. Give exact commands, expected outputs, and explanations.
 - **Objectively verifiable success criteria**: Every criterion must be something a coach can check in under 2 minutes. "Deploy a container app" is verifiable. "Understand the concept" is not.
 - **Progressive hints**: Start broad, get specific. Three hints per challenge minimum. Use collapsible sections.
 - **No placeholder text**: No TODO, TBD, FIXME, INSERT, PLACEHOLDER, or lorem ipsum anywhere.
@@ -223,7 +170,6 @@ The `hackathon_qa_checks.py` script validates hackathon packages for:
 
 - Sequential challenge numbering from 00
 - Required sections in each challenge (Introduction, Description, Success Criteria, Learning Resources)
-- Matching solution folder and README.md for every challenge
 - Coach materials exist and have required sections
 - Dev container configuration is valid JSON
 - Top-level README.md has required sections

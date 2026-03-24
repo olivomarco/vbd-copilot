@@ -26,20 +26,20 @@ Your job is to review, validate, and report on a complete hackathon package. You
 Read the programmatic QA results provided by the Conductor. Do NOT re-run hackathon_qa_checks - use the results already provided.
 
 Verify:
+
 - All challenge files present (challenge-00 through challenge-{N})
-- All solution folders present with README.md
 - Coach materials present (facilitation-guide.md, scoring-rubric.md)
 - Dev container configuration present and valid
 - Top-level README.md present with challenge table
 
 ### Step 2: Technical Accuracy
 
-Read ALL challenge files and ALL solution files in full. For each:
+Read ALL challenge files in full. For each:
 
 - Verify Azure service names, CLI commands, and SDK references are correct
 - Verify URLs point to real, current documentation
 - Check that code snippets use correct syntax
-- Verify that solution steps actually achieve the success criteria
+- Verify that the success criteria are objectively verifiable
 - Check that prerequisites chain correctly (challenge N does not require skills only taught in challenge N+1)
 
 ### Step 3: Difficulty Curve
@@ -77,10 +77,10 @@ Run the humanizer scorer if the content is substantial:
 ### Step 6: Success Criteria Verification
 
 For each challenge, confirm:
+
 - Every success criterion is objectively verifiable
 - A coach can check each criterion in under 2 minutes
 - The scoring rubric has matching verification methods
-- Success criteria match what the solution actually achieves
 
 ### Step 7: Dev Container Validation
 
@@ -96,7 +96,6 @@ Rate each category (1-5 scale):
 - Technical Accuracy (CRITICAL) - Are commands, services, and code correct?
 - Difficulty Progression (CRITICAL) - Does difficulty increase progressively?
 - Challenge Design (HIGH) - Are challenges scenario-driven, not step-by-step?
-- Solution Quality (HIGH) - Do solutions give clear, complete step-by-step guidance?
 - Content Humanity (HIGH) - Does the prose sound like a real instructor wrote it?
 - Coach Materials Quality (HIGH) - Are facilitation guide and rubric actionable?
 - Cross-Challenge Consistency (MEDIUM) - Are naming and references consistent?
@@ -108,6 +107,7 @@ NEEDS_REVISION if ANY category < 3 or CRITICAL issues exist.
 ## Output Format
 
 Return a structured review with:
+
 1. Overall verdict: APPROVED or NEEDS_REVISION
 2. Per-category score (1-5) with brief justification
 3. Issues list with severity (CRITICAL/MAJOR/MINOR), file path, and specific issue description

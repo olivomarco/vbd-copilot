@@ -53,17 +53,6 @@ def _create_valid_hackathon(base: Path, num_challenges: int = 3) -> Path:
             "- [MS Learn](https://learn.microsoft.com)\n"
         )
 
-    # solutions
-    solutions_dir = hack_dir / "solutions"
-    solutions_dir.mkdir()
-    for i in range(num_challenges):
-        sol_dir = solutions_dir / f"challenge-{i:02d}"
-        sol_dir.mkdir()
-        (sol_dir / "README.md").write_text(
-            f"# Challenge {i:02d}: Solution\n\n"
-            "## Step-by-Step Solution\n\n### Step 1: Do it\n\nRun the command.\n"
-        )
-
     # coach
     coach_dir = hack_dir / "coach"
     coach_dir.mkdir()
@@ -114,16 +103,6 @@ class TestHackathonQaChecks:
         assert report["status"] == "ISSUES_FOUND"
         challenge_issues = [i for i in report["issues"] if i["check"] == "challenge_dir"]
         assert len(challenge_issues) >= 1
-
-    def test_missing_solution(self, tmp_path):
-        hack_dir = _create_valid_hackathon(tmp_path)
-        # Remove one solution
-        import shutil
-        shutil.rmtree(str(hack_dir / "solutions" / "challenge-01"))
-        report = run_all_checks(str(hack_dir))
-        assert report["status"] == "ISSUES_FOUND"
-        sol_issues = [i for i in report["issues"] if i["check"] == "solution_exists"]
-        assert len(sol_issues) >= 1
 
     def test_gap_in_numbering(self, tmp_path):
         hack_dir = _create_valid_hackathon(tmp_path)

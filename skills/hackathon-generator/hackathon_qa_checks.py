@@ -3,7 +3,7 @@
 Programmatic QA checks for generated hackathon packages.
 
 Runs a battery of validation checks on the hackathon directory structure,
-challenge files, solution files, coach materials, and dev container config.
+challenge files, coach materials, and dev container config.
 Returns a structured JSON report with severity-tagged findings.
 
 Usage:
@@ -55,11 +55,6 @@ CHALLENGE_REQUIRED_SECTIONS = [
     "description",
     "success criteria",
     "learning resources",
-]
-
-# Required sections in solution files
-SOLUTION_REQUIRED_SECTIONS = [
-    "step-by-step solution",
 ]
 
 # Required sections in facilitation guide
@@ -182,40 +177,6 @@ def check_challenge_sections(hackathon_dir: str, challenge_numbers: list[int]) -
                     "check": "challenge_sections",
                     "message": f"Missing required section: {section}",
                 })
-    return issues
-
-
-def check_solutions_exist(hackathon_dir: str, challenge_numbers: list[int]) -> list[dict]:
-    """Check that every challenge has a matching solution."""
-    issues = []
-    solutions_dir = os.path.join(hackathon_dir, "solutions")
-
-    if not os.path.isdir(solutions_dir):
-        issues.append({
-            "file": "solutions/",
-            "severity": "CRITICAL",
-            "check": "solutions_dir",
-            "message": "solutions/ directory does not exist",
-        })
-        return issues
-
-    for num in challenge_numbers:
-        sol_dir = os.path.join(solutions_dir, f"challenge-{num:02d}")
-        sol_readme = os.path.join(sol_dir, "README.md")
-        if not os.path.isdir(sol_dir):
-            issues.append({
-                "file": f"solutions/challenge-{num:02d}/",
-                "severity": "CRITICAL",
-                "check": "solution_exists",
-                "message": f"Solution directory missing for challenge-{num:02d}",
-            })
-        elif not os.path.isfile(sol_readme):
-            issues.append({
-                "file": f"solutions/challenge-{num:02d}/README.md",
-                "severity": "CRITICAL",
-                "check": "solution_readme",
-                "message": f"Solution README.md missing for challenge-{num:02d}",
-            })
     return issues
 
 
@@ -489,7 +450,6 @@ def run_all_checks(
     all_issues.extend(numbering_issues)
     all_issues.extend(check_challenge_count(challenge_numbers, expected_challenges))
     all_issues.extend(check_challenge_sections(hackathon_dir, challenge_numbers))
-    all_issues.extend(check_solutions_exist(hackathon_dir, challenge_numbers))
     all_issues.extend(check_coach_materials(hackathon_dir))
     all_issues.extend(check_devcontainer(hackathon_dir))
     all_issues.extend(check_readme(hackathon_dir))

@@ -11,7 +11,6 @@ Agents are defined as Markdown files with YAML frontmatter in `agent_defs/` subd
 - `outputs/demos/` - demo guide `.md` + companion scripts
 - `outputs/hackathons/<event-slug>/` - hackathon packages (one subfolder per event):
   - `challenges/` - challenge-00.md through challenge-{N}.md
-  - `solutions/` - one folder per challenge with README.md
   - `coach/` - facilitation-guide.md, scoring-rubric.md
   - `resources/` - reference-architecture.md, starter files
   - `.devcontainer/` - Codespaces-ready environment

@@ -25,6 +25,7 @@ Build the hackathon foundation. Create these files:
 ### 1. `.devcontainer/devcontainer.json`
 
 Codespaces-ready configuration appropriate for the hackathon topic:
+
 - Base image suitable for the technology (e.g., mcr.microsoft.com/devcontainers/base for general, language-specific images for coding hacks)
 - VS Code extensions relevant to the topic (Azure extensions, language support, linting)
 - postCreateCommand that installs required tools and verifies the environment
@@ -34,6 +35,7 @@ Codespaces-ready configuration appropriate for the hackathon topic:
 ### 2. `.devcontainer/Dockerfile`
 
 Install all tools the participants need:
+
 - Azure CLI
 - Language SDKs/runtimes appropriate for the hackathon
 - Framework CLIs (e.g., func, kubectl, helm)
@@ -43,6 +45,7 @@ Install all tools the participants need:
 ### 3. `challenges/challenge-00.md`
 
 The setup and prerequisites challenge. This is always the first challenge and covers:
+
 - Azure subscription requirements
 - Tool installation verification (or Codespaces instructions)
 - Authentication and access setup (az login, service principals)
@@ -52,22 +55,20 @@ The setup and prerequisites challenge. This is always the first challenge and co
 
 Difficulty: Easy. Time: 15-30 minutes.
 
-### 4. `solutions/challenge-00/README.md`
-
-Step-by-step solution for challenge-00 with exact commands and expected outputs.
-
-### 5. `resources/reference-architecture.md`
+### 4. `resources/reference-architecture.md`
 
 Technical architecture overview of what participants will build across all challenges:
+
 - Architecture diagram (ASCII art or Mermaid)
 - Component descriptions
 - Data flow overview
 - Azure services used and why
 - How the challenges build toward this architecture progressively
 
-### 6. `resources/starter/` (if needed)
+### 5. `resources/starter/` (if needed)
 
 Shared starter files that multiple challenges reference:
+
 - ARM/Bicep templates
 - Sample data files
 - Configuration templates
@@ -80,6 +81,7 @@ Build the coach-facing materials and landing page. Create these files:
 ### 1. `README.md` (top-level landing page)
 
 The entry point for the hackathon repository:
+
 - Event title and description
 - Target audience and required skill level
 - Prerequisites (Azure subscription, tools, knowledge)
@@ -98,6 +100,7 @@ The entry point for the hackathon repository:
 ### 2. `coach/facilitation-guide.md`
 
 Per-challenge coaching guide:
+
 - Event overview and suggested agenda with timing
 - Per-challenge section:
   - Recommended time allocation
@@ -113,6 +116,7 @@ Per-challenge coaching guide:
 ### 3. `coach/scoring-rubric.md`
 
 Per-challenge evaluation criteria:
+
 - Challenge number and title
 - Success criteria with verification method:
   - Done: all criteria met, verified by [command/check]

@@ -24,8 +24,10 @@ plans/*
 outputs/slides/*
 outputs/demos/*
 outputs/ai-projects/*
+outputs/hackathons/*
 !outputs/slides/.gitkeep
 !outputs/demos/.gitkeep
 !outputs/ai-projects/.gitkeep
+!outputs/hackathons/.gitkeep
 
 .img_cache
