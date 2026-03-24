@@ -730,12 +730,6 @@ class CopilotUI:
             '[white]Say [yellow]"@ai-implementor build the Bicep infra and app code for project X"[/yellow][/white] '
             "- [bold]Bicep + app code[/bold]",
         )
-        qs.add_row(
-            "[bold cyan]9.[/bold cyan]",
-            "[white]All agents [bold]research official docs[/bold], "
-            "[bold]plan with your input[/bold], [bold]build[/bold], and "
-            "[bold]auto-QA[/bold] before delivering[/white]",
-        )
         self.console.print(
             Panel(
                 qs,
