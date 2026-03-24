@@ -1,0 +1,368 @@
+# ---------------------------------------------------------------------------
+# CUSTOMER_NAME Intelligent Bill Explainer - CI/CD Pipeline
+# ---------------------------------------------------------------------------
+# Runs lint, test, infra validation on every PR and push to main.
+# Build and deploy stages execute only on push to main.
+# ---------------------------------------------------------------------------
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'outputs/ai-projects/CUSTOMER_NAME-cx-retention/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'outputs/ai-projects/CUSTOMER_NAME-cx-retention/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  WORKING_DIR: outputs/ai-projects/CUSTOMER_NAME-cx-retention
+  PYTHON_VERSION: '3.11'
+
+# ---------------------------------------------------------------------------
+# Job: Lint
+# ---------------------------------------------------------------------------
+jobs:
+  lint:
+    name: Lint Python Code
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}/src
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-lint-${{ hashFiles('outputs/ai-projects/CUSTOMER_NAME-cx-retention/src/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-lint-
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff linter
+        run: ruff check app/ --output-format=github
+
+      - name: Run ruff formatter check
+        run: ruff format app/ --check --diff
+
+  # ---------------------------------------------------------------------------
+  # Job: Test
+  # ---------------------------------------------------------------------------
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-test-${{ hashFiles('outputs/ai-projects/CUSTOMER_NAME-cx-retention/src/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-test-
+
+      - name: Install dependencies
+        run: |
+          pip install -r src/requirements.txt
+          pip install pytest pytest-asyncio pytest-cov httpx respx ruff
+
+      - name: Run unit tests with coverage
+        run: |
+          python -m pytest tests/unit/ \
+            --cov=src/app \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=80 \
+            --junitxml=test-results.xml \
+            -v
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ${{ env.WORKING_DIR }}/coverage.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ${{ env.WORKING_DIR }}/test-results.xml
+
+  # ---------------------------------------------------------------------------
+  # Job: Validate Infrastructure
+  # ---------------------------------------------------------------------------
+  validate-infra:
+    name: Validate Bicep Templates
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}/infra
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Install Bicep CLI
+        run: az bicep install
+
+      - name: Build main.bicep
+        run: az bicep build --file main.bicep
+
+      - name: Build all module files
+        run: |
+          echo "Validating all Bicep modules..."
+          failed=0
+          for bicep_file in modules/*.bicep; do
+            echo "  Building: ${bicep_file}"
+            if ! az bicep build --file "$bicep_file"; then
+              echo "  FAILED: ${bicep_file}"
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "One or more Bicep files failed validation."
+            exit 1
+          fi
+          echo "All Bicep files validated successfully."
+
+      - name: Preview infrastructure changes (what-if)
+        if: github.event_name == 'pull_request'
+        run: |
+          az deployment group what-if \
+            --resource-group "${{ secrets.RESOURCE_GROUP_DEV }}" \
+            --template-file main.bicep \
+            --parameters parameters/dev.bicepparam
+        continue-on-error: true
+
+  # ---------------------------------------------------------------------------
+  # Job: Build Docker Image
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build Container Image
+    needs: [lint, test, validate-infra]
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Determine image tag
+        id: meta
+        run: echo "tag=$(echo "${{ github.sha }}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: Login to ACR
+        run: az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: Build and push Docker image
+        working-directory: ${{ env.WORKING_DIR }}/src
+        run: |
+          ACR_LOGIN_SERVER="${{ secrets.ACR_NAME }}.azurecr.io"
+          IMAGE_NAME="${ACR_LOGIN_SERVER}/CUSTOMER_NAME-bill-explainer"
+          TAG="${{ steps.meta.outputs.tag }}"
+
+          docker build \
+            --tag "${IMAGE_NAME}:${TAG}" \
+            --tag "${IMAGE_NAME}:latest" \
+            --file Dockerfile \
+            .
+
+          docker push "${IMAGE_NAME}:${TAG}"
+          docker push "${IMAGE_NAME}:latest"
+
+          echo "Pushed image: ${IMAGE_NAME}:${TAG}"
+
+  # ---------------------------------------------------------------------------
+  # Job: Deploy to Dev
+  # ---------------------------------------------------------------------------
+  deploy-dev:
+    name: Deploy to Dev
+    needs: [build]
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy infrastructure
+        working-directory: ${{ env.WORKING_DIR }}/infra
+        run: |
+          az deployment group create \
+            --resource-group "${{ secrets.RESOURCE_GROUP_DEV }}" \
+            --template-file main.bicep \
+            --parameters parameters/dev.bicepparam \
+            --mode Incremental \
+            --name "ci-dev-${{ github.run_number }}"
+
+      - name: Configure ACR access on Container App
+        run: |
+          ACR_LOGIN_SERVER="${{ secrets.ACR_NAME }}.azurecr.io"
+          az containerapp registry set \
+            --name "CUSTOMER_NAME-bill-ca-dev" \
+            --resource-group "${{ secrets.RESOURCE_GROUP_DEV }}" \
+            --server "${ACR_LOGIN_SERVER}" \
+            --identity system || true
+
+      - name: Deploy application to Container App
+        run: |
+          ACR_LOGIN_SERVER="${{ secrets.ACR_NAME }}.azurecr.io"
+          IMAGE="${ACR_LOGIN_SERVER}/CUSTOMER_NAME-bill-explainer:${{ needs.build.outputs.image-tag }}"
+
+          az containerapp update \
+            --name "CUSTOMER_NAME-bill-ca-dev" \
+            --resource-group "${{ secrets.RESOURCE_GROUP_DEV }}" \
+            --image "${IMAGE}"
+
+      - name: Verify deployment health
+        run: |
+          FQDN=$(az containerapp show \
+            --name "CUSTOMER_NAME-bill-ca-dev" \
+            --resource-group "${{ secrets.RESOURCE_GROUP_DEV }}" \
+            --query "properties.configuration.ingress.fqdn" \
+            -o tsv)
+          echo "Container App FQDN: ${FQDN}"
+
+          # Wait for the app to become healthy (up to 120 seconds)
+          for i in $(seq 1 12); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://${FQDN}/health" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed (HTTP ${STATUS})"
+              exit 0
+            fi
+            echo "Attempt ${i}/12: HTTP ${STATUS} - waiting 10s..."
+            sleep 10
+          done
+          echo "ERROR: Health check did not return 200 within 120 seconds"
+          exit 1
+
+  # ---------------------------------------------------------------------------
+  # Job: Deploy to Prod
+  # ---------------------------------------------------------------------------
+  deploy-prod:
+    name: Deploy to Production
+    needs: [build, deploy-dev]
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy infrastructure
+        working-directory: ${{ env.WORKING_DIR }}/infra
+        run: |
+          az deployment group create \
+            --resource-group "${{ secrets.RESOURCE_GROUP_PROD }}" \
+            --template-file main.bicep \
+            --parameters parameters/prod.bicepparam \
+            --mode Incremental \
+            --name "ci-prod-${{ github.run_number }}"
+
+      - name: Configure ACR access on Container App
+        run: |
+          ACR_LOGIN_SERVER="${{ secrets.ACR_NAME }}.azurecr.io"
+          az containerapp registry set \
+            --name "CUSTOMER_NAME-bill-ca-prod" \
+            --resource-group "${{ secrets.RESOURCE_GROUP_PROD }}" \
+            --server "${ACR_LOGIN_SERVER}" \
+            --identity system || true
+
+      - name: Deploy application to Container App
+        run: |
+          ACR_LOGIN_SERVER="${{ secrets.ACR_NAME }}.azurecr.io"
+          IMAGE="${ACR_LOGIN_SERVER}/CUSTOMER_NAME-bill-explainer:${{ needs.build.outputs.image-tag }}"
+
+          az containerapp update \
+            --name "CUSTOMER_NAME-bill-ca-prod" \
+            --resource-group "${{ secrets.RESOURCE_GROUP_PROD }}" \
+            --image "${IMAGE}"
+
+      - name: Verify deployment health
+        run: |
+          FQDN=$(az containerapp show \
+            --name "CUSTOMER_NAME-bill-ca-prod" \
+            --resource-group "${{ secrets.RESOURCE_GROUP_PROD }}" \
+            --query "properties.configuration.ingress.fqdn" \
+            -o tsv)
+          echo "Container App FQDN: ${FQDN}"
+
+          for i in $(seq 1 12); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://${FQDN}/health" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed (HTTP ${STATUS})"
+              exit 0
+            fi
+            echo "Attempt ${i}/12: HTTP ${STATUS} - waiting 10s..."
+            sleep 10
+          done
+          echo "ERROR: Health check did not return 200 within 120 seconds"
+          exit 1

@@ -1,0 +1,201 @@
+transaction_id,account_id,account_owner,transaction_type,amount,currency,description,timestamp,status,balance_after
+TXN100164,1004,David Chen,debit,78.04,USD,Wire transfer - outbound,2024-01-01T16:54:00,failed,26346.68
+TXN100110,1002,Bob Martinez,debit,91.04,USD,ATM withdrawal - Airport Terminal 2,2024-01-01T21:28:00,completed,11965.95
+TXN100016,1007,Grace Kim,credit,1457.34,USD,Cheque deposit,2024-01-03T05:46:00,pending,6307.34
+TXN100191,1006,Frank Osei,debit,431.57,USD,ATM withdrawal - High Street branch,2024-01-03T22:58:00,completed,19880.42
+TXN100181,1009,Isabelle Roy,debit,464.90,USD,Direct debit - Insurance premium,2024-01-04T13:17:00,completed,3075.47
+TXN100052,1003,Carol White,interest,14.22,USD,Monthly interest credit - savings rate 2.5%,2024-01-04T13:47:00,completed,6850.62
+TXN100124,1003,Carol White,fee,15.90,USD,Paper statement fee,2024-01-05T04:38:00,completed,7686.81
+TXN100133,1007,Grace Kim,credit,2024.70,USD,BACS credit - HMRC tax refund,2024-01-05T12:32:00,completed,7166.03
+TXN100026,1001,Alice Johnson,debit,317.40,USD,Direct debit - Utility bill,2024-01-05T18:04:00,completed,3209.75
+TXN100137,1009,Isabelle Roy,credit,1018.32,USD,Dividend credit - Investment account,2024-01-06T03:04:00,pending,2843.83
+TXN100117,1010,James Okafor,credit,160.16,USD,Cheque deposit,2024-01-06T13:30:00,pending,35957.27
+TXN100046,1004,David Chen,transfer_out,1713.18,USD,Transfer to account 1007,2024-01-07T10:40:00,completed,22224.24
+TXN100122,1009,Isabelle Roy,transfer_in,52.24,USD,Transfer received,2024-01-07T14:33:00,completed,1825.51
+TXN100113,1004,David Chen,transfer_out,1821.40,USD,Transfer to joint account,2024-01-08T13:50:00,completed,23395.42
+TXN100029,1007,Grace Kim,credit,1292.20,USD,Salary credit - FinCore Payroll,2024-01-08T20:46:00,completed,7599.54
+TXN100128,1007,Grace Kim,debit,301.69,USD,ATM withdrawal - City Centre,2024-01-09T16:49:00,completed,5536.25
+TXN100037,1009,Isabelle Roy,debit,480.59,USD,ATM withdrawal - Airport Terminal 2,2024-01-10T03:04:00,completed,-1377.38
+TXN100066,1004,David Chen,debit,27.88,USD,Card payment - Fuel station,2024-01-10T22:26:00,failed,24294.35
+TXN100135,1008,Henry Patel,debit,76.36,USD,Direct debit - Insurance premium,2024-01-10T23:50:00,completed,12407.59
+TXN100041,1002,Bob Martinez,debit,312.47,USD,Bill payment - Council tax,2024-01-11T01:13:00,completed,9523.30
+TXN100048,1008,Henry Patel,credit,1340.29,USD,Salary credit - FinCore Payroll,2024-01-11T06:57:00,completed,10647.78
+TXN100073,1005,Emma Davis,debit,171.24,USD,Wire transfer - outbound,2024-01-11T12:09:00,pending,751.36
+TXN100115,1005,Emma Davis,transfer_out,1888.22,USD,Transfer to account 1007,2024-01-12T03:02:00,completed,5400.15
+TXN100079,1009,Isabelle Roy,debit,200.04,USD,Bill payment - Council tax,2024-01-12T04:27:00,completed,4148.94
+TXN100021,1005,Emma Davis,debit,124.23,USD,Bill payment - Council tax,2024-01-12T07:31:00,completed,2082.85
+TXN100175,1005,Emma Davis,credit,542.65,USD,Dividend credit - Investment account,2024-01-12T10:05:00,completed,10576.15
+TXN100004,1005,Emma Davis,debit,478.82,USD,Card payment - Supermarket,2024-01-12T20:06:00,completed,61.93
+TXN100161,1006,Frank Osei,debit,141.56,USD,ATM withdrawal - Airport Terminal 2,2024-01-13T05:13:00,completed,19484.47
+TXN100134,1010,James Okafor,debit,54.68,USD,Direct debit - Insurance premium,2024-01-14T00:58:00,completed,40498.86
+TXN100144,1005,Emma Davis,credit,976.15,USD,Pension credit,2024-01-14T15:24:00,completed,7527.66
+TXN100057,1005,Emma Davis,debit,481.45,USD,Direct debit - Broadband,2024-01-15T03:27:00,completed,1316.55
+TXN100000,1002,Bob Martinez,debit,141.14,USD,Direct debit - Utility bill,2024-01-15T05:47:00,completed,8609.36
+TXN100105,1003,Carol White,interest,15.99,USD,Monthly interest credit - savings rate 3.0%,2024-01-15T10:25:00,completed,7702.71
+TXN100017,1002,Bob Martinez,transfer_out,1097.09,USD,Transfer to account 1003,2024-01-15T17:27:00,completed,7394.46
+TXN100020,1009,Isabelle Roy,fee,21.36,USD,Paper statement fee,2024-01-15T19:56:00,completed,864.79
+TXN100121,1009,Isabelle Roy,debit,48.59,USD,Direct debit - Broadband,2024-01-15T20:55:00,completed,1773.27
+TXN100167,1003,Carol White,debit,67.75,USD,Card payment - Restaurant,2024-01-16T07:04:00,completed,11272.28
+TXN100114,1005,Emma Davis,credit,2490.30,USD,Cheque deposit,2024-01-16T22:44:00,completed,7288.37
+TXN100049,1003,Carol White,credit,2520.33,USD,BACS credit - HMRC tax refund,2024-01-17T09:19:00,completed,6836.40
+TXN100022,1002,Bob Martinez,interest,16.69,USD,Monthly interest credit - money market rate,2024-01-18T05:30:00,completed,8043.12
+TXN100027,1009,Isabelle Roy,debit,336.14,USD,Direct debit - Utility bill,2024-01-18T07:59:00,pending,262.45
+TXN100156,1008,Henry Patel,fee,11.27,USD,Paper statement fee,2024-01-18T09:02:00,completed,12396.32
+TXN100069,1009,Isabelle Roy,credit,1716.48,USD,Salary credit - Direct deposit,2024-01-18T22:42:00,completed,-461.24
+TXN100051,1002,Bob Martinez,credit,1723.66,USD,Pension credit,2024-01-20T15:55:00,failed,9523.30
+TXN100158,1007,Grace Kim,credit,2044.41,USD,Pension credit,2024-01-20T21:41:00,pending,8939.84
+TXN100199,1010,James Okafor,credit,2960.94,USD,Refund - Online retailer,2024-01-20T22:04:00,completed,44088.30
+TXN100106,1008,Henry Patel,debit,316.58,USD,ATM withdrawal - High Street branch,2024-01-21T02:19:00,completed,12458.04
+TXN100085,1006,Frank Osei,debit,305.59,USD,ATM withdrawal - City Centre,2024-01-21T17:06:00,completed,13930.34
+TXN100053,1006,Frank Osei,transfer_in,852.84,USD,Transfer from account 1001,2024-01-22T06:06:00,completed,13314.20
+TXN100165,1003,Carol White,interest,23.54,USD,Monthly interest credit - money market rate,2024-01-23T11:42:00,completed,11340.03
+TXN100018,1003,Carol White,credit,2866.07,USD,Cheque deposit,2024-01-24T00:58:00,completed,4316.07
+TXN100090,1006,Frank Osei,credit,2503.25,USD,BACS credit - HMRC tax refund,2024-01-24T07:33:00,completed,16108.06
+TXN100028,1010,James Okafor,credit,804.69,USD,Dividend credit - Investment account,2024-01-25T11:06:00,completed,35065.62
+TXN100100,1009,Isabelle Roy,interest,7.59,USD,Monthly interest credit - money market rate,2024-01-25T14:47:00,completed,3658.20
+TXN100061,1007,Grace Kim,debit,350.12,USD,Standing order - Rent payment,2024-01-25T21:42:00,completed,8875.65
+TXN100131,1006,Frank Osei,credit,1675.95,USD,Dividend credit - Investment account,2024-01-26T06:15:00,completed,19329.64
+TXN100123,1006,Frank Osei,credit,1545.63,USD,Dividend credit - Investment account,2024-01-27T16:35:00,completed,17653.69
+TXN100188,1001,Alice Johnson,debit,492.30,USD,ATM withdrawal - High Street branch,2024-01-27T17:13:00,completed,-862.48
+TXN100050,1006,Frank Osei,fee,28.07,USD,Monthly account maintenance fee,2024-01-28T05:15:00,completed,12461.36
+TXN100039,1002,Bob Martinez,credit,1792.65,USD,Refund - Online retailer,2024-01-28T05:45:00,completed,9835.77
+TXN100045,1002,Bob Martinez,transfer_out,353.12,USD,Transfer to account 1003,2024-01-28T06:21:00,failed,9523.30
+TXN100035,1009,Isabelle Roy,transfer_out,999.01,USD,Transfer to joint account,2024-01-28T09:37:00,completed,-736.56
+TXN100001,1009,Isabelle Roy,debit,213.85,USD,ATM withdrawal - High Street branch,2024-01-28T15:32:00,completed,886.15
+TXN100023,1009,Isabelle Roy,debit,266.20,USD,Bill payment - Council tax,2024-01-29T01:48:00,completed,598.59
+TXN100068,1001,Alice Johnson,fee,30.25,USD,Monthly account maintenance fee,2024-01-29T13:51:00,completed,2022.05
+TXN100155,1001,Alice Johnson,credit,2835.19,USD,Refund - Online retailer,2024-01-30T04:04:00,failed,2012.65
+TXN100010,1004,David Chen,debit,192.83,USD,Wire transfer - outbound,2024-01-30T05:20:00,pending,22107.17
+TXN100007,1002,Bob Martinez,debit,117.81,USD,Direct debit - Broadband,2024-01-30T11:24:00,completed,8491.55
+TXN100025,1004,David Chen,debit,172.35,USD,Bill payment - Council tax,2024-01-31T02:14:00,pending,21106.79
+TXN100116,1007,Grace Kim,transfer_out,1227.24,USD,Transfer to savings account,2024-01-31T05:53:00,completed,5837.94
+TXN100032,1001,Alice Johnson,transfer_out,1104.15,USD,Transfer to savings account,2024-01-31T13:26:00,completed,2105.60
+TXN100157,1005,Emma Davis,interest,20.83,USD,Monthly interest credit - savings rate 2.5%,2024-02-01T01:08:00,completed,10033.50
+TXN100095,1005,Emma Davis,credit,1598.22,USD,Incoming wire transfer,2024-02-01T07:26:00,completed,4989.95
+TXN100067,1010,James Okafor,debit,349.70,USD,Card payment - Fuel station,2024-02-01T12:41:00,completed,34305.80
+TXN100162,1010,James Okafor,interest,86.23,USD,Monthly interest credit - savings rate 2.5%,2024-02-01T12:50:00,completed,41543.12
+TXN100042,1009,Isabelle Roy,debit,466.96,USD,Wire transfer - outbound,2024-02-01T19:18:00,completed,-1844.34
+TXN100081,1006,Frank Osei,debit,440.42,USD,Direct debit - Broadband,2024-02-02T10:30:00,completed,14235.93
+TXN100147,1004,David Chen,credit,1121.73,USD,Incoming wire transfer,2024-02-03T05:48:00,failed,26346.68
+TXN100044,1009,Isabelle Roy,debit,333.38,USD,Wire transfer - outbound,2024-02-03T11:56:00,completed,-2177.72
+TXN100011,1001,Alice Johnson,debit,20.89,USD,Card payment - Supermarket,2024-02-04T10:13:00,completed,3179.11
+TXN100077,1009,Isabelle Roy,transfer_in,1800.73,USD,Transfer received,2024-02-04T21:31:00,completed,4348.98
+TXN100185,1001,Alice Johnson,debit,378.45,USD,ATM withdrawal - High Street branch,2024-02-04T22:42:00,completed,-370.18
+TXN100055,1004,David Chen,debit,331.72,USD,Card payment - Restaurant,2024-02-05T10:49:00,completed,21892.52
+TXN100072,1004,David Chen,transfer_in,590.76,USD,Transfer received,2024-02-05T22:04:00,completed,24885.11
+TXN100092,1005,Emma Davis,debit,126.52,USD,Wire transfer - outbound,2024-02-05T22:15:00,completed,3391.73
+TXN100064,1004,David Chen,credit,2401.83,USD,BACS credit - HMRC tax refund,2024-02-07T00:42:00,completed,24294.35
+TXN100129,1007,Grace Kim,debit,394.92,USD,Direct debit - Broadband,2024-02-07T07:19:00,completed,5141.33
+TXN100192,1002,Bob Martinez,transfer_in,1172.73,USD,Transfer received,2024-02-07T11:25:00,completed,15858.91
+TXN100126,1002,Bob Martinez,credit,440.65,USD,BACS credit - HMRC tax refund,2024-02-08T00:45:00,completed,13099.72
+TXN100108,1010,James Okafor,debit,263.67,USD,Card payment - Fuel station,2024-02-09T02:27:00,completed,35602.45
+TXN100143,1009,Isabelle Roy,debit,223.66,USD,Card payment - Supermarket,2024-02-09T04:27:00,pending,2620.17
+TXN100099,1005,Emma Davis,debit,119.12,USD,ATM withdrawal - City Centre,2024-02-10T11:47:00,completed,4523.40
+TXN100132,1010,James Okafor,credit,2582.44,USD,Pension credit,2024-02-11T07:30:00,completed,40553.54
+TXN100139,1002,Bob Martinez,credit,2112.60,USD,Salary credit - FinCore Payroll,2024-02-11T09:18:00,completed,15212.32
+TXN100080,1003,Carol White,transfer_in,404.37,USD,Transfer from account 1005,2024-02-11T14:29:00,completed,7254.99
+TXN100056,1005,Emma Davis,debit,257.16,USD,Card payment - Online subscription,2024-02-12T08:07:00,pending,1798.00
+TXN100195,1002,Bob Martinez,credit,999.80,USD,Refund - Online retailer,2024-02-12T13:04:00,completed,16858.71
+TXN100136,1005,Emma Davis,debit,347.89,USD,Card payment - Online subscription,2024-02-13T05:54:00,completed,6551.51
+TXN100151,1003,Carol White,debit,413.22,USD,Card payment - Fuel station,2024-02-13T11:29:00,completed,11316.49
+TXN100179,1009,Isabelle Roy,debit,330.08,USD,Direct debit - Utility bill,2024-02-15T01:23:00,completed,3540.37
+TXN100196,1009,Isabelle Roy,credit,1638.75,USD,Incoming wire transfer,2024-02-15T07:52:00,completed,4714.22
+TXN100178,1001,Alice Johnson,interest,0.02,USD,Monthly interest credit - money market rate,2024-02-15T11:36:00,completed,8.27
+TXN100008,1005,Emma Davis,credit,2518.92,USD,BACS credit - HMRC tax refund,2024-02-15T14:42:00,completed,2580.85
+TXN100098,1009,Isabelle Roy,debit,498.33,USD,Standing order - Rent payment,2024-02-16T06:29:00,completed,3650.61
+TXN100006,1007,Grace Kim,debit,150.12,USD,Card payment - Online subscription,2024-02-17T02:12:00,failed,4850.00
+TXN100019,1002,Bob Martinez,transfer_in,631.97,USD,Transfer from account 1001,2024-02-17T13:34:00,completed,8026.43
+TXN100097,1005,Emma Davis,debit,347.43,USD,Direct debit - Broadband,2024-02-17T23:35:00,pending,4642.52
+TXN100033,1008,Henry Patel,credit,2607.49,USD,Salary credit - FinCore Payroll,2024-02-18T08:24:00,completed,9307.49
+TXN100076,1010,James Okafor,credit,117.10,USD,Refund - Online retailer,2024-02-19T21:34:00,completed,34422.90
+TXN100086,1010,James Okafor,debit,159.42,USD,Card payment - Online subscription,2024-02-21T06:12:00,completed,34263.48
+TXN100125,1004,David Chen,transfer_out,655.96,USD,Transfer to savings account,2024-02-22T10:14:00,pending,22739.46
+TXN100119,1008,Henry Patel,interest,25.91,USD,Monthly interest credit - savings rate 3.0%,2024-02-22T18:20:00,completed,12483.95
+TXN100149,1006,Frank Osei,transfer_out,225.76,USD,Transfer to account 1003,2024-02-23T13:12:00,completed,19626.03
+TXN100002,1010,James Okafor,debit,103.42,USD,Card payment - Online subscription,2024-02-23T15:28:00,pending,33296.58
+TXN100074,1004,David Chen,credit,543.14,USD,Incoming wire transfer,2024-02-23T21:21:00,completed,25428.25
+TXN100107,1002,Bob Martinez,interest,25.03,USD,Monthly interest credit - savings rate 2.5%,2024-02-24T03:38:00,pending,12056.99
+TXN100112,1004,David Chen,fee,27.79,USD,Replacement card fee,2024-02-24T11:34:00,completed,25216.82
+TXN100174,1006,Frank Osei,transfer_in,827.52,USD,Transfer from checking account,2024-02-24T18:42:00,completed,20311.99
+TXN100059,1001,Alice Johnson,transfer_out,53.30,USD,Transfer to joint account,2024-02-25T10:42:00,completed,2052.30
+TXN100138,1004,David Chen,credit,2770.69,USD,Incoming wire transfer,2024-02-25T11:48:00,completed,25510.15
+TXN100118,1009,Isabelle Roy,transfer_out,1836.34,USD,Transfer to joint account,2024-02-26T04:52:00,pending,1821.86
+TXN100091,1005,Emma Davis,credit,2766.89,USD,Dividend credit - Investment account,2024-02-26T07:37:00,completed,3518.25
+TXN100148,1003,Carol White,credit,2719.87,USD,Salary credit - FinCore Payroll,2024-02-26T09:37:00,completed,9970.61
+TXN100170,1008,Henry Patel,transfer_in,881.23,USD,Transfer from checking account,2024-02-26T10:57:00,completed,15212.19
+TXN100031,1007,Grace Kim,debit,234.00,USD,Direct debit - Insurance premium,2024-02-27T01:06:00,completed,7365.54
+TXN100070,1009,Isabelle Roy,interest,-0.96,USD,Monthly interest credit - money market rate,2024-02-27T03:52:00,completed,-462.20
+TXN100096,1008,Henry Patel,credit,796.94,USD,Dividend credit - Investment account,2024-02-27T08:05:00,completed,13082.54
+TXN100173,1002,Bob Martinez,transfer_in,273.11,USD,Transfer from account 1001,2024-02-27T15:26:00,completed,16174.10
+TXN100040,1006,Frank Osei,debit,200.91,USD,Card payment - Online subscription,2024-02-28T18:59:00,completed,12489.43
+TXN100054,1007,Grace Kim,transfer_in,1724.26,USD,Transfer from account 1001,2024-02-28T19:19:00,completed,9225.77
+TXN100127,1005,Emma Davis,credit,1499.25,USD,Dividend credit - Investment account,2024-02-29T01:09:00,completed,6899.40
+TXN100193,1001,Alice Johnson,interest,-1.79,USD,Monthly interest credit - savings rate 2.5%,2024-02-29T06:58:00,failed,-862.48
+TXN100078,1001,Alice Johnson,credit,2039.73,USD,Pension credit,2024-02-29T12:39:00,completed,4061.78
+TXN100142,1004,David Chen,credit,836.53,USD,Cheque deposit,2024-02-29T17:43:00,completed,26346.68
+TXN100063,1005,Emma Davis,debit,393.95,USD,Bill payment - Council tax,2024-02-29T22:28:00,completed,922.60
+TXN100071,1009,Isabelle Roy,credit,2729.88,USD,Dividend credit - Investment account,2024-03-01T22:16:00,completed,2267.68
+TXN100104,1008,Henry Patel,debit,11.07,USD,Direct debit - Broadband,2024-03-02T22:21:00,completed,12774.62
+TXN100036,1009,Isabelle Roy,debit,160.23,USD,ATM withdrawal - High Street branch,2024-03-03T00:58:00,pending,-896.79
+TXN100089,1006,Frank Osei,debit,325.53,USD,ATM withdrawal - High Street branch,2024-03-03T11:27:00,completed,13604.81
+TXN100014,1010,James Okafor,credit,736.03,USD,BACS credit - HMRC tax refund,2024-03-04T10:48:00,completed,34260.93
+TXN100146,1001,Alice Johnson,credit,2088.82,USD,Salary credit - FinCore Payroll,2024-03-04T17:49:00,failed,2012.65
+TXN100093,1008,Henry Patel,credit,2037.75,USD,Refund - Online retailer,2024-03-04T18:11:00,completed,12685.53
+TXN100141,1003,Carol White,debit,436.07,USD,Bill payment - Council tax,2024-03-05T02:09:00,completed,7250.74
+TXN100189,1003,Carol White,transfer_out,614.42,USD,Transfer to savings account,2024-03-05T07:27:00,completed,10657.86
+TXN100168,1008,Henry Patel,credit,1149.91,USD,Salary credit - Direct deposit,2024-03-05T15:39:00,completed,14330.96
+TXN100150,1003,Carol White,transfer_in,1759.10,USD,Transfer from account 1005,2024-03-05T16:53:00,completed,11729.71
+TXN100060,1006,Frank Osei,credit,2023.82,USD,Salary credit - Direct deposit,2024-03-05T17:42:00,completed,14676.35
+TXN100172,1009,Isabelle Roy,transfer_out,792.76,USD,Transfer to account 1003,2024-03-06T03:27:00,completed,1827.41
+TXN100186,1007,Grace Kim,credit,1381.93,USD,Cheque deposit,2024-03-06T11:22:00,completed,10507.56
+TXN100024,1004,David Chen,transfer_out,828.03,USD,Transfer to account 1003,2024-03-07T22:07:00,completed,21279.14
+TXN100183,1002,Bob Martinez,debit,318.42,USD,ATM withdrawal - High Street branch,2024-03-08T14:24:00,completed,14686.18
+TXN100187,1007,Grace Kim,debit,340.72,USD,Bill payment - Council tax,2024-03-09T05:19:00,completed,10166.84
+TXN100005,1006,Frank Osei,transfer_in,1227.27,USD,Transfer from checking account,2024-03-09T11:59:00,completed,12427.27
+TXN100102,1004,David Chen,debit,183.64,USD,Direct debit - Broadband,2024-03-09T12:17:00,completed,25244.61
+TXN100088,1010,James Okafor,transfer_in,1602.64,USD,Transfer from checking account,2024-03-09T21:42:00,completed,35866.12
+TXN100030,1006,Frank Osei,transfer_in,263.07,USD,Transfer from account 1001,2024-03-09T22:08:00,completed,12690.34
+TXN100130,1010,James Okafor,credit,2013.83,USD,BACS credit - HMRC tax refund,2024-03-09T23:22:00,completed,37971.10
+TXN100062,1007,Grace Kim,transfer_out,1810.47,USD,Transfer to account 1003,2024-03-11T08:19:00,completed,7065.18
+TXN100176,1007,Grace Kim,debit,370.70,USD,Card payment - Clothing retailer,2024-03-12T09:37:00,completed,8569.14
+TXN100152,1002,Bob Martinez,debit,483.42,USD,Direct debit - Insurance premium,2024-03-12T19:05:00,completed,14728.90
+TXN100190,1003,Carol White,debit,268.63,USD,Direct debit - Utility bill,2024-03-13T05:51:00,completed,10389.23
+TXN100198,1002,Bob Martinez,debit,387.56,USD,Card payment - Fuel station,2024-03-14T02:28:00,completed,16471.15
+TXN100184,1007,Grace Kim,credit,556.49,USD,Cheque deposit,2024-03-14T03:05:00,completed,9125.63
+TXN100182,1005,Emma Davis,fee,12.93,USD,Overdraft fee,2024-03-14T05:25:00,completed,10563.22
+TXN100058,1006,Frank Osei,transfer_out,661.67,USD,Transfer to savings account,2024-03-14T14:16:00,completed,12652.53
+TXN100013,1005,Emma Davis,debit,373.77,USD,Standing order - Rent payment,2024-03-15T21:57:00,completed,2207.08
+TXN100075,1009,Isabelle Roy,credit,280.57,USD,Pension credit,2024-03-16T06:01:00,completed,2548.25
+TXN100163,1010,James Okafor,debit,415.76,USD,Standing order - Rent payment,2024-03-16T14:52:00,completed,41127.36
+TXN100166,1001,Alice Johnson,debit,182.33,USD,Card payment - Clothing retailer,2024-03-16T18:01:00,completed,1830.32
+TXN100194,1006,Frank Osei,debit,423.02,USD,Direct debit - Utility bill,2024-03-16T20:33:00,completed,19457.40
+TXN100038,1004,David Chen,credit,2830.63,USD,Incoming wire transfer,2024-03-17T09:39:00,pending,23937.42
+TXN100015,1001,Alice Johnson,transfer_in,348.04,USD,Transfer from account 1001,2024-03-17T10:24:00,completed,3527.15
+TXN100101,1008,Henry Patel,debit,296.85,USD,Card payment - Clothing retailer,2024-03-17T17:06:00,completed,12785.69
+TXN100094,1008,Henry Patel,debit,399.93,USD,Card payment - Supermarket,2024-03-18T06:56:00,completed,12285.60
+TXN100197,1003,Carol White,debit,77.49,USD,Direct debit - Utility bill,2024-03-18T12:48:00,completed,10311.74
+TXN100083,1001,Alice Johnson,transfer_out,1901.74,USD,Transfer to joint account,2024-03-20T12:15:00,completed,2008.47
+TXN100180,1002,Bob Martinez,transfer_out,1169.50,USD,Transfer to account 1007,2024-03-21T03:43:00,pending,15004.60
+TXN100171,1002,Bob Martinez,debit,78.43,USD,Online purchase - Retail,2024-03-21T04:37:00,completed,15900.99
+TXN100109,1005,Emma Davis,credit,274.67,USD,Salary credit - Direct deposit,2024-03-21T14:16:00,completed,4798.07
+TXN100009,1005,Emma Davis,transfer_out,1382.92,USD,Transfer to savings account,2024-03-22T13:34:00,failed,2580.85
+TXN100047,1007,Grace Kim,transfer_in,135.97,USD,Transfer from account 1005,2024-03-22T16:10:00,completed,7501.51
+TXN100169,1001,Alice Johnson,transfer_out,1822.07,USD,Transfer to account 1003,2024-03-23T08:03:00,completed,8.25
+TXN100012,1010,James Okafor,transfer_in,663.62,USD,Transfer received,2024-03-23T22:09:00,completed,33524.90
+TXN100082,1001,Alice Johnson,transfer_out,151.57,USD,Transfer to account 1003,2024-03-24T10:49:00,completed,3910.21
+TXN100043,1003,Carol White,credit,1675.33,USD,Cheque deposit,2024-03-25T00:00:00,failed,4316.07
+TXN100145,1010,James Okafor,credit,958.03,USD,Cheque deposit,2024-03-25T20:17:00,completed,41456.89
+TXN100120,1002,Bob Martinez,transfer_in,693.12,USD,Transfer received,2024-03-25T20:52:00,completed,12659.07
+TXN100177,1009,Isabelle Roy,credit,2043.04,USD,Pension credit,2024-03-26T21:55:00,completed,3870.45
+TXN100154,1005,Emma Davis,credit,2485.01,USD,Refund - Online retailer,2024-03-27T15:30:00,completed,10012.67
+TXN100065,1010,James Okafor,debit,410.12,USD,Card payment - Clothing retailer,2024-03-27T17:14:00,completed,34655.50
+TXN100153,1007,Grace Kim,debit,270.60,USD,Card payment - Fuel station,2024-03-28T07:43:00,completed,6895.43
+TXN100140,1006,Frank Osei,credit,522.15,USD,Pension credit,2024-03-28T13:10:00,pending,19851.79
+TXN100160,1008,Henry Patel,credit,784.73,USD,Refund - Online retailer,2024-03-28T19:34:00,completed,13181.05
+TXN100159,1002,Bob Martinez,transfer_in,1250.52,USD,Transfer from account 1005,2024-03-29T19:13:00,completed,15979.42
+TXN100103,1001,Alice Johnson,interest,4.18,USD,Monthly interest credit - money market rate,2024-03-30T12:40:00,completed,2012.65
+TXN100084,1003,Carol White,credit,431.73,USD,Incoming wire transfer,2024-03-30T16:49:00,completed,7686.72
+TXN100087,1002,Bob Martinez,credit,2508.66,USD,Incoming wire transfer,2024-03-30T17:54:00,completed,12031.96
+TXN100003,1010,James Okafor,debit,435.30,USD,Card payment - Clothing retailer,2024-03-30T21:21:00,completed,32861.28
+TXN100111,1010,James Okafor,credit,194.66,USD,Cheque deposit,2024-03-30T22:04:00,completed,35797.11
+TXN100034,1005,Emma Davis,fee,27.69,USD,International transaction fee,2024-03-31T07:50:00,completed,2055.16

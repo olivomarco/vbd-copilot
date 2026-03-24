@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "CUSTOMER_NAME-bill-explainer"
+version = "1.0.0"
+description = "RAG-based chatbot that explains Italian energy bills using Azure OpenAI"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Proprietary"}
+authors = [
+    {name = "CUSTOMER_NAME Engineering", email = "engineering@CUSTOMER_NAME.example.com"},
+]
+
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "azure-identity>=1.19.0",
+    "azure-cosmos>=4.9.0",
+    "azure-search-documents>=11.6.0",
+    "azure-keyvault-secrets>=4.9.0",
+    "openai>=1.60.0",
+    "httpx>=0.28.0",
+    "sse-starlette>=2.0.0",
+    "azure-monitor-opentelemetry>=1.6.0",
+    "opentelemetry-api>=1.29.0",
+    "opentelemetry-sdk>=1.29.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0",
+    "httpx>=0.28.0",
+    "respx>=0.22.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["../tests/unit"]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+markers = [
+    "unit: Unit tests that run without external services",
+    "integration: Integration tests that require Azure services",
+    "smoke: Smoke tests against deployed endpoints",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+    "if TYPE_CHECKING:",
+]

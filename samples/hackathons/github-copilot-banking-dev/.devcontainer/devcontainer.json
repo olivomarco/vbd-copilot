@@ -1,0 +1,53 @@
+{
+  "name": "FinCore Bank - GitHub Copilot Hackathon",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "ms-python.mypy-type-checker"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        },
+        "github.copilot.enable": {
+          "*": true
+        },
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": [
+          "tests"
+        ],
+        "chat.checkpoints.enabled": true,
+        "github.copilot.chat.agent.enabled": true
+      }
+    }
+  },
+  "postCreateCommand": "pip install -r resources/starter/requirements.txt && gh extension install github/gh-copilot 2>/dev/null || true && python --version && node --version && gh --version && echo 'FinCore Bank development environment is ready.'",
+  "forwardPorts": [
+    8000
+  ],
+  "portsAttributes": {
+    "8000": {
+      "label": "FinCore Bank API",
+      "onAutoForward": "notify"
+    }
+  },
+  "remoteEnv": {
+    "FINCORE_SECRET_KEY": "changeme-replace-with-a-256-bit-random-secret-in-production",
+    "FINCORE_DATABASE_URL": "sqlite:///./fincore.db",
+    "FINCORE_ENVIRONMENT": "development",
+    "FINCORE_LOG_LEVEL": "DEBUG",
+    "FINCORE_ALLOWED_ORIGINS": "http://localhost:3000,http://localhost:8000"
+  }
+}
