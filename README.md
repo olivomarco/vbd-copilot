@@ -10,28 +10,39 @@
 
 ## Quick Index
 
-- [What This Is](#what-this-is)
-- [A Day in the Life](#a-day-in-the-life)
-- [Three Workflows](#three-workflows)
-  - [Presentations](#1-presentations)
-  - [Demos](#2-demos)
-  - [AI Projects](#3-ai-projects---idea-to-production)
-  - [Hackathon Events](#4-hackathon-events)
-- [Sample Output](#sample-output)
-- [Architecture](#architecture)
-- [Quality and Trust](#quality-and-trust)
-- [Observability and Cost Tracking](#observability-and-cost-tracking)
-- [Content Levels](#content-levels)
-- [Slide Session Durations](#slide-session-durations)
-- [Responsible AI](#responsible-ai)
-- [Prerequisites](#prerequisites)
-- [Getting Started](#getting-started)
-  - [One-time setup: authenticate the GitHub CLI](#one-time-setup-authenticate-the-github-cli)
-  - [Option A - Docker (recommended)](#option-a---docker-recommended)
-  - [Option B - GitHub Codespaces (zero install)](#option-b---github-codespaces-zero-install)
-  - [Option C - Native install](#option-c---native-install)
-- [Usage Examples](#usage-examples)
-- [Slash Commands](#slash-commands)
+- [VBD-Copilot - The Ultimate CSA Copilot](#vbd-copilot---the-ultimate-csa-copilot)
+  - [Quick Index](#quick-index)
+  - [What This Is](#what-this-is)
+  - [A Day in the Life](#a-day-in-the-life)
+  - [Three Workflows](#three-workflows)
+    - [1. Presentations](#1-presentations)
+    - [2. Demos](#2-demos)
+    - [3. AI Projects - Idea to Production](#3-ai-projects---idea-to-production)
+      - [Stage 1: Brainstorming](#stage-1-brainstorming)
+      - [Stage 2: Solution Architecture](#stage-2-solution-architecture)
+      - [Stage 3: Implementation](#stage-3-implementation)
+    - [4. Hackathon Events](#4-hackathon-events)
+  - [Sample Output](#sample-output)
+  - [Architecture](#architecture)
+  - [Quality and Trust](#quality-and-trust)
+  - [Observability and Cost Tracking](#observability-and-cost-tracking)
+  - [Content Levels](#content-levels)
+  - [Slide Session Durations](#slide-session-durations)
+  - [Responsible AI](#responsible-ai)
+  - [Prerequisites](#prerequisites)
+  - [Getting Started](#getting-started)
+    - [One-time setup: authenticate the GitHub CLI](#one-time-setup-authenticate-the-github-cli)
+    - [Option A - Docker (recommended)](#option-a---docker-recommended)
+    - [Option B - GitHub Codespaces (zero install)](#option-b---github-codespaces-zero-install)
+    - [Option C - Native install](#option-c---native-install)
+  - [Usage Examples](#usage-examples)
+    - [Generate a presentation](#generate-a-presentation)
+    - [Generate demo guides](#generate-demo-guides)
+    - [Generate from your own notes](#generate-from-your-own-notes)
+    - [Generate a technical update briefing](#generate-a-technical-update-briefing)
+    - [Run the full AI project lifecycle](#run-the-full-ai-project-lifecycle)
+    - [Direct @mentions](#direct-mentions)
+  - [Slash Commands](#slash-commands)
 
 ---
 
@@ -79,20 +90,9 @@ VBD-Copilot shows up at different points in a CSA's week. Here are the moments w
 
 ### 1. Presentations
 
-The **Slide Conductor** takes a topic, audience level, and session length, then produces a finished `.pptx` file.
+The **Slide Conductor** takes a topic, audience level, and session length, then produces a finished `.pptx` file. It researches official sources, presents a plan for your approval, builds the slides, runs QA checks, and drops the `.pptx` plus its generator script into `outputs/slides/`.
 
-**How it works:**
-
-0. **Pre-research** - Quick scan of official sources to understand the topic landscape. Asks you clarifying questions.
-1. **Deep research** - Dispatches parallel research subagents to gather detailed content from MS Learn, docs.github.com, devblogs, and Tech Community.
-2. **Plan** - Presents a slide-by-slide outline with section breakdown. Waits for your approval before building anything.
-3. **Build** - Dispatches builder subagents (one per section) that write python-pptx code fragments. Assembles fragments into a generator script, runs it to produce the `.pptx`.
-4. **QA** - Runs programmatic layout checks (shape overflow, font sizes, placeholder text) and content humanization scoring. If issues are found, fixes and re-runs.
-5. **Deliver** - Drops the `.pptx` and its generator `.py` script into `outputs/slides/`.
-
-**Agents involved:** slide-conductor, research-subagent, slide-builder-subagent, pptx-qa-subagent
-
-**Not just customer decks.** The Slide Conductor also handles:
+Also handles:
 
 - **Technical update briefings** - quarterly "what's new" decks for your team or stakeholders, researched from official sources
 - **Slides from your own research** - point it at a .md file with your notes and it builds the deck from your material
@@ -101,18 +101,7 @@ The **Slide Conductor** takes a topic, audience level, and session length, then 
 
 ### 2. Demos
 
-The **Demo Conductor** produces a complete demo guide in Markdown with companion scripts you can actually run.
-
-**How it works:**
-
-0. **Pre-research** - Scans Azure-Samples, MS Learn quickstarts, and official repos for existing demos on the topic.
-1. **Deep research** - Gathers implementation details, API patterns, and working code samples.
-2. **Plan** - Presents the demo structure: number of demos, focus areas, companion scripts needed. Waits for your approval.
-3. **Build** - Dispatches builder subagents for each demo. Each produces a guide fragment with step-by-step instructions, "say this" presenter cues, a WOW moment callout, and companion scripts (.sh, .py, .ps1).
-4. **Review** - A reviewer subagent checks accuracy, runnability, and presenter quality. If anything needs revision, an editor subagent makes targeted fixes and the reviewer checks again.
-5. **Deliver** - Drops the assembled guide and all companion files into `outputs/demos/`.
-
-**Agents involved:** demo-conductor, demo-research-subagent, demo-builder-subagent, demo-reviewer-subagent, demo-editor-subagent
+The **Demo Conductor** produces a complete demo guide in Markdown with companion scripts you can actually run. It researches existing demos and quickstarts, presents a plan for your approval, builds the guides with review cycles, and delivers everything to `outputs/demos/`.
 
 **What you get in each demo:**
 
@@ -126,114 +115,38 @@ The **Demo Conductor** produces a complete demo guide in Markdown with companion
 
 ### 3. AI Projects - Idea to Production
 
-This is the big one. Three conductor agents take you from a blank page to a deployable Azure project, with mandatory quality gates at every stage.
+Three conductor agents take you from a blank page to a deployable Azure project, with mandatory quality gates at every stage. All AI project workflows enforce an **Azure-only mandate** - no AWS, no GCP alternatives.
 
 #### Stage 1: Brainstorming
 
-**Agent:** `ai-brainstorming` (model: claude-opus-4.6)
-
-You describe a customer's industry, objectives, and constraints. The agent researches the customer context and generates **10+ prioritized AI project ideas**, each with:
-
-- Impact score (1-5) and difficulty rating (1-5)
-- Timeline to first value
-- Specific Azure services needed
-- One-line business case
-- A phased roadmap: quick wins (0-3 months), medium-term (3-9 months), strategic bets (9-18 months)
-
-**Output:** `outputs/ai-projects/{slug}/docs/ai-brainstorming.md`
+Describe a customer's industry, objectives, and constraints. The `ai-brainstorming` agent generates **10+ prioritized AI project ideas** with impact scores, difficulty ratings, Azure service mappings, and a phased roadmap.
 
 #### Stage 2: Solution Architecture
 
-**Agent:** `ai-solution-architect` (model: claude-opus-4.6)
-
-Pick an idea from the brainstorming output. The architect agent runs a discovery session (objectives, success criteria, team, constraints, integrations), then produces **5 architecture documents**:
-
-| Document | What it contains |
-|----------|-----------------|
-| `solution-design.md` | Executive summary, architecture decisions, data flows, security model, non-functional requirements |
-| `architecture-diagram.drawio` | Full draw.io diagram (importable XML) with all Azure components, data flows, and network boundaries |
-| `architecture-diagram.md` | ASCII art version of the same diagram for terminals and Markdown rendering |
-| `cost-estimation.md` | SKU-level Azure pricing, monthly and annual estimates, scaling considerations |
-| `delivery-plan.md` | Implementation phases, milestones, team structure, dependencies, risk register |
-
-An architecture reviewer subagent checks all 5 documents for technical accuracy, completeness, Azure mandate compliance, and placeholder-free content. If issues are found, targeted fixes are made and the review runs again until the reviewer returns CLEAN.
-
-**Output:** `outputs/ai-projects/{slug}/docs/`
+Pick an idea from the brainstorming output. The `ai-solution-architect` agent runs a discovery session and produces **5 architecture documents**: solution design, draw.io diagram, ASCII diagram, cost estimation with SKU-level pricing, and a delivery plan. All reviewed for accuracy and completeness before delivery.
 
 #### Stage 3: Implementation
 
-**Agent:** `ai-implementor` (model: claude-sonnet-4.6)
-
-This is where code gets written. The implementor breaks the approved architecture into **8 work packages**, built in strict order:
-
-1. **Infrastructure** - Bicep modules (networking, security, compute, data, monitoring), parameter files
-2. **Application code** - Source code with Azure SDK integration
-3. **CI/CD pipelines** - GitHub Actions workflows for infra and app deployment
-4. **Deploy script** - `scripts/deploy.sh` with `--infra-only`, `--app-only` flags, idempotent
-5. **Unit tests** - pytest/Jest/xunit with 80% coverage minimum
-6. **Smoke tests** - Health checks and endpoint validation for post-deployment
-7. **Validation script** - `tests/validate.sh` that runs Bicep build checks, unit tests, and optional `--live` smoke tests
-8. **README** - Project entry point with setup, deploy, validate, and demo guide sections
-
-**The 4-reviewer gate.** Before the implementor delivers anything, four specialist reviewers must all return APPROVED:
-
-| Reviewer | Scope | Checks for |
-|----------|-------|-----------|
-| **Code reviewer** | `src/` and `tests/` | Logic correctness, Azure SDK usage, no hardcoded secrets, error handling, test quality |
-| **Infra reviewer** | `infra/` | Bicep syntax, module decomposition, Key Vault + managed identity for secrets, RBAC, SKU consistency, naming conventions |
-| **Pipeline reviewer** | `.github/workflows/`, `deploy.sh`, `validate.sh` | YAML correctness, job dependencies, secrets via env vars, `set -euo pipefail`, idempotency |
-| **Docs reviewer** | `README.md` | All sections present, paths accurate, commands correct, env vars documented, no placeholders |
-
-If any reviewer returns NEEDS_REVISION, the implementor dispatches targeted fixes and re-runs that specific reviewer. Delivery only happens when all four say APPROVED.
+The `ai-implementor` agent builds Bicep infrastructure, application code, CI/CD pipelines, deploy scripts, tests (80% coverage gate), and documentation. A **4-reviewer gate** (code, infra, pipeline, docs) must all approve before anything is delivered.
 
 **Output structure:**
 
 ```text
 outputs/ai-projects/{slug}/
   +-- README.md
-  +-- docs/
-  |     +-- solution-design.md
-  |     +-- architecture-diagram.drawio
-  |     +-- architecture-diagram.md
-  |     +-- cost-estimation.md
-  |     +-- delivery-plan.md
-  +-- infra/
-  |     +-- main.bicep
-  |     +-- modules/
-  |     +-- params*.json
-  +-- src/
-  |     +-- (application code)
-  +-- tests/
-  |     +-- unit/
-  |     +-- smoke/
-  |     +-- validate.sh
-  +-- scripts/
-  |     +-- deploy.sh
+  +-- docs/           (solution-design, diagrams, cost, delivery plan)
+  +-- infra/          (Bicep modules + params)
+  +-- src/            (application code)
+  +-- tests/          (unit, smoke, validate.sh)
+  +-- scripts/        (deploy.sh)
   +-- .github/workflows/
-        +-- infra-deploy.yml
-        +-- app-deploy.yml
 ```
-
-All AI project workflows enforce an **Azure-only mandate** - no AWS, no GCP alternatives. Every service, SDK, and deployment target is Azure.
 
 ---
 
 ### 4. Hackathon Events
 
-The **Hackathon Conductor** creates complete What-The-Hack-style hackathon packages ready to push as a Git repo for customer or partner enablement events.
-
-**How it works:**
-
-0. **Pre-research** - Scans official learning paths, labs, and quickstarts on the topic.
-1. **Deep research** - Parallel research subagents gather implementation details, architecture patterns, and hands-on exercises.
-2. **Challenge plan** - Presents a numbered progression with difficulty curve, time estimates, and learning objectives. Waits for your approval.
-3. **Build setup** - Creates the dev container (GitHub Codespaces-ready), challenge-00 (prerequisites), reference architecture, and starter files.
-4. **Build challenges** - Dispatches builder subagents in parallel. Each produces a scenario-driven challenge file and its step-by-step solution.
-5. **Build coach materials** - Creates the landing page README, facilitation guide, and scoring rubric.
-6. **QA & review** - Programmatic structural checks plus a reviewer subagent that verifies technical accuracy, difficulty progression, and cross-challenge consistency.
-7. **Deliver** - Drops the complete hackathon folder into `outputs/hackathons/`.
-
-**Agents involved:** hackathon-conductor, hackathon-research-subagent, hackathon-challenge-builder-subagent, hackathon-coach-builder-subagent, hackathon-reviewer-subagent
+The **Hackathon Conductor** creates complete What-The-Hack-style hackathon packages ready to push as a Git repo for customer or partner enablement events. It researches the topic, plans a progressive challenge set for your approval, builds challenges and solutions in parallel, generates coach materials, and runs QA before delivery.
 
 **What you get:**
 
@@ -258,19 +171,11 @@ The **Hackathon Conductor** creates complete What-The-Hack-style hackathon packa
 ```text
 outputs/hackathons/{event-slug}/
   +-- README.md
-  +-- .devcontainer/
-  |     +-- devcontainer.json
-  |     +-- Dockerfile
-  +-- challenges/
-  |     +-- challenge-00.md ... challenge-{N}.md
-  +-- solutions/
-  |     +-- challenge-00/README.md ... challenge-{N}/README.md
-  +-- coach/
-  |     +-- facilitation-guide.md
-  |     +-- scoring-rubric.md
-  +-- resources/
-        +-- reference-architecture.md
-        +-- starter/
+  +-- .devcontainer/      (Codespaces-ready)
+  +-- challenges/         (challenge-00 through challenge-N)
+  +-- solutions/          (step-by-step per challenge)
+  +-- coach/              (facilitation guide + scoring rubric)
+  +-- resources/          (reference architecture + starter files)
 ```
 
 ---
