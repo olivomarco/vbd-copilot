@@ -712,12 +712,12 @@ class CopilotUI:
         qs.add_row(
             "[bold yellow]5.[/bold yellow]",
             '[white]Say [yellow]"@ai-brainstorming brainstorm AI ideas for Contoso"[/yellow][/white] '
-            "- [bold]AI project lifecycle[/bold]",
+            "- [bold]Brainstorm AI project ideas[/bold]",
         )
         qs.add_row(
             "[bold yellow]6.[/bold yellow]",
             '[white]Say [yellow]"@ai-solution-architect design an architecture for a RAG chatbot on Azure"[/yellow][/white] '
-            "- [bold]solution architecture[/bold]",
+            "- [bold]Solution Architecture[/bold]",
         )
         qs.add_row(
             "[bold yellow]7.[/bold yellow]",
