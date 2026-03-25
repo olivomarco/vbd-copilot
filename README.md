@@ -1,4 +1,4 @@
-# CSA-Copilot - The Ultimate CSA Copilot
+# CSA-Copilot - The Ultimate Copilot for Cloud Solution Architects
 
 > Your AI-powered engagement platform - from first meeting prep to production-ready Azure delivery
 
@@ -8,11 +8,11 @@
 
 ## Quick Index
 
-- [CSA-Copilot - The Ultimate CSA Copilot](#csa-copilot---the-ultimate-csa-copilot)
+- [CSA-Copilot - The Ultimate Copilot for Cloud Solution Architects](#csa-copilot---the-ultimate-copilot-for-cloud-solution-architects)
   - [Quick Index](#quick-index)
   - [What This Is](#what-this-is)
   - [A Day in the Life](#a-day-in-the-life)
-  - [Three Workflows](#three-workflows)
+  - [Four Workflows](#four-workflows)
     - [1. Presentations](#1-presentations)
     - [2. Demos](#2-demos)
     - [3. AI Projects - Idea to Production](#3-ai-projects---idea-to-production)
@@ -20,7 +20,7 @@
       - [Stage 2: Solution Architecture](#stage-2-solution-architecture)
       - [Stage 3: Implementation](#stage-3-implementation)
     - [4. Hackathon Events](#4-hackathon-events)
-  - [Sample Output](#sample-output)
+  - [Sample Outputs](#sample-outputs)
   - [Architecture](#architecture)
   - [Quality and Trust](#quality-and-trust)
   - [Observability and Cost Tracking](#observability-and-cost-tracking)
@@ -50,7 +50,7 @@ You know the drill. A customer meeting lands on your calendar, and suddenly you 
 
 CSA-Copilot exists to kill that cycle.
 
-It is a terminal-based AI platform built on the GitHub Copilot SDK that covers **three distinct workflows** a CSA or Solution Engineer deals with regularly:
+It is a terminal-based AI platform built on the GitHub Copilot SDK that covers **four distinct workflows** a CSA or Solution Engineer deals with regularly:
 
 1. **Presentations** - Generate a complete `.pptx` with speaker notes from a single prompt. Research happens against official sources, not hallucinations.
 2. **Demos** - Generate step-by-step demo guides with runnable companion scripts, troubleshooting tables, and "say this" presenter cues.
@@ -60,7 +60,7 @@ It is a terminal-based AI platform built on the GitHub Copilot SDK that covers *
 Each workflow is run by a **conductor agent** that orchestrates specialist subagents, asks for your approval at key stops, and runs automated quality checks before handing you the output. 24 agents work together behind the scenes, but you just type a prompt.
 
 > [!IMPORTANT]
-> **This is deep research, not instant generation.** A full slide deck typically takes **1 hour or more**. That time is real work: multi-step research against MS Learn and official docs, source verification, content QA, and humanization checks. What it replaces is the 4-8 hours of manual research and assembly you'd do yourself - often the night before. Kick it off and work on something else. Demo generation runs 30-45 minutes. AI project builds vary by scope.
+> **This is deep research, not instant generation.** A full slide deck typically takes **1 hour or more**. Even more for AI-production use cases. That time is real work: multi-step research against MS Learn and official docs, source verification, content QA, and humanization checks. What it replaces is the 4-8 hours of manual research and assembly you'd do yourself - often the night before. Kick it off and work on something else. Demo generation runs 30-45 minutes. AI project builds vary by scope, but expect at least north of 1 hour.
 
 > **Accelerator, not autopilot.** The output is a strong first draft with sourced claims, tested code, and acceptable graphics. You own it, you refine it, you present it. Review before every customer session.
 
@@ -84,7 +84,7 @@ CSA-Copilot shows up at different points in a CSA's week. Here are the moments w
 
 ---
 
-## Three Workflows
+## Four Workflows
 
 ### 1. Presentations
 
@@ -92,7 +92,7 @@ The **Slide Conductor** takes a topic, audience level, and session length, then 
 
 Also handles:
 
-- **Technical update briefings** - quarterly "what's new" decks for your team or stakeholders, researched from official sources
+- **Technical update briefings** - e.g. monthly or quarterly "what's new" decks for your team or stakeholders, researched from official sources
 - **Slides from your own research** - point it at a .md file with your notes and it builds the deck from your material
 
 ---
@@ -113,7 +113,7 @@ The **Demo Conductor** produces a complete demo guide in Markdown with companion
 
 ### 3. AI Projects - Idea to Production
 
-Three conductor agents take you from a blank page to a deployable Azure project, with mandatory quality gates at every stage. All AI project workflows enforce an **Azure-only mandate** - no AWS, no GCP alternatives.
+Three conductor agents take you from a blank page to a deployable Azure project, with mandatory quality gates at every stage.
 
 #### Stage 1: Brainstorming
 
@@ -178,9 +178,9 @@ outputs/hackathons/{event-slug}/
 
 ---
 
-## Sample Output
+## Sample Outputs
 
-The slides and demos below - **un-edited on purpose** - were generated by CSA-Copilot on different topics. Same for the hackathons and AI projects in their respective folders. This is the raw output, straight from the agents, to give you a real sense of what to expect.
+The slides, code and demos below - **un-edited on purpose** - were generated by CSA-Copilot on different topics. Same for the hackathons and AI projects in their respective folders. This is the **raw output**, straight from the agents, to give you a real sense of what to expect.
 
 | | | | |
 |:---:|:---:|:---:|:---:|
@@ -199,95 +199,6 @@ Browse the full output library:
 ---
 
 ## Architecture
-
-```mermaid
-flowchart TD
-    User(["User\nTUI prompt"]) -->|"free-text or @mention"| Router["router.py\nAgent Router\n(LLM classifier)"]
-
-    Router -->|"slides / deck / pptx"| SC["slide-conductor"]
-    Router -->|"demo / walkthrough"| DC["demo-conductor"]
-    Router -->|"hackathon / hack / challenges"| HC["hackathon-conductor"]
-    Router -->|"brainstorm / AI ideas"| AB["ai-brainstorming"]
-    Router -->|"architecture / design"| SA["ai-solution-architect"]
-    Router -->|"implement / build"| AI["ai-implementor"]
-    Router -->|"no match"| Default["Default\nCopilot Agent"]
-
-    subgraph Slide_Pipeline ["Slide Pipeline"]
-        SC --> SC0["0 - Pre-research + clarify"]
-        SC0 --> SC1["1 - Deep research\n(parallel shards)"]
-        SC1 --> SC2["2 - Plan -> user approval"]
-        SC2 --> SC3["3 - Build PPTX\nfragments -> assemble -> run"]
-        SC3 --> SC3F["3F - PPTX QA"]
-        SC3F --> SC4["4 - Deliver\n.pptx + generate_*.py"]
-    end
-
-    subgraph Demo_Pipeline ["Demo Pipeline"]
-        DC --> DC0["0 - Pre-research + clarify"]
-        DC0 --> DC1["1 - Deep research"]
-        DC1 --> DC2["2 - Plan -> user approval"]
-        DC2 --> DC3["3 - Build guide + scripts"]
-        DC3 --> DC4["4 - Review + validate"]
-        DC4 --> DC5["5 - Deliver\nguide .md + scripts"]
-    end
-
-    subgraph AI_Project_Pipeline ["AI Project Pipeline"]
-        AB --> AB1["Research customer context"]
-        AB1 --> AB2["Generate 10+ ranked ideas\nwith phased roadmap"]
-
-        SA --> SA0["0 - Discovery + clarify"]
-        SA0 --> SA1["1 - Plan -> user approval"]
-        SA1 --> SA2["2 - Build 5 architecture docs\n(parallel subagents)"]
-        SA2 --> SA3["3 - Architecture QA + review"]
-        SA3 --> SA4["4 - Deliver docs/"]
-
-        AI --> AI0["0 - Break into 8 work packages"]
-        AI0 --> AI1["1 - Build each package\n(sequential)"]
-        AI1 --> AI2["2 - 4-reviewer gate\n(code + infra + pipeline + docs)"]
-        AI2 --> AI3["3 - Deliver full project"]
-    end
-
-    subgraph Hackathon_Pipeline ["Hackathon Pipeline"]
-        HC --> HC0["0 - Pre-research + clarify"]
-        HC0 --> HC1["1 - Deep research\n(parallel shards)"]
-        HC1 --> HC2["2 - Challenge plan\n-> user approval"]
-        HC2 --> HC3["3 - Build setup\n(devcontainer + challenge-00)"]
-        HC3 --> HC4["4 - Build challenges\n(parallel builders)"]
-        HC4 --> HC5["5 - Coach materials\n(README + guides)"]
-        HC5 --> HC6["6 - QA + review"]
-        HC6 --> HC7["7 - Deliver\nhackathon folder"]
-    end
-
-    SC0 & SC1 -->|"task tool"| RSA[("research-subagent")]
-    SC3 -->|"task tool"| SBA[("slide-builder-subagent")]
-    SC3F -->|"task tool"| QA[("pptx-qa-subagent")]
-
-    DC0 & DC1 -->|"task tool"| DRA[("demo-research-subagent")]
-    DC3 -->|"task tool"| DBA[("demo-builder-subagent")]
-    DC4 -->|"task tool"| DRV[("demo-reviewer-subagent")]
-    DC4 -->|"task tool"| DEA[("demo-editor-subagent")]
-
-    HC0 & HC1 -->|"task tool"| HRA[("hackathon-research-subagent")]
-    HC4 -->|"task tool"| HCB[("hackathon-challenge-builder-subagent")]
-    HC3 & HC5 -->|"task tool"| HCOA[("hackathon-coach-builder-subagent")]
-    HC6 -->|"task tool"| HREV[("hackathon-reviewer-subagent")]
-
-    SA2 -->|"task tool"| ARCH_B[("architecture-builder-subagent")]
-    SA3 -->|"task tool"| ARCH_R[("architecture-reviewer-subagent")]
-    AI1 -->|"task tool"| CODE_B[("code-builder-subagent")]
-    AI2 -->|"task tool"| CODE_R[("code-reviewer-subagent")]
-    AI2 -->|"task tool"| INFRA_R[("infra-reviewer-subagent")]
-    AI2 -->|"task tool"| PIPE_R[("pipeline-reviewer-subagent")]
-    AI2 -->|"task tool"| DOCS_R[("docs-reviewer-subagent")]
-
-    RSA & DRA & HRA -->|"bing_search + web_fetch"| Docs[("Official Sources\nMS Learn - GitHub Docs\ndevblogs - Tech Community")]
-
-    SC4 --> OutS[("outputs/slides/")]
-    DC5 --> OutD[("outputs/demos/")]
-    HC7 --> OutH[("outputs/hackathons/{slug}/")]
-    AB2 --> OutP[("outputs/ai-projects/{slug}/docs/")]
-    SA4 --> OutP
-    AI3 --> OutP2[("outputs/ai-projects/{slug}/\ninfra + src + tests + scripts")]
-```
 
 **Routing.** The router uses a two-step strategy. If you type `@agent-name`, the message goes directly to that agent. Otherwise, a lightweight GPT-4.1 classifier reads your prompt, compares it against all routable agent descriptions, and picks the best match. If neither approach finds a match, the default Copilot agent handles it as free-form conversation.
 
