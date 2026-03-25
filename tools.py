@@ -1,5 +1,5 @@
 """
-Custom tools for VBD-Copilot.
+Custom tools for CSA-Copilot.
 
 Most capabilities are provided by the Copilot CLI's built-in tools:
   - web_fetch         -> fetch any URL from the internet

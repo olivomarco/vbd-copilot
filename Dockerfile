@@ -1,11 +1,11 @@
-# ── VBD-Copilot ───────────────────────────────────────────────────────────────
+# ── CSA-Copilot ───────────────────────────────────────────────────────────────
 # Standalone container for running the TUI app.
 #
-#   docker build -t vbd-copilot .
+#   docker build -t csa-copilot .
 #   docker run -it --rm \
 #     -e GITHUB_TOKEN=$(gh auth token) \
 #     -v $(pwd)/outputs:/app/outputs \
-#     vbd-copilot
+#     csa-copilot
 # ──────────────────────────────────────────────────────────────────────────────
 
 FROM python:3.12-slim AS base

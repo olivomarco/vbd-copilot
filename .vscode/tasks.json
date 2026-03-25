@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Run VBD-Copilot",
+      "label": "Run CSA-Copilot",
       "type": "shell",
       "command": "python app.py",
       "group": "none",
@@ -74,7 +74,7 @@
     {
       "label": "Docker Build",
       "type": "shell",
-      "command": "docker build -t vbd-copilot .",
+      "command": "docker build -t csa-copilot .",
       "group": {
         "kind": "build",
         "isDefault": true
@@ -88,7 +88,7 @@
     {
       "label": "Docker Run",
       "type": "shell",
-      "command": "docker run -it --rm -e GITHUB_TOKEN=$(gh auth token) -v $(pwd)/outputs:/app/outputs vbd-copilot",
+      "command": "docker run -it --rm -e GITHUB_TOKEN=$(gh auth token) -v $(pwd)/outputs:/app/outputs csa-copilot",
       "group": "none",
       "dependsOn": "Docker Build",
       "presentation": {

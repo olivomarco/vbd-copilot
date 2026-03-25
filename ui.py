@@ -1,5 +1,5 @@
 """
-Beautiful terminal UI for VBD-Copilot.
+Beautiful terminal UI for CSA-Copilot.
 Uses prompt_toolkit for input and rich for output rendering.
 """
 
@@ -134,14 +134,14 @@ GRADIENT = [
     "#0033cc",
 ]
 
-# ── VBD-Copilot ASCII art banner ─────────────────────────────────────────────
+# ── CSA-Copilot ASCII art banner ─────────────────────────────────────────────
 BANNER_ART = [
-    " ██╗   ██╗██████╗ ██████╗         ██████╗ ██████╗ ██████╗ ██╗██╗      ██████╗ ████████╗  ",
-    " ██║   ██║██╔══██╗██╔══██╗       ██╔════╝██╔═══██╗██╔══██╗██║██║     ██╔═══██╗╚══██╔══╝  ",
-    " ██║   ██║██████╔╝██║  ██║ █████╗██║     ██║   ██║██████╔╝██║██║     ██║   ██║   ██║     ",
-    " ╚██╗ ██╔╝██╔══██╗██║  ██║ ╚════╝██║     ██║   ██║██╔═══╝ ██║██║     ██║   ██║   ██║     ",
-    "  ╚████╔╝ ██████╔╝██████╔╝       ╚██████╗╚██████╔╝██║     ██║███████╗╚██████╔╝   ██║     ",
-    "   ╚═══╝  ╚═════╝ ╚═════╝         ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝ ╚═════╝    ╚═╝     ",
+    "  ██████╗███████╗ █████╗         ██████╗ ██████╗ ██████╗ ██╗██╗      ██████╗ ████████╗  ",
+    " ██╔════╝██╔════╝██╔══██╗       ██╔════╝██╔═══██╗██╔══██╗██║██║     ██╔═══██╗╚══██╔══╝  ",
+    " ██║     ███████╗███████║ █████╗██║     ██║   ██║██████╔╝██║██║     ██║   ██║   ██║     ",
+    " ██║     ╚════██║██╔══██║ ╚════╝██║     ██║   ██║██╔═══╝ ██║██║     ██║   ██║   ██║     ",
+    " ╚██████╗███████║██║  ██║       ╚██████╗╚██████╔╝██║     ██║███████╗╚██████╔╝   ██║     ",
+    "  ╚═════╝╚══════╝╚═╝  ╚═╝        ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝ ╚═════╝    ╚═╝     ",
 ]
 
 # ── Microsoft 4-square logo (brand colors) ───────────────────────────────────
@@ -156,9 +156,9 @@ MS_LOGO = [
 
 # ── Compact banner for narrow terminals ───────────────────────────────────────
 COMPACT_ART = [
-    "╻ ╻┏┓ ╺┳┓   ┏━╸┏━┓┏━┓╻╻  ┏━┓╺┳╸",
-    "┃ ┃┣┻┓ ┃┃╺━╸┃  ┃ ┃┣━┛┃┃  ┃ ┃ ┃ ",
-    " ╹ ┗━┛╺┻┛   ┗━╸┗━┛╹  ╹┗━╸┗━┛ ╹ ",
+    "┏━╸┏━┓┏━┓   ┏━╸┏━┓┏━┓╻╻  ┏━┓╺┳╸",
+    "┃  ┗━┓┣━┫╺━╸┃  ┃ ┃┣━┛┃┃  ┃ ┃ ┃ ",
+    "┗━╸┗━┛╹ ╹   ┗━╸┗━┛╹  ╹┗━╸┗━┛ ╹ ",
 ]
 
 # ── Workflow info ─────────────────────────────────────────────────────────────
@@ -189,8 +189,8 @@ PT_STYLE = PTStyle.from_dict({
 })
 
 # ── History file ──────────────────────────────────────────────────────────────
-HISTORY_DIR = Path.home() / ".vbd-copilot"
-HISTORY_FILE = HISTORY_DIR / "vbd-copilot-history"
+HISTORY_DIR = Path.home() / ".csa-copilot"
+HISTORY_FILE = HISTORY_DIR / "csa-copilot-history"
 
 
 # =============================================================================
@@ -199,7 +199,7 @@ HISTORY_FILE = HISTORY_DIR / "vbd-copilot-history"
 
 
 class CopilotUI:
-    """Terminal UI manager for VBD-Copilot."""
+    """Terminal UI manager for CSA-Copilot."""
 
     def __init__(self, collector: Any | None = None) -> None:
         self.console = Console()
@@ -441,9 +441,9 @@ class CopilotUI:
                             self.console.print(
                                 "  [yellow]Troubleshooting:[/yellow]\n"
                                 "    1. Ensure ~/.copilot is mounted without :ro\n"
-                                "    2. Run: docker run --rm --entrypoint copilot vbd-copilot --version\n"
+                                "    2. Run: docker run --rm --entrypoint copilot csa-copilot --version\n"
                                 "    3. Re-authenticate: npx @anthropic-ai/copilot auth login\n"
-                                "    4. Check architecture: docker run --rm --entrypoint uname vbd-copilot -m"
+                                "    4. Check architecture: docker run --rm --entrypoint uname csa-copilot -m"
                             )
                             continue
 
@@ -1190,7 +1190,7 @@ class CopilotUI:
         table.add_row("/tutorial", "Interactive guided walkthrough")
         table.add_row("/clear", "Clear the screen and redisplay the banner")
         table.add_row("/help", "Show this help")
-        table.add_row("/quit", "Exit VBD-Copilot (session remains resumable)")
+        table.add_row("/quit", "Exit CSA-Copilot (session remains resumable)")
 
         self.console.print()
         self.console.print(
@@ -1376,8 +1376,8 @@ class CopilotUI:
     def _build_tutorial_pages(self) -> list:
         # ── Page 1: Welcome ───────────────────────────────────────────
         p1 = Panel(
-            "[bold white]Welcome to VBD-Copilot![/bold white]\n\n"
-            "VBD-Copilot is an AI-powered builder for Microsoft Cloud\n"
+            "[bold white]Welcome to CSA-Copilot![/bold white]\n\n"
+            "CSA-Copilot is an AI-powered builder for Microsoft Cloud\n"
             "Solution Architects and Solution Engineers.\n\n"
             "  [cyan bold]>> Slide Conductor[/cyan bold]\n"
             "    Generates .pptx presentations with research and QA.\n\n"
@@ -1509,7 +1509,7 @@ class CopilotUI:
         # ── Page 7: Sessions & Usage ─────────────────────────────────
         p5 = Panel(
             "[bold white]Session Management & Usage Tracking[/bold white]\n\n"
-            "VBD-Copilot tracks all sessions, turns, and token usage:\n\n"
+            "CSA-Copilot tracks all sessions, turns, and token usage:\n\n"
             "  [cyan bold]/sessions[/cyan bold]         List active & resumable sessions\n"
             "  [cyan bold]/sessions <id>[/cyan bold]    Inspect a session's turns & details\n"
             "  [cyan bold]/sessions name X[/cyan bold]  Give the current session a nickname\n"
@@ -1559,7 +1559,7 @@ class CopilotUI:
                     "     [yellow]@ai-brainstorming[/yellow], "
                     "[yellow]@ai-solution-architect[/yellow], or "
                     "[yellow]@ai-implementor[/yellow] to route directly\n"
-                    "  >> History persists across sessions (~/.vbd-copilot/)\n"
+                    "  >> History persists across sessions (~/.csa-copilot/)\n"
                     "  >> Set BING_API_KEY env var for reliable web search\n"
                     "  >> Run inside the Dev Container for full functionality\n"
                 ),

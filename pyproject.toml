@@ -1,7 +1,7 @@
 [project]
-name = "vbd-copilot"
+name = "csa-copilot"
 version = "2.0.0"
-description = "VBD-Copilot: AI-powered presentation and demo builder for Microsoft Cloud Solution Architects"
+description = "CSA-Copilot: AI-powered presentation and demo builder for Microsoft Cloud Solution Architects"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-vbd-copilot = "app:main_entry"
+csa-copilot = "app:main_entry"
 
 [tool.setuptools]
 py-modules = ["app", "router", "tools", "ui", "pricing", "store", "collector", "queries"]

@@ -1,4 +1,4 @@
-"""SQLite-backed event store for VBD-Copilot observability.
+"""SQLite-backed event store for CSA-Copilot observability.
 
 Manages three tables:
   - ``sessions`` - chat sessions
@@ -95,7 +95,7 @@ _MIGRATIONS: list[str] = [
 
 
 class EventStore:
-    """SQLite-backed persistence for VBD-Copilot observability data.
+    """SQLite-backed persistence for CSA-Copilot observability data.
 
     Parameters
     ----------

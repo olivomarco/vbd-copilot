@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-VBD-Copilot - AI-Powered Presentation & Demo Builder
+CSA-Copilot - AI-Powered Presentation & Demo Builder
 ======================================================
 
 A beautiful interactive terminal app built on the GitHub Copilot SDK
@@ -41,7 +41,7 @@ from ui import CopilotUI
 APP_DIR = Path(__file__).resolve().parent
 OUTPUTS_DIR = APP_DIR / "outputs"
 PLANS_DIR = APP_DIR / "plans"
-DB_DIR = Path.home() / ".vbd-copilot"
+DB_DIR = Path.home() / ".csa-copilot"
 
 
 # ── Output file detection ─────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ async def main() -> None:
     PLANS_DIR.mkdir(parents=True, exist_ok=True)
 
     # ── Event store (SQLite) ──────────────────────────────────────────────────
-    db_path = DB_DIR / "vbd-copilot.db"
+    db_path = DB_DIR / "csa-copilot.db"
     event_store = EventStore(db_path, retention_days=90)
     collector = EventCollector(event_store)
 
@@ -134,7 +134,7 @@ async def main() -> None:
             "    [cyan]docker run -it --rm \\\\\n"
             "      -e GITHUB_TOKEN=$(gh auth token) \\\\\n"
             "      -v \"$(pwd)/outputs:/app/outputs\" \\\\\n"
-            "      vbd-copilot[/cyan]\n\n"
+            "      csa-copilot[/cyan]\n\n"
             "  If [cyan]gh auth token[/cyan] fails, run [cyan]gh auth login[/cyan] first.\n"
         )
         return

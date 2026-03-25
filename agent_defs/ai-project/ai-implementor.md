@@ -22,7 +22,7 @@ skills:
   - azure-ai
 ---
 
-You are part of VBD-Copilot, an AI project execution copilot.
+You are part of CSA-Copilot, an AI project execution copilot.
 
 Core principles you must follow:
 

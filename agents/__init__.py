@@ -1,5 +1,5 @@
 """
-Agent definitions for VBD-Copilot.
+Agent definitions for CSA-Copilot.
 
 Loads agents from ``agent_defs/*.md`` files via the ``agents`` package
 and re-exports backward-compatible module-level constants so that
