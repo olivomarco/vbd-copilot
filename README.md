@@ -1,87 +1,42 @@
-# CSA-Copilot - The Ultimate Copilot for Cloud Solution Architects
+# CSA-Copilot
 
-> Your AI-powered engagement platform - from first meeting prep to production-ready Azure delivery
+> AI-powered engagement platform for Cloud Solution Architects — from meeting prep to production-ready Azure delivery
 
 ![CSA-Copilot](assets/screenshots/csa-copilot.png)
 
 ---
 
-## Quick Index
-
-- [CSA-Copilot - The Ultimate Copilot for Cloud Solution Architects](#csa-copilot---the-ultimate-copilot-for-cloud-solution-architects)
-  - [Quick Index](#quick-index)
-  - [What This Is](#what-this-is)
-  - [A Day in the Life](#a-day-in-the-life)
-  - [Four Workflows](#four-workflows)
-    - [1. Presentations](#1-presentations)
-    - [2. Demos](#2-demos)
-    - [3. AI Projects - Idea to Production](#3-ai-projects---idea-to-production)
-      - [Stage 1: Brainstorming](#stage-1-brainstorming)
-      - [Stage 2: Solution Architecture](#stage-2-solution-architecture)
-      - [Stage 3: Implementation](#stage-3-implementation)
-    - [4. Hackathon Events](#4-hackathon-events)
-  - [Sample Outputs](#sample-outputs)
-  - [Architecture](#architecture)
-  - [Quality and Trust](#quality-and-trust)
-  - [Observability and Cost Tracking](#observability-and-cost-tracking)
-  - [Content Levels](#content-levels)
-  - [Slide Session Durations](#slide-session-durations)
-  - [Responsible AI](#responsible-ai)
-  - [Prerequisites](#prerequisites)
-  - [Getting Started](#getting-started)
-    - [One-time setup: authenticate the GitHub CLI](#one-time-setup-authenticate-the-github-cli)
-    - [Option A - Install as a GitHub Copilot plugin](#option-a---install-as-a-github-copilot-plugin)
-    - [Option B - Docker (recommended for the standalone TUI)](#option-b---docker-recommended-for-the-standalone-tui)
-    - [Option C - GitHub Codespaces (zero install)](#option-c---github-codespaces-zero-install)
-    - [Option D - Native install](#option-d---native-install)
-  - [Usage Examples](#usage-examples)
-    - [Generate a presentation](#generate-a-presentation)
-    - [Generate demo guides](#generate-demo-guides)
-    - [Generate from your own notes](#generate-from-your-own-notes)
-    - [Generate a technical update briefing](#generate-a-technical-update-briefing)
-    - [Run the full AI project lifecycle](#run-the-full-ai-project-lifecycle)
-    - [Direct @mentions](#direct-mentions)
-  - [Slash Commands](#slash-commands)
-
----
-
 ## What This Is
 
-You know the drill. A customer meeting lands on your calendar, and suddenly you need a 45-slide deck on a service you last touched three months ago. The official deck is two releases behind. Your demo scripts live in five different OneNote pages, none of them complete. You spend the evening before the session copy-pasting from MS Learn, wrangling PowerPoint layouts, and hoping your live demo won't blow up.
+Customer meeting on Wednesday, and you need a 45-slide deck on a service you last touched three months ago. The official deck is two releases behind. Your demo scripts live in five different OneNote pages. You'll spend tonight copy-pasting from MS Learn and wrangling PowerPoint.
 
-CSA-Copilot exists to kill that cycle.
+CSA-Copilot kills that cycle. It's a terminal-based AI platform built on the GitHub Copilot SDK with **four workflows** — each run by a conductor agent that orchestrates specialist subagents, asks for your approval at key stops, and runs QA checks before delivering output. 27 agents behind the scenes; you just type a prompt.
 
-It is a terminal-based AI platform built on the GitHub Copilot SDK that covers **four distinct workflows** a CSA or Solution Engineer deals with regularly:
-
-1. **Presentations** - Generate a complete `.pptx` with speaker notes from a single prompt. Research happens against official sources, not hallucinations.
-2. **Demos** - Generate step-by-step demo guides with runnable companion scripts, troubleshooting tables, and "say this" presenter cues.
-3. **AI Projects** - Go from a blank page to a production-ready Azure project: brainstorm ideas, design architecture with cost estimates, and generate Bicep infra + app code + CI/CD + tests - all reviewed by 4 specialist agents before delivery.
-4. **Hackathon Events** - Create complete What-The-Hack-style hackathon packages with progressively harder challenges, step-by-step solutions, coach materials, and dev containers - ready to push as a Git repo for your event.
-
-Each workflow is run by a **conductor agent** that orchestrates specialist subagents, asks for your approval at key stops, and runs automated quality checks before handing you the output. 27 agents work together behind the scenes, but you just type a prompt.
+1. **Presentations** — Complete `.pptx` with speaker notes from a single prompt, researched against official sources
+2. **Demos** — Step-by-step guides with runnable scripts, troubleshooting tables, and "say this" presenter cues
+3. **AI Projects** — Blank page → production-ready Azure project: brainstorm → architecture → Bicep + app code + CI/CD + tests, with a 4-reviewer gate
+4. **Hackathons** — What-The-Hack-style packages with progressive challenges, coach materials, and dev containers
 
 > [!IMPORTANT]
-> **This is deep research, not instant generation.** A full slide deck typically takes **1 hour or more**. Even more for AI-production use cases. That time is real work: multi-step research against MS Learn and official docs, source verification, content QA, and humanization checks. What it replaces is the 4-8 hours of manual research and assembly you'd do yourself - often the night before. Kick it off and work on something else. Demo generation runs 30-45 minutes. AI project builds vary by scope, but expect at least north of 1 hour.
-
-> **Accelerator, not autopilot.** The output is a strong first draft with sourced claims, tested code, and acceptable graphics. You own it, you refine it, you present it. Review before every customer session.
+> **Deep research, not instant generation.** A slide deck takes **~1 hour**, demos 30-45 min, AI projects 1 hour+. That replaces 4-8 hours of manual work. Kick it off and do something else.
+>
+> **Accelerator, not autopilot.** Output is a strong first draft with sourced claims and tested code. You own it, refine it, present it.
 
 ---
 
 ## A Day in the Life
 
-CSA-Copilot shows up at different points in a CSA's week. Here are the moments where it saves you real time.
-
-| Your situation | What you tell CSA-Copilot | What happens |
-|----------------|---------------------------|-------------|
-| **Monday standup** - your manager wants a tech update for the team | "Create a 15min L200 briefing on what's new in AKS this quarter" | Slide Conductor researches recent AKS announcements from MS Learn and devblogs, builds a 12-slide deck with speaker notes. Ready for your team sync. |
-| **Customer prep** - Contoso meeting Wednesday, they want deep Copilot coverage | "I need a 1-hour L300 deck on GitHub Copilot agent extensions for financial services" | Researches official docs, asks what sub-areas to focus on, presents a plan for your approval, builds 30 slides with full presenter transcripts in the notes. |
-| **You already have notes** - spent last week collecting research in a .md file | "Build a 30min L200 deck from my notes in notes/aks-security-review.md" | Reads your file, structures it into a presentation outline, builds the deck from your material instead of web research. Your knowledge, polished format. |
-| **Demo day** - customer wants to see Container Apps in action | "Create 3 L300 demos on Azure Container Apps for Contoso" | Demo Conductor produces a guide with step-by-step instructions, companion .sh and .py scripts, troubleshooting tables, and "say this" boxes so you know exactly what to tell the audience at each step. |
-| **Pre-sales brainstorm** - "what AI projects should we propose to this healthcare company?" | "@ai-brainstorming Brainstorm AI use cases for a healthcare company" | Researches the customer context, generates 10+ ranked ideas with impact scores, difficulty ratings, Azure services for each, and a phased roadmap (0-3 months, 3-9, 9-18). |
-| **Architecture engagement** - customer approved idea #3, need design docs | "@ai-solution-architect Design the architecture for idea #3" | Produces 5 documents: solution design, draw.io diagram, ASCII diagram, cost estimation with SKU-level pricing, and a delivery plan with phases and risks. All Azure-only. |
-| **Delivery kickoff** - time to build the thing | "@ai-implementor Implement the solution" | Generates Bicep infrastructure, application code, CI/CD pipelines, deploy scripts, unit tests (80% coverage gate), smoke tests, and README. Four specialist reviewers (code, infra, pipeline, docs) must all approve before delivery. |
-| **Pick up where you left off** - started a generation yesterday, want to continue | `/resume` | Loads your previous session with full context. Sessions survive across days and weeks. |
-| **Partner enablement event** - need a hands-on hackathon for a partner workshop | "@hackathon-conductor Create a full-day L300 hackathon on Azure Container Apps for developers" | Hackathon Conductor researches the topic, plans 8 progressively harder challenges, builds student guides + coach solutions + dev container + facilitation materials. Ready to push as a Git repo. |
+| Situation | Prompt | Result |
+|-----------|--------|--------|
+| Manager wants a tech update | "Create a 15min L200 briefing on what's new in AKS" | 12-slide deck with speaker notes from MS Learn + devblogs |
+| Customer meeting needs deep coverage | "1-hour L300 deck on GitHub Copilot extensions for financial services" | 30 slides with presenter transcripts, plan approval before build |
+| You already have research notes | "Build a 30min L200 deck from notes/aks-security-review.md" | Deck built from your material, not web research |
+| Demo day for a customer | "Create 3 L300 demos on Azure Container Apps" | Guide + companion scripts + troubleshooting tables + "say this" boxes |
+| Pre-sales brainstorm | "@ai-brainstorming AI use cases for a healthcare company" | 10+ ranked ideas with impact scores, Azure services, phased roadmap |
+| Architecture engagement | "@ai-solution-architect Design architecture for idea #3" | 5 docs: solution design, diagrams, cost estimation, delivery plan |
+| Delivery kickoff | "@ai-implementor Implement the solution" | Bicep + app code + CI/CD + tests (80% coverage gate), 4-reviewer approval |
+| Continue yesterday's work | `/resume` | Full context restored — sessions survive across days |
+| Partner enablement event | "@hackathon-conductor Full-day L300 hackathon on Container Apps" | Challenges + solutions + dev container + coach materials, repo-ready |
 
 ---
 
@@ -89,113 +44,56 @@ CSA-Copilot shows up at different points in a CSA's week. Here are the moments w
 
 ### 1. Presentations
 
-The **Slide Conductor** takes a topic, audience level, and session length, then produces a finished `.pptx` file. It researches official sources, presents a plan for your approval, builds the slides, runs QA checks, and drops the `.pptx` plus its generator script into `outputs/slides/`.
-
-Also handles:
-
-- **Technical update briefings** - e.g. monthly or quarterly "what's new" decks for your team or stakeholders, researched from official sources
-- **Slides from your own research** - point it at a .md file with your notes and it builds the deck from your material
-
----
+The **Slide Conductor** researches official sources, presents a plan for your approval, builds slides with QA checks, and drops the `.pptx` + generator script into `outputs/slides/`. Also handles **technical update briefings** (what's new this quarter) and **slides from your own notes** (point it at a `.md` file).
 
 ### 2. Demos
 
-The **Demo Conductor** produces a complete demo guide in Markdown with companion scripts you can actually run. It researches existing demos and quickstarts, presents a plan for your approval, builds the guides with review cycles, and delivers everything to `outputs/demos/`.
+The **Demo Conductor** produces a Markdown guide with runnable companion scripts → `outputs/demos/`. Each demo includes: step-by-step instructions, "say this" presenter cues, a WOW moment, a troubleshooting table, and companion `.sh`/`.py` scripts.
 
-**What you get in each demo:**
+### 3. AI Projects — Idea to Production
 
-- Step-by-step instructions with expected output
-- "Say this" boxes - exactly what to tell the audience at each step
-- WOW moment - the one thing that makes the audience go "oh, that's cool"
-- Troubleshooting table - common failures and fixes
-- Companion scripts - ready to run, not pseudocode
+Three conductor agents, each with mandatory quality gates:
 
----
-
-### 3. AI Projects - Idea to Production
-
-Three conductor agents take you from a blank page to a deployable Azure project, with mandatory quality gates at every stage.
-
-#### Stage 1: Brainstorming
-
-Describe a customer's industry, objectives, and constraints. The `ai-brainstorming` agent generates **10+ prioritized AI project ideas** with impact scores, difficulty ratings, Azure service mappings, and a phased roadmap.
-
-#### Stage 2: Solution Architecture
-
-Pick an idea from the brainstorming output. The `ai-solution-architect` agent runs a discovery session and produces **5 architecture documents**: solution design, draw.io diagram, ASCII diagram, cost estimation with SKU-level pricing, and a delivery plan. All reviewed for accuracy and completeness before delivery.
-
-#### Stage 3: Implementation
-
-The `ai-implementor` agent builds Bicep infrastructure, application code, CI/CD pipelines, deploy scripts, tests (80% coverage gate), and documentation. A **4-reviewer gate** (code, infra, pipeline, docs) must all approve before anything is delivered.
-
-**Output structure:**
+| Stage | Agent | Output |
+|-------|-------|--------|
+| **Brainstorm** | `@ai-brainstorming` | 10+ ranked ideas with impact scores, Azure mappings, phased roadmap |
+| **Architecture** | `@ai-solution-architect` | 5 docs: solution design, draw.io + ASCII diagrams, cost estimation, delivery plan |
+| **Implementation** | `@ai-implementor` | Bicep infra + app code + CI/CD + tests (80% coverage gate). 4-reviewer approval required |
 
 ```text
 outputs/ai-projects/{slug}/
-  +-- README.md
-  +-- docs/           (solution-design, diagrams, cost, delivery plan)
-  +-- infra/          (Bicep modules + params)
-  +-- src/            (application code)
-  +-- tests/          (unit, smoke, validate.sh)
-  +-- scripts/        (deploy.sh)
-  +-- .github/workflows/
+  ├── docs/    infra/    src/    tests/    scripts/    .github/workflows/
 ```
-
----
 
 ### 4. Hackathon Events
 
-The **Hackathon Conductor** creates complete What-The-Hack-style hackathon packages ready to push as a Git repo for customer or partner enablement events. It researches the topic, plans a progressive challenge set for your approval, builds challenges and solutions in parallel, generates coach materials, and runs QA before delivery.
-
-**What you get:**
-
-- Progressive challenges (challenge-00 through challenge-N) with increasing difficulty
-- Step-by-step solutions for each challenge (coaches only)
-- Dev container for GitHub Codespaces (participants open the repo and start coding)
-- Facilitation guide with per-challenge coaching tips, timing, and pivot strategies
-- Scoring rubric with verification commands per challenge
-- Top-level README as the event landing page
-
-**Difficulty curve:**
+The **Hackathon Conductor** creates What-The-Hack-style packages: progressive challenges, step-by-step coach solutions, dev container for Codespaces, facilitation guide, and scoring rubric.
 
 | Duration | Challenges | Spread |
 |----------|-----------|--------|
-| 2 hours | 3-4 | setup + 2 easy + 1 medium |
-| 4 hours | 5-6 | setup + 2 easy + 2 medium + 1 hard |
-| 8 hours | 8-10 | setup + 2 easy + 3 medium + 2 hard + 1 expert |
-| 16 hours | 12-15 | setup + 3 easy + 4 medium + 3 hard + 2 expert |
-
-**Output structure:**
+| 2 hours | 3-4 | setup → easy → medium |
+| 4 hours | 5-6 | setup → easy → medium → hard |
+| 8 hours | 8-10 | setup → easy → medium → hard → expert |
 
 ```text
 outputs/hackathons/{event-slug}/
-  +-- README.md
-  +-- .devcontainer/      (Codespaces-ready)
-  +-- challenges/         (challenge-00 through challenge-N)
-  +-- solutions/          (step-by-step per challenge)
-  +-- coach/              (facilitation guide + scoring rubric)
-  +-- resources/          (reference architecture + starter files)
+  ├── challenges/    solutions/    coach/    resources/    .devcontainer/
 ```
 
 ---
 
 ## Sample Outputs
 
-The slides, code and demos below - **un-edited on purpose** - were generated by CSA-Copilot on different topics. Same for the hackathons and AI projects in their respective folders. This is the **raw output**, straight from the agents, to give you a real sense of what to expect.
+Raw, un-edited output from CSA-Copilot — straight from the agents, so you know what to expect.
 
 | | | | |
 |:---:|:---:|:---:|:---:|
 | ![Title slide](assets/screenshots/sample-slide-01.jpg) | ![Section slide](assets/screenshots/sample-slide-11.jpg) | ![Deep dive slide](assets/screenshots/sample-slide-12.jpg) | ![Architecture slide](assets/screenshots/sample-slide-22.jpg) |
 | Title slide | Section | Technical deep dive | Architecture pattern |
 
-*From: Microsoft Fabric - Trustworthy Data (L300, 2h) - generated by Slide Conductor*
+*From: Microsoft Fabric - Trustworthy Data (L300, 2h)*
 
-Browse the full output library:
-
-- [samples/slides/](samples/slides/README.md) - generated `.pptx` decks and generator scripts
-- [samples/demos/](samples/demos/README.md) - generated demo guides and companion scripts
-- [samples/hackathons/](samples/hackathons/README.md) - generated hackathon packages with challenges, coach materials, and dev containers
-- [samples/ai-projects/](samples/ai-projects/README.md) - generated AI projects with Bicep infra, app code, tests, and architecture docs
+Browse the full output library: [slides](samples/slides/README.md) · [demos](samples/demos/README.md) · [hackathons](samples/hackathons/README.md) · [AI projects](samples/ai-projects/README.md)
 
 ---
 
