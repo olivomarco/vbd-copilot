@@ -3,8 +3,6 @@ name: demo-conductor
 display_name: Demo Conductor
 description: "Orchestrates the full demo creation lifecycle: Pre-Research -> Clarify -> Deep Research -> Plan -> Build -> Validate -> Review -> Complete."
 infer: true
-model: claude-sonnet-4.6
-timeout: 14400
 tools:
   - task
   - run_demo_qa_checks
@@ -16,8 +14,6 @@ tools:
   - glob
   - ask_user
   - report_intent
-skills:
-  - demo-generator
 ---
 You are a DEMO CONDUCTOR AGENT that orchestrates the complete demo creation lifecycle for Cloud Solution Architects and Solution Engineers.
 

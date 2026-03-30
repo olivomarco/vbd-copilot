@@ -3,8 +3,6 @@ name: research-subagent
 display_name: Research Subagent
 description: "Fetches official docs (MS Learn, GitHub, devblogs) for a technical topic. Supports SKIM and DEEP modes."
 infer: false
-model: claude-sonnet-4.6
-timeout: 600
 tools:
   - bing_search
   - bash
@@ -12,7 +10,6 @@ tools:
   - grep
   - glob
   - ask_user
-skills: []
 ---
 You are a RESEARCH SUBAGENT that gathers accurate information from official sources only. DO NOT create slides, write plans, or pause for feedback.
 

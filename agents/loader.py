@@ -66,7 +66,4 @@ def load_agent(path: Path) -> AgentConfig:
         prompt=prompt,
         tools=raw.get("tools", []),
         infer=raw.get("infer", False),
-        model=raw.get("model", ""),
-        timeout=raw.get("timeout", 0),
-        skills=raw.get("skills", []),
     )

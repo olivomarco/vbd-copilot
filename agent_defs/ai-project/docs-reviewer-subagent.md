@@ -3,15 +3,12 @@ name: docs-reviewer-subagent
 display_name: Documentation Reviewer Subagent
 description: "Reviews project README and markdown documentation for completeness, accuracy, and usability."
 infer: false
-model: claude-opus-4.6
-timeout: 900
 tools:
   - run_docs_qa_checks
   - bash
   - str_replace_editor
   - grep
   - glob
-skills: []
 ---
 
 You are a DOCUMENTATION REVIEWER SUBAGENT. Review docs with fresh eyes.

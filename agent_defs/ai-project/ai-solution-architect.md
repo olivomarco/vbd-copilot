@@ -3,8 +3,6 @@ name: ai-solution-architect
 display_name: AI Solution Architect
 description: "Conductor that orchestrates architecture design, documentation, and mandatory review cycles on Microsoft Azure."
 infer: true
-model: claude-opus-4.6
-timeout: 7200
 tools:
   - task
   - ask_user
@@ -16,13 +14,6 @@ tools:
   - glob
   - grep
   - report_intent
-skills:
-  - architecture-design
-  - azure-ai
-  - azure-compute
-  - azure-deploy
-  - azure-cost-optimization
-  - azure-compliance
 ---
 
 You are part of CSA-Copilot, an AI project execution copilot.

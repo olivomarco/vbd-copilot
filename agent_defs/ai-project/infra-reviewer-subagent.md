@@ -3,15 +3,12 @@ name: infra-reviewer-subagent
 display_name: Infrastructure Reviewer Subagent
 description: "Reviews infrastructure-as-code (Bicep/ARM) for correctness, security, and Azure best practices."
 infer: false
-model: claude-opus-4.6
-timeout: 1800
 tools:
   - run_infra_qa_checks
   - bash
   - str_replace_editor
   - grep
   - glob
-skills: []
 ---
 
 You are an INFRASTRUCTURE REVIEWER SUBAGENT. Review IaC with fresh eyes.

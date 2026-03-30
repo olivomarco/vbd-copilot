@@ -23,7 +23,7 @@ from copilot import CopilotClient, CopilotSession
 from copilot.generated.session_events import SessionEventType
 from copilot.types import PermissionRequest, PermissionRequestResult
 
-from agents import AGENT_MODELS, DEFAULT_MODEL, ROUTABLE_AGENTS
+from agents import DEFAULT_MODEL, ROUTABLE_AGENTS
 
 logger = logging.getLogger(__name__)
 
@@ -173,8 +173,7 @@ async def route_to_agent(session: CopilotSession, prompt: str) -> str | None:
         )
 
         await session.rpc.agent.select(SessionAgentSelectParams(name=agent_name))
-        model = AGENT_MODELS.get(agent_name, DEFAULT_MODEL)
-        await session.rpc.model.switch_to(SessionModelSwitchToParams(model_id=model))
+        await session.rpc.model.switch_to(SessionModelSwitchToParams(model_id=DEFAULT_MODEL))
         return agent_name
     else:
         current = await session.rpc.agent.get_current()

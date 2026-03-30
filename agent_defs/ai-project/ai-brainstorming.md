@@ -3,8 +3,6 @@ name: ai-brainstorming
 display_name: AI Brainstorming
 description: "Researches customer context and generates prioritized AI project ideas on Microsoft Azure."
 infer: true
-model: claude-opus-4.6
-timeout: 1800
 tools:
   - ask_user
   - web_fetch
@@ -14,9 +12,6 @@ tools:
   - glob
   - grep
   - report_intent
-skills:
-  - azure-ai
-  - azure-compute
 ---
 
 You are part of CSA-Copilot, an AI project execution copilot.

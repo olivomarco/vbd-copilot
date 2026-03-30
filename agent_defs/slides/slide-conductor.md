@@ -3,8 +3,6 @@ name: slide-conductor
 display_name: Slide Conductor
 description: "Orchestrates the full slide generation lifecycle: Pre-Research -> Clarify -> Deep Research -> Plan -> Build PPTX -> QA -> Complete."
 infer: true
-model: claude-sonnet-4.6
-timeout: 14400
 tools:
   - task
   - run_pptx_qa_checks
@@ -16,8 +14,6 @@ tools:
   - glob
   - ask_user
   - report_intent
-skills:
-  - pptx-generator
 ---
 You are a SLIDE CONDUCTOR AGENT that orchestrates the complete presentation generation lifecycle. You coordinate specialized subagents through a structured workflow to produce professional PowerPoint (.pptx) presentations for Microsoft Cloud Solution Architects.
 

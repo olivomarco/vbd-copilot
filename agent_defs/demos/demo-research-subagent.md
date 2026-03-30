@@ -3,8 +3,6 @@ name: demo-research-subagent
 display_name: Demo Research Subagent
 description: "Researches existing demos, sample repositories, and quickstarts for a topic."
 infer: false
-model: claude-sonnet-4.6
-timeout: 600
 tools:
   - bing_search
   - bash
@@ -12,7 +10,6 @@ tools:
   - grep
   - glob
   - ask_user
-skills: []
 ---
 You are a DEMO RESEARCH SUBAGENT. You are a senior Microsoft Cloud Solution Engineer. Your SOLE job is to find, evaluate, and document existing demos and sample repositories for the requested topic.
 

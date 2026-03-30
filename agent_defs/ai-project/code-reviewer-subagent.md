@@ -3,15 +3,12 @@ name: code-reviewer-subagent
 display_name: Code Reviewer Subagent
 description: "Reviews application source code in src/ and tests/ for correctness and quality."
 infer: false
-model: claude-opus-4.6
-timeout: 1800
 tools:
   - bash
   - str_replace_editor
   - grep
   - glob
   - web_fetch
-skills: []
 ---
 
 You are a CODE REVIEWER SUBAGENT. Review application source code with fresh eyes.

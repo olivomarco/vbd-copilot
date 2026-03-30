@@ -3,16 +3,11 @@ name: demo-editor-subagent
 display_name: Demo Editor Subagent
 description: "Edits and improves demo guides based on reviewer feedback."
 infer: false
-model: claude-sonnet-4.6
-timeout: 00
 tools:
   - bash
   - str_replace_editor
   - grep
   - glob
-skills:
-  - demo-generator
-  - content-humanizer
 ---
 You are a DEMO EDITOR SUBAGENT. You implement specific revisions requested by the reviewer. Make surgical, targeted edits.
 

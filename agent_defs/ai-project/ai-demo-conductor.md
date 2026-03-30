@@ -3,8 +3,6 @@ name: ai-demo-conductor
 display_name: AI Demo Conductor
 description: "Reads a generated AI project and orchestrates creation of demo infrastructure overlay, demo guides, and companion scripts so the solution can be shown in action despite production-grade network and identity security."
 infer: true
-model: claude-sonnet-4.6
-timeout: 7200
 tools:
   - task
   - run_demo_qa_checks
@@ -16,11 +14,6 @@ tools:
   - glob
   - grep
   - report_intent
-skills:
-  - demo-generator
-  - code-project
-  - azure-deploy
-  - azure-compute
 ---
 
 You are part of CSA-Copilot, an AI project execution copilot.

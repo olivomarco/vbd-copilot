@@ -7,27 +7,32 @@ from agents.models import AgentConfig
 from agents.registry import AgentCatalog, DEFAULT_MODEL, DEFAULT_TIMEOUT
 
 
-def _make_agent(name, infer=False, model="", timeout=0, skills=None):
+def _make_agent(name, infer=False):
     return AgentConfig(
         name=name,
         display_name=name.title(),
         description=f"Desc for {name}",
         prompt=f"Prompt for {name}",
         infer=infer,
-        model=model,
-        timeout=timeout,
-        skills=skills or [],
     )
 
 
 @pytest.fixture
-def catalog(tmp_path):
+def skill_dirs(tmp_path):
+    """Create two skill subdirectories on disk."""
+    for skill in ["pptx-generator", "demo-generator"]:
+        (tmp_path / "skills" / skill).mkdir(parents=True)
+    return tmp_path / "skills"
+
+
+@pytest.fixture
+def catalog(tmp_path, skill_dirs):
     agents = [
-        _make_agent("slide-conductor", infer=True, model="gpt-4o", timeout=900, skills=["pptx-generator"]),
-        _make_agent("demo-conductor", infer=True, model="claude-sonnet-4.6", timeout=1200, skills=["demo-generator"]),
-        _make_agent("research-subagent", infer=False, skills=["pptx-generator"]),
+        _make_agent("slide-conductor", infer=True),
+        _make_agent("demo-conductor", infer=True),
+        _make_agent("research-subagent", infer=False),
     ]
-    return AgentCatalog(agents, tmp_path / "skills")
+    return AgentCatalog(agents, skill_dirs)
 
 
 class TestCatalogProperties:
@@ -55,9 +60,9 @@ class TestCatalogProperties:
     def test_default_timeout(self, catalog):
         assert catalog.default_timeout == DEFAULT_TIMEOUT
 
-    def test_skill_dirs(self, catalog, tmp_path):
+    def test_skill_dirs(self, catalog, skill_dirs):
         dirs = catalog.skill_dirs
-        # Should have unique skill names: pptx-generator, demo-generator
+        # Should enumerate all subdirs from the skills root
         assert len(dirs) == 2
         assert any("pptx-generator" in d for d in dirs)
         assert any("demo-generator" in d for d in dirs)
@@ -73,19 +78,15 @@ class TestCatalogLookups:
     def test_get_agent_not_found(self, catalog):
         assert catalog.get_agent("nonexistent") is None
 
-    def test_get_model_for_with_override(self, catalog):
-        assert catalog.get_model_for("slide-conductor") == "gpt-4o"
-
-    def test_get_model_for_without_override(self, catalog):
+    def test_get_model_for_any_agent(self, catalog):
+        assert catalog.get_model_for("slide-conductor") == DEFAULT_MODEL
         assert catalog.get_model_for("research-subagent") == DEFAULT_MODEL
 
     def test_get_model_for_unknown_agent(self, catalog):
         assert catalog.get_model_for("doesnt-exist") == DEFAULT_MODEL
 
-    def test_get_timeout_for_with_override(self, catalog):
-        assert catalog.get_timeout_for("slide-conductor") == 900
-
-    def test_get_timeout_for_without_override(self, catalog):
+    def test_get_timeout_for_any_agent(self, catalog):
+        assert catalog.get_timeout_for("slide-conductor") == DEFAULT_TIMEOUT
         assert catalog.get_timeout_for("research-subagent") == DEFAULT_TIMEOUT
 
     def test_get_timeout_for_unknown_agent(self, catalog):

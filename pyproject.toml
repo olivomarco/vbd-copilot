@@ -1,6 +1,6 @@
 [project]
 name = "csa-copilot"
-version = "2.0.0"
+version = "3.0.0"
 description = "CSA-Copilot: AI-powered presentation and demo builder for Microsoft Cloud Solution Architects"
 readme = "README.md"
 requires-python = ">=3.11"

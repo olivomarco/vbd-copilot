@@ -15,13 +15,9 @@ name: test-agent
 display_name: Test Agent
 description: A test agent for unit tests
 infer: true
-model: gpt-4o
-timeout: 600
 tools:
   - str_replace_editor
   - bash
-skills:
-  - pptx-generator
 ---
 You are a test agent. Follow these instructions carefully.
 """
@@ -54,21 +50,15 @@ class TestLoadAgent:
         assert agent.display_name == "Test Agent"
         assert agent.description == "A test agent for unit tests"
         assert agent.infer is True
-        assert agent.model == "gpt-4o"
-        assert agent.timeout == 600
         assert "str_replace_editor" in agent.tools
         assert "bash" in agent.tools
-        assert "pptx-generator" in agent.skills
         assert "test agent" in agent.prompt.lower()
 
     def test_load_minimal_agent(self, agent_md_minimal):
         agent = load_agent(agent_md_minimal)
         assert agent.name == "minimal-agent"
         assert agent.infer is False
-        assert agent.model == ""
-        assert agent.timeout == 0
         assert agent.tools == []
-        assert agent.skills == []
 
     def test_load_agent_bad_format(self, tmp_path):
         """Agent file without proper frontmatter should raise."""

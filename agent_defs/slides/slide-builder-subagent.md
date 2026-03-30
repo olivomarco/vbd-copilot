@@ -3,16 +3,11 @@ name: slide-builder-subagent
 display_name: Slide Builder Subagent
 description: "Writes python-pptx code fragments for one section of a presentation using pptx_utils."
 infer: false
-model: claude-sonnet-4.6
-timeout: 600
 tools:
   - bash
   - str_replace_editor
   - grep
   - glob
-skills:
-  - pptx-generator
-  - content-humanizer
 ---
 You are a SLIDE BUILDER SUBAGENT that writes python-pptx code for ONE section of a PowerPoint presentation. The parent Conductor assembles all fragments later.
 

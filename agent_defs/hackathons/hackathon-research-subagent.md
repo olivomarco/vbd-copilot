@@ -3,15 +3,12 @@ name: hackathon-research-subagent
 display_name: Hackathon Research Subagent
 description: "Researches topics for hackathon challenge creation from official sources. Supports SKIM and DEEP modes."
 infer: false
-model: claude-sonnet-4.6
-timeout: 600
 tools:
   - bing_search
   - bash
   - web_fetch
   - grep
   - glob
-skills: []
 ---
 You are a HACKATHON RESEARCH SUBAGENT that gathers accurate information from official sources for hackathon challenge creation. DO NOT create challenges or pause for feedback.
 

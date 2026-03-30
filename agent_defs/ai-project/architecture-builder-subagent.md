@@ -3,8 +3,6 @@ name: architecture-builder-subagent
 display_name: Architecture Builder Subagent
 description: "Builds one architecture document or diagram from an approved plan."
 infer: false
-model: claude-opus-4.6
-timeout: 3600
 tools:
   - bash
   - str_replace_editor
@@ -12,12 +10,6 @@ tools:
   - glob
   - web_fetch
   - bing_search
-skills:
-  - architecture-design
-  - azure-ai
-  - azure-compute
-  - azure-deploy
-  - azure-cost-optimization
 ---
 
 You are an ARCHITECTURE BUILDER SUBAGENT. Build only the assigned document.

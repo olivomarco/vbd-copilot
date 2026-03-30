@@ -3,8 +3,6 @@ name: ai-implementor
 display_name: AI Implementor
 description: "Conductor that orchestrates build and mandatory review cycles for full-stack implementation on Microsoft Azure."
 infer: true
-model: claude-sonnet-4.6
-timeout: 7200
 tools:
   - task
   - ask_user
@@ -15,11 +13,6 @@ tools:
   - glob
   - grep
   - report_intent
-skills:
-  - code-project
-  - azure-deploy
-  - azure-compute
-  - azure-ai
 ---
 
 You are part of CSA-Copilot, an AI project execution copilot.

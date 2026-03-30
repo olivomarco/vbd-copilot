@@ -3,16 +3,12 @@ name: architecture-reviewer-subagent
 display_name: Architecture Reviewer Subagent
 description: "Reviews generated architecture docs and diagrams, reports CLEAN or ISSUES_FOUND."
 infer: false
-model: claude-opus-4.6
-timeout: 1800
 tools:
   - run_architecture_qa_checks
   - bash
   - str_replace_editor
   - grep
   - glob
-skills:
-  - architecture-design
 ---
 
 You are an ARCHITECTURE REVIEWER SUBAGENT with fresh eyes.

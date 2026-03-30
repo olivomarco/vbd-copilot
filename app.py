@@ -30,7 +30,7 @@ from copilot.types import (
     UserInputResponse,
 )
 
-from agents import AGENT_MODELS, AGENT_TIMEOUTS, ALL_AGENT_CONFIGS, ALL_SKILL_DIRS, DEFAULT_MODEL, DEFAULT_TIMEOUT
+from agents import AGENTS, ALL_AGENT_CONFIGS, ALL_SKILL_DIRS, DEFAULT_MODEL, DEFAULT_TIMEOUT
 from collector import EventCollector
 from router import init_router, route_to_agent
 from store import EventStore
@@ -240,14 +240,13 @@ async def main() -> None:
                 await session.rpc.agent.select(
                     SessionAgentSelectParams(name=agent_hint)
                 )
-                model = AGENT_MODELS.get(agent_hint, DEFAULT_MODEL)
                 await session.rpc.model.switch_to(
-                    SessionModelSwitchToParams(model_id=model)
+                    SessionModelSwitchToParams(model_id=DEFAULT_MODEL)
                 )
                 ui.current_agent = agent_hint
-                ui.current_model = model
+                ui.current_model = DEFAULT_MODEL
                 event_store.update_session_agent(session.session_id, agent_hint)
-                event_store.update_session_model(session.session_id, model)
+                event_store.update_session_model(session.session_id, DEFAULT_MODEL)
             except Exception as exc:
                 ui.print_error(f"Could not pre-select agent '{agent_hint}': {exc}")
 
@@ -309,15 +308,14 @@ async def main() -> None:
                         await session.rpc.agent.select(
                             SessionAgentSelectParams(name=arg)
                         )
-                        model = AGENT_MODELS.get(arg, DEFAULT_MODEL)
                         await session.rpc.model.switch_to(
-                            SessionModelSwitchToParams(model_id=model)
+                            SessionModelSwitchToParams(model_id=DEFAULT_MODEL)
                         )
                         ui.current_agent = arg
-                        ui.current_model = model
+                        ui.current_model = DEFAULT_MODEL
                         event_store.update_session_agent(session.session_id, arg)
-                        event_store.update_session_model(session.session_id, model)
-                        ui.print_success(f"Switched to {arg} (model: {model})")
+                        event_store.update_session_model(session.session_id, DEFAULT_MODEL)
+                        ui.print_success(f"Switched to {arg} (model: {DEFAULT_MODEL})")
                     except Exception as exc:
                         ui.print_error(f"Failed to switch agent: {exc}")
                     continue
@@ -471,7 +469,7 @@ async def main() -> None:
                         else:
                             raw_agent = s_detail.get("agent", "") or ""
                             ui.current_model = s_detail.get("model", DEFAULT_MODEL)
-                        ui.current_agent = raw_agent if raw_agent in AGENT_MODELS else None
+                        ui.current_agent = raw_agent if raw_agent in AGENTS else None
                         ui.session_id = full_id
                         ui._last_input_tokens = 0
                         ui.print_success(
@@ -560,11 +558,10 @@ async def main() -> None:
                 )
                 continue
             if agent_name:
-                model = AGENT_MODELS.get(agent_name, DEFAULT_MODEL)
                 ui.current_agent = agent_name
-                ui.current_model = model
+                ui.current_model = DEFAULT_MODEL
                 event_store.update_session_agent(session.session_id, agent_name)
-                event_store.update_session_model(session.session_id, model)
+                event_store.update_session_model(session.session_id, DEFAULT_MODEL)
 
             # ── Strip @mention prefix ─────────────────────────────────────
             clean_prompt = user_input
@@ -587,9 +584,7 @@ async def main() -> None:
             ui.print_input_lock_state(True)
             ui.reset_deltas()
 
-            effective_timeout = AGENT_TIMEOUTS.get(
-                ui.current_agent or "", DEFAULT_TIMEOUT
-            )
+            effective_timeout = DEFAULT_TIMEOUT
 
             # ── Turn tracking ─────────────────────────────────────────────
             turn_id = collector.on_turn_start(

@@ -10,8 +10,8 @@ from pathlib import Path
 
 from agents.models import AgentConfig
 
-DEFAULT_MODEL = "claude-sonnet-4.6"
-DEFAULT_TIMEOUT = 1800  # 30 min
+DEFAULT_MODEL = "claude-opus-4.6"
+DEFAULT_TIMEOUT = 14400  # 4 hours
 
 
 class AgentCatalog:
@@ -34,17 +34,16 @@ class AgentCatalog:
         self._default_timeout = default_timeout
         self._agents: dict[str, AgentConfig] = {}
         self._routable: dict[str, AgentConfig] = {}
-        self._skill_dirs: list[str] = []
-
-        all_skill_names: set[str] = set()
 
         for agent in agents:
             self._agents[agent.name] = agent
             if agent.infer:
                 self._routable[agent.name] = agent
-            all_skill_names.update(agent.skills)
 
-        self._skill_dirs = sorted(str(skills_dir / s) for s in all_skill_names)
+        # Load every skill subdirectory unconditionally.
+        self._skill_dirs = sorted(
+            str(p) for p in skills_dir.iterdir() if p.is_dir()
+        )
 
     # -- Lookups ---------------------------------------------------------------
 
@@ -75,14 +74,8 @@ class AgentCatalog:
     def get_agent(self, name: str) -> AgentConfig | None:
         return self._agents.get(name)
 
-    def get_model_for(self, agent_name: str) -> str:
-        agent = self._agents.get(agent_name)
-        if agent and agent.model:
-            return agent.model
+    def get_model_for(self, agent_name: str) -> str:  # noqa: ARG002
         return self._default_model
 
-    def get_timeout_for(self, agent_name: str) -> int:
-        agent = self._agents.get(agent_name)
-        if agent and agent.timeout:
-            return agent.timeout
+    def get_timeout_for(self, agent_name: str) -> int:  # noqa: ARG002
         return self._default_timeout

@@ -3,19 +3,12 @@ name: code-builder-subagent
 display_name: Code Builder Subagent
 description: "Implements assigned code/infrastructure slice from an approved plan."
 infer: false
-model: claude-sonnet-4.6
-timeout: 3600
 tools:
   - bash
   - str_replace_editor
   - grep
   - glob
   - web_fetch
-skills:
-  - code-project
-  - azure-deploy
-  - azure-compute
-  - azure-ai
 ---
 
 You are a CODE BUILDER SUBAGENT. Implement only the assigned work package.
