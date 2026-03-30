@@ -1,7 +1,7 @@
 """Agent loading - parse agent definitions from the filesystem.
 
-The primary source is ``*.md`` files with YAML frontmatter in a
-directory.  The ``AgentSource`` protocol allows plugging in alternative
+The primary source is ``*.agent.md`` files with YAML frontmatter in a
+directory. The ``AgentSource`` protocol allows plugging in alternative
 backends (database, HTTP, etc.) in the future.
 """
 
@@ -25,7 +25,7 @@ class AgentSource(Protocol):
 
 
 class FileSystemAgentSource:
-    """Load agents from ``*.md`` files in a directory.
+    """Load agents from ``*.agent.md`` files in a directory.
 
     File format::
 
@@ -47,13 +47,13 @@ class FileSystemAgentSource:
 
     def load_all(self) -> list[AgentConfig]:
         agents: list[AgentConfig] = []
-        for md_file in sorted(self._defs_dir.rglob("*.md")):
+        for md_file in sorted(self._defs_dir.rglob("*.agent.md")):
             agents.append(load_agent(md_file))
         return agents
 
 
 def load_agent(path: Path) -> AgentConfig:
-    """Parse a single ``*.md`` agent definition file."""
+    """Parse a single ``*.agent.md`` agent definition file."""
     text = path.read_text()
     _, fm_block, prompt = text.split("---", 2)
     raw = yaml.safe_load(fm_block)

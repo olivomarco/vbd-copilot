@@ -1,0 +1,26 @@
+{
+  "name": "csa-copilot",
+  "description": "AI copilot for Cloud Solution Architects and Solution Engineers: slides, demos, AI projects, and hackathons.",
+  "version": "3.0.0",
+  "author": {
+    "name": "Marco Olivo"
+  },
+  "homepage": "https://github.com/olivomarco/vbd-copilot",
+  "repository": "https://github.com/olivomarco/vbd-copilot",
+  "keywords": [
+    "copilot",
+    "csa",
+    "azure",
+    "presentations",
+    "demos",
+    "hackathons"
+  ],
+  "agents": [
+    "../../agent_defs/slides/",
+    "../../agent_defs/demos/",
+    "../../agent_defs/hackathons/",
+    "../../agent_defs/ai-project/"
+  ],
+  "skills": "../../skills/",
+  "mcpServers": ".mcp.json"
+}

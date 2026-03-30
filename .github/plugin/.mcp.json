@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "csa-tools": {
+      "type": "local",
+      "command": "bash",
+      "args": [
+        "./run-csa-tools-server.sh"
+      ],
+      "tools": [
+        "*"
+      ]
+    }
+  }
+}

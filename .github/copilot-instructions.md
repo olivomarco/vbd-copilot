@@ -39,6 +39,7 @@ Skills live in `skills/<skill-name>/` directories. Each skill has a `SKILL.md` a
 | `code-project` | `SKILL.md`, `infra_qa_checks.py`, `pipeline_qa_checks.py`, `docs_qa_checks.py` |
 | `hackathon-generator` | `SKILL.md`, `hackathon_qa_checks.py` |
 | `content-humanizer` | `SKILL.md`, `humanizer_scorer.py`, `references/` |
+| `electron-best-practices` | `SKILL.md`, `references/`, `assets/`, `scripts/` — secure Electron + React desktop app patterns |
 | `azure-*` | Azure service skills from microsoft/azure-skills (22 skills) |
 
 - Do NOT duplicate or redefine functions from `skills/pptx-generator/pptx_utils.py` - it is a shared contract across all slide-related subagents

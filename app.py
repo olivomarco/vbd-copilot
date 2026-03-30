@@ -15,9 +15,12 @@ and run automated quality review before delivering output.
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import contextlib
 import os
+import socket
+import sys
 import time
 from pathlib import Path
 
@@ -720,10 +723,87 @@ async def main() -> None:
 
 def main_entry() -> None:
     """Synchronous entry point (for pyproject.toml console_scripts)."""
+    parser = argparse.ArgumentParser(description="CSA Copilot")
+    parser.add_argument(
+        "--server",
+        action="store_true",
+        help="Start the FastAPI server for the Electron desktop app",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=0,
+        help="Port for the server (0 = pick a free port)",
+    )
+    args = parser.parse_args()
+
+    if args.server:
+        try:
+            asyncio.run(_server_main(args.port))
+        except KeyboardInterrupt:
+            pass
+    else:
+        try:
+            asyncio.run(main())
+        except KeyboardInterrupt:
+            pass
+
+
+async def _server_main(port: int) -> None:
+    """Start the FastAPI + uvicorn server for the Electron desktop frontend."""
+    import uvicorn
+    from server import app as fastapi_app, configure as server_configure
+
+    # Pick a free port if port == 0
+    if port == 0:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+
+    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    (OUTPUTS_DIR / "slides").mkdir(exist_ok=True)
+    (OUTPUTS_DIR / "demos").mkdir(exist_ok=True)
+    PLANS_DIR.mkdir(parents=True, exist_ok=True)
+
+    db_path = DB_DIR / "csa-copilot.db"
+    event_store = EventStore(db_path, retention_days=90)
+    collector = EventCollector(event_store)
+
+    # Build CopilotClient (same as terminal mode)
+    client_opts: dict = {}
+    github_token = os.environ.get("GITHUB_TOKEN")
+    if github_token:
+        client_opts["github_token"] = github_token
+
+    client = CopilotClient(client_opts or None)
+    await client.start()
+    await init_router(client)
+
+    server_configure(
+        event_store=event_store,
+        copilot_client=client,
+        collector=collector,
+        app_dir=APP_DIR,
+        outputs_dir=OUTPUTS_DIR,
+    )
+
+    # Announce port to the Electron main process reading our stdout
+    print(f"PORT:{port}", flush=True)
+
+    config = uvicorn.Config(
+        fastapi_app,
+        host="127.0.0.1",
+        port=port,
+        log_level="warning",
+        access_log=False,
+    )
+    server = uvicorn.Server(config)
     try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        pass
+        await server.serve()
+    finally:
+        event_store.close()
+        with contextlib.suppress(Exception):
+            await client.stop()
 
 
 if __name__ == "__main__":

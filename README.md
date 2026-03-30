@@ -30,9 +30,10 @@
   - [Prerequisites](#prerequisites)
   - [Getting Started](#getting-started)
     - [One-time setup: authenticate the GitHub CLI](#one-time-setup-authenticate-the-github-cli)
-    - [Option A - Docker (recommended)](#option-a---docker-recommended)
-    - [Option B - GitHub Codespaces (zero install)](#option-b---github-codespaces-zero-install)
-    - [Option C - Native install](#option-c---native-install)
+    - [Option A - Install as a GitHub Copilot plugin](#option-a---install-as-a-github-copilot-plugin)
+    - [Option B - Docker (recommended for the standalone TUI)](#option-b---docker-recommended-for-the-standalone-tui)
+    - [Option C - GitHub Codespaces (zero install)](#option-c---github-codespaces-zero-install)
+    - [Option D - Native install](#option-d---native-install)
   - [Usage Examples](#usage-examples)
     - [Generate a presentation](#generate-a-presentation)
     - [Generate demo guides](#generate-demo-guides)
@@ -57,7 +58,7 @@ It is a terminal-based AI platform built on the GitHub Copilot SDK that covers *
 3. **AI Projects** - Go from a blank page to a production-ready Azure project: brainstorm ideas, design architecture with cost estimates, and generate Bicep infra + app code + CI/CD + tests - all reviewed by 4 specialist agents before delivery.
 4. **Hackathon Events** - Create complete What-The-Hack-style hackathon packages with progressively harder challenges, step-by-step solutions, coach materials, and dev containers - ready to push as a Git repo for your event.
 
-Each workflow is run by a **conductor agent** that orchestrates specialist subagents, asks for your approval at key stops, and runs automated quality checks before handing you the output. 24 agents work together behind the scenes, but you just type a prompt.
+Each workflow is run by a **conductor agent** that orchestrates specialist subagents, asks for your approval at key stops, and runs automated quality checks before handing you the output. 27 agents work together behind the scenes, but you just type a prompt.
 
 > [!IMPORTANT]
 > **This is deep research, not instant generation.** A full slide deck typically takes **1 hour or more**. Even more for AI-production use cases. That time is real work: multi-step research against MS Learn and official docs, source verification, content QA, and humanization checks. What it replaces is the 4-8 hours of manual research and assembly you'd do yourself - often the night before. Kick it off and work on something else. Demo generation runs 30-45 minutes. AI project builds vary by scope, but expect at least north of 1 hour.
@@ -320,7 +321,9 @@ This tool delegates to GitHub Copilot models via the GitHub Copilot SDK. It does
 
 - A **GitHub Copilot** subscription (Individual, Business, or Enterprise) with CLI access
 - The [**GitHub CLI** (`gh`)](https://cli.github.com/) installed and authenticated (`gh auth login`) - required for Docker to pass your auth token into the container
+- For **plugin mode**: a GitHub Copilot client that supports `copilot plugin install`, plus [`uv`](https://docs.astral.sh/uv/) on your `PATH` so the plugin can bootstrap its local MCP server
 - **One** of the following run methods:
+  - **GitHub Copilot plugin** - install directly from `olivomarco/vbd-copilot`
   - **Docker** (recommended) - just Docker Desktop / Docker Engine
   - **GitHub Codespaces** - nothing to install, runs in the browser
   - **Native** - Python 3.11+, LibreOffice Impress, Poppler on your machine
@@ -348,14 +351,50 @@ This stores your GitHub OAuth token in your OS credential store (macOS Keychain,
 
 ---
 
-### Option A - Docker (recommended)
+### Option A - Install as a GitHub Copilot plugin
+
+If you want CSA-Copilot available inside GitHub Copilot itself, install it directly from the published GitHub repository. The plugin manifest lives at `.github/plugin/plugin.json`, so the repo installs cleanly from its URL with no extra path suffix.
+
+```bash
+# Install from the published repository
+copilot plugin install olivomarco/vbd-copilot
+
+# Verify it is available
+copilot plugin list
+```
+
+Once installed, the CSA-Copilot agents become available inside Copilot. The same prompts shown later in this README work there too, for example:
+
+```text
+@slide-conductor Create a 30min L200 deck on Microsoft Fabric
+@demo-conductor Build 2 demos on Azure Container Apps
+@ai-solution-architect Design the architecture for a customer support copilot on Azure
+```
+
+Notes:
+
+- The plugin ships a dedicated plugin package under `.github/plugin/`.
+- The canonical agent definitions live in `agent_defs/` as `.agent.md` files, and the plugin manifest points at those directories directly.
+- The plugin starts one local MCP server, `csa-tools`, which exposes the repo's custom tools: `bing_search`, all QA check runners, and the hackathon validator.
+- The startup wrapper prefers a repo-local `.venv`, then falls back to `uv run`, then to `python3` if the required dependencies are already installed.
+- The first tool invocation can take a little longer because `uv` may need to resolve the Python environment from `pyproject.toml`.
+
+To remove the plugin later:
+
+```bash
+copilot plugin uninstall csa-copilot
+```
+
+---
+
+### Option B - Docker (recommended for the standalone TUI)
 
 The Docker image bundles Python, LibreOffice, Poppler, and all pip dependencies. Nothing else to install.
 
 ```bash
 # Clone the repo
-git clone https://github.com/olivomarco/csa-copilot.git
-cd csa-copilot
+git clone https://github.com/olivomarco/vbd-copilot.git
+cd vbd-copilot
 
 # Build the image (first time only, ~1 GB)
 docker build -t csa-copilot .
@@ -389,7 +428,7 @@ docker run -it --rm \
 
 ---
 
-### Option B - GitHub Codespaces (zero install)
+### Option C - GitHub Codespaces (zero install)
 
 If you don't want to install anything locally, open the repo in a Codespace. The dev container installs all system and Python dependencies automatically.
 
@@ -408,7 +447,7 @@ That's it - LibreOffice, Poppler, and all Python packages are pre-installed by t
 
 ---
 
-### Option C - Native install
+### Option D - Native install
 
 For users who prefer running directly on their machine without containers.
 
@@ -428,9 +467,10 @@ sudo dnf install libreoffice-impress poppler-utils
 **Python setup:**
 
 ```bash
-cd csa-copilot
-python -m venv .venv && source .venv/bin/activate
-pip install .
+cd vbd-copilot
+uv venv .venv
+source .venv/bin/activate
+uv pip install -e .
 ```
 
 **Run:**

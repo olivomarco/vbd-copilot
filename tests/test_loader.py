@@ -21,7 +21,7 @@ tools:
 ---
 You are a test agent. Follow these instructions carefully.
 """
-    path = tmp_path / "test-agent.md"
+    path = tmp_path / "test-agent.agent.md"
     path.write_text(content)
     return path
 
@@ -37,7 +37,7 @@ description: Minimal agent
 ---
 Do minimal things.
 """
-    path = tmp_path / "minimal-agent.md"
+    path = tmp_path / "minimal-agent.agent.md"
     path.write_text(content)
     return path
 
@@ -62,7 +62,7 @@ class TestLoadAgent:
 
     def test_load_agent_bad_format(self, tmp_path):
         """Agent file without proper frontmatter should raise."""
-        bad = tmp_path / "bad.md"
+        bad = tmp_path / "bad.agent.md"
         bad.write_text("No frontmatter here.")
         with pytest.raises(ValueError):
             load_agent(bad)
@@ -81,7 +81,7 @@ description: desc
 ---
 Prompt for {name}.
 """
-            (tmp_path / f"{name}.md").write_text(content)
+            (tmp_path / f"{name}.agent.md").write_text(content)
         source = FileSystemAgentSource(tmp_path)
         agents = source.load_all()
         assert len(agents) == 2
@@ -95,7 +95,7 @@ Prompt for {name}.
         assert agents == []
 
     def test_load_all_recursive(self, tmp_path):
-        """Agent source should find .md files in subdirectories."""
+        """Agent source should find .agent.md files in subdirectories."""
         subdir = tmp_path / "workflow"
         subdir.mkdir()
         content = """\
@@ -106,7 +106,7 @@ description: desc
 ---
 Nested prompt.
 """
-        (subdir / "nested-agent.md").write_text(content)
+        (subdir / "nested-agent.agent.md").write_text(content)
         source = FileSystemAgentSource(tmp_path)
         agents = source.load_all()
         assert len(agents) == 1

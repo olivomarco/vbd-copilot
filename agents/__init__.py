@@ -1,7 +1,7 @@
 """
 Agent definitions for CSA-Copilot.
 
-Loads agents from ``agent_defs/*.md`` files via the ``agents`` package
+Loads agents from ``agent_defs/*.agent.md`` files via the ``agents`` package
 and re-exports backward-compatible module-level constants so that
 ``app.py``, ``router.py``, and ``tools.py`` continue to work unchanged.
 """
