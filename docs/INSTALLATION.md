@@ -4,12 +4,9 @@
 
 - A **GitHub Copilot** subscription (Individual, Business, or Enterprise) with CLI access
 - The [**GitHub CLI** (`gh`)](https://cli.github.com/) installed and authenticated (`gh auth login`)
+- For the **desktop app**: Node.js 18+ and npm, Python 3.11+, [`uv`](https://docs.astral.sh/uv/)
 - For **plugin mode**: a GitHub Copilot client that supports `copilot plugin install`, plus [`uv`](https://docs.astral.sh/uv/) on your `PATH`
-- **One** of the following run methods:
-  - **GitHub Copilot plugin** - install directly from `olivomarco/vbd-copilot`
-  - **Docker** (recommended) - just Docker Desktop / Docker Engine
-  - **GitHub Codespaces** - nothing to install, runs in the browser
-  - **Native** - Python 3.11+, LibreOffice Impress, Poppler on your machine
+- For the **CLI**: one of Docker, GitHub Codespaces, or a native Python 3.11+ setup
 
 ---
 
@@ -34,7 +31,95 @@ This stores your GitHub OAuth token in your OS credential store (macOS Keychain,
 
 ---
 
-## Option A - Install as a GitHub Copilot plugin
+## Option A — Desktop App (recommended)
+
+The desktop app gives you a graphical interface with form-based briefs, concurrent agent runs, inline output previews, and a full output library — all in a single window. It runs as an Electron shell around the existing Python backend.
+
+### What you get
+
+| Page | What it does |
+|------|-------------|
+| **Launchpad** | Form-based briefs — pick a workflow, fill in the details, hit go |
+| **Agent Workspace** | Live conversation view with the running agent |
+| **Mission Control** | Monitor multiple concurrent agent runs at once |
+| **Output Library** | Browse all generated artifacts with inline previews (PPTX carousel, Markdown renderer, code explorer) |
+| **Sessions** | Resume, inspect, and manage past sessions |
+| **Settings** | Model selection, preferences |
+
+### Setup
+
+**1. Clone and install Python dependencies:**
+
+```bash
+git clone https://github.com/olivomarco/vbd-copilot.git
+cd vbd-copilot
+uv venv .venv
+source .venv/bin/activate
+uv pip install -e .
+```
+
+**2. Install system dependencies** (needed for PPTX thumbnail generation):
+
+```bash
+# Ubuntu / Debian
+sudo apt-get update && sudo apt-get install -y libreoffice-impress poppler-utils
+
+# macOS (via Homebrew)
+brew install --cask libreoffice && brew install poppler
+
+# Fedora / RHEL
+sudo dnf install libreoffice-impress poppler-utils
+```
+
+**3. Install frontend dependencies:**
+
+```bash
+cd frontend
+npm install
+```
+
+### Run with Electron (desktop window)
+
+Open two terminals from the `frontend/` directory:
+
+```bash
+# Terminal 1 — Vite dev server
+npm run dev
+
+# Terminal 2 — Electron shell
+npm run electron:dev
+```
+
+The Electron process spawns the Python backend on a random port, connects over WebSocket, and loads the React UI. The Vite dev server (port 5173) proxies API calls to the Python backend automatically.
+
+### Run in the browser (no Electron)
+
+If you prefer a browser tab over a desktop window:
+
+```bash
+# Terminal 1 — Python backend
+python app.py --server --port 18080
+
+# Terminal 2 — Vite dev server (proxies API calls to port 18080)
+cd frontend && npm run dev
+```
+
+Then open `http://localhost:5173`.
+
+### Build the standalone Electron app
+
+To package a distributable desktop application:
+
+```bash
+cd frontend
+npm run electron:build
+```
+
+This compiles TypeScript, bundles the React frontend, and runs `electron-builder` to produce a platform-specific binary.
+
+---
+
+## Option B — Install as a GitHub Copilot plugin
 
 If you want CSA-Copilot available inside GitHub Copilot itself, install it directly from the published GitHub repository. The plugin manifest lives at `.github/plugin/plugin.json`, so the repo installs cleanly from its URL with no extra path suffix.
 
@@ -70,9 +155,9 @@ copilot plugin uninstall csa-copilot
 
 ---
 
-## Option B - Docker (recommended for the standalone TUI)
+## Option C — CLI via Docker
 
-The Docker image bundles Python, LibreOffice, Poppler, and all pip dependencies. Nothing else to install.
+The Docker image bundles Python, LibreOffice, Poppler, and all pip dependencies. Nothing else to install. This is the easiest way to run the CLI.
 
 ```bash
 # Clone the repo
@@ -82,7 +167,7 @@ cd vbd-copilot
 # Build the image (first time only, ~1 GB)
 docker build -t csa-copilot .
 
-# Run the TUI
+# Run the CLI
 docker run -it --rm \
   -e GITHUB_TOKEN=$(gh auth token) \
   -v "$(pwd)/outputs:/app/outputs" \
@@ -111,7 +196,7 @@ docker run -it --rm \
 
 ---
 
-## Option C - GitHub Codespaces (zero install)
+## Option D — CLI via GitHub Codespaces (zero install)
 
 If you don't want to install anything locally, open the repo in a Codespace. The dev container installs all system and Python dependencies automatically.
 
@@ -130,9 +215,9 @@ That's it - LibreOffice, Poppler, and all Python packages are pre-installed by t
 
 ---
 
-## Option D - Native install
+## Option E — CLI native install
 
-For users who prefer running directly on their machine without containers.
+For users who prefer running the CLI directly on their machine without containers.
 
 **System dependencies** (install once):
 

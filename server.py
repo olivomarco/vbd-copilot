@@ -54,7 +54,13 @@ app = FastAPI(title="CSA Copilot API", version="1.0.0", docs_url=None, redoc_url
 # Restricted to only localhost origins for security.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost", "http://127.0.0.1"],
+    allow_origins=[
+        "http://localhost",
+        "http://127.0.0.1",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Content-Type"],
@@ -265,7 +271,10 @@ async def end_session(session_id: str) -> JSONResponse:
 @app.get("/sessions")
 async def list_sessions(all: bool = False) -> JSONResponse:
     store = _store()
-    sessions = store.list_sessions(include_ended=all)
+    if all:
+        sessions = store.list_sessions()
+    else:
+        sessions = store.list_sessions(status="active")
     return JSONResponse(content=sessions)
 
 
@@ -309,8 +318,9 @@ async def get_usage(
     agent: str | None = None,
     model: str | None = None,
 ) -> JSONResponse:
+    from queries import usage_summary
     store = _store()
-    data = store.get_usage_stats(period=period, agent=agent, model=model)
+    data = usage_summary(store, period=period if period != "all" else None, agent=agent, model=model)
     return JSONResponse(content=data)
 
 
@@ -374,6 +384,194 @@ async def list_outputs() -> JSONResponse:
     return JSONResponse(content=results)
 
 
+@app.get("/outputs/grouped")
+async def list_outputs_grouped() -> JSONResponse:
+    """Return outputs grouped as logical deliverables.
+
+    - slides: each .pptx is a deliverable (with companion .pdf, generate_*.py)
+    - demos: each *-demos.md + its companion folder is a deliverable
+    - hackathons: each subfolder is a deliverable
+    - ai-projects: each subfolder is a deliverable
+    """
+    import re as _re
+    outputs_resolved = _outputs_dir.resolve()
+    groups: list[dict] = []
+
+    # ── Slides ────────────────────────────────────────────────
+    slides_dir = outputs_resolved / "slides"
+    if slides_dir.is_dir():
+        seen_stems: set[str] = set()
+        for p in sorted(slides_dir.iterdir()):
+            if not p.is_file() or p.suffix.lower() != ".pptx":
+                continue
+            if any(part in _SKIP_DIRS for part in p.parts):
+                continue
+            stem = p.stem
+            if stem in seen_stems:
+                continue
+            seen_stems.add(stem)
+
+            # Companion files
+            companions = [str(p)]
+            pdf = slides_dir / f"{stem}.pdf"
+            if pdf.is_file():
+                companions.append(str(pdf))
+            gen = slides_dir / f"generate_{stem.replace('-', '_')}_pptx.py"
+            if gen.is_file():
+                companions.append(str(gen))
+
+            # Parse metadata from filename
+            level_m = _re.search(r"[_-](l[1-4]00)[_-]", stem, _re.IGNORECASE)
+            dur_m = _re.search(r"(\d+)\s*(?:min|h)", stem, _re.IGNORECASE)
+            title = stem.replace("-", " ").replace("_", " ")
+            title = _re.sub(r"\bl\d{3}\b", "", title, flags=_re.IGNORECASE).strip()
+            title = _re.sub(r"\d+\s*(?:min|h)\b", "", title, flags=_re.IGNORECASE).strip()
+            title = " ".join(w.capitalize() for w in title.split())
+
+            try:
+                stat = p.stat()
+            except OSError:
+                continue
+
+            groups.append({
+                "id": f"slides/{stem}",
+                "title": title or stem,
+                "category": "slides",
+                "primary_file": str(p),
+                "file_count": len(companions),
+                "files": companions,
+                "content_level": level_m.group(1).upper() if level_m else None,
+                "duration": dur_m.group(0) if dur_m else None,
+                "has_pdf": pdf.is_file(),
+                "size": stat.st_size,
+                "modified": stat.st_mtime,
+            })
+
+    # ── Demos ─────────────────────────────────────────────────
+    demos_dir = outputs_resolved / "demos"
+    if demos_dir.is_dir():
+        for p in sorted(demos_dir.iterdir()):
+            if not p.is_file() or not p.name.endswith("-demos.md"):
+                continue
+            slug = p.name.replace("-demos.md", "")
+            companion_dir = demos_dir / slug
+            file_list = [str(p)]
+            if companion_dir.is_dir():
+                for child in companion_dir.rglob("*"):
+                    if child.is_file() and not any(part in _SKIP_DIRS for part in child.parts):
+                        file_list.append(str(child))
+
+            title = slug.replace("-", " ").replace("generic ", "").replace("internal ", "")
+            title = " ".join(w.capitalize() for w in title.split())
+
+            try:
+                stat = p.stat()
+            except OSError:
+                continue
+
+            groups.append({
+                "id": f"demos/{slug}",
+                "title": title or slug,
+                "category": "demos",
+                "primary_file": str(p),
+                "file_count": len(file_list),
+                "files": file_list,
+                "content_level": None,
+                "duration": None,
+                "has_pdf": False,
+                "size": sum(Path(f).stat().st_size for f in file_list if Path(f).is_file()),
+                "modified": stat.st_mtime,
+            })
+
+    # ── Hackathons ────────────────────────────────────────────
+    hack_dir = outputs_resolved / "hackathons"
+    if hack_dir.is_dir():
+        for d in sorted(hack_dir.iterdir()):
+            if not d.is_dir() or d.name.startswith("."):
+                continue
+            file_list = []
+            for child in d.rglob("*"):
+                if child.is_file() and not any(part in _SKIP_DIRS for part in child.parts):
+                    file_list.append(str(child))
+            if not file_list:
+                continue
+
+            title = d.name.replace("-", " ")
+            title = " ".join(w.capitalize() for w in title.split())
+            readme = d / "README.md"
+            latest = max(Path(f).stat().st_mtime for f in file_list if Path(f).is_file())
+
+            groups.append({
+                "id": f"hackathons/{d.name}",
+                "title": title,
+                "category": "hackathons",
+                "primary_file": str(readme) if readme.is_file() else file_list[0],
+                "file_count": len(file_list),
+                "files": file_list,
+                "content_level": None,
+                "duration": None,
+                "has_pdf": False,
+                "size": sum(Path(f).stat().st_size for f in file_list if Path(f).is_file()),
+                "modified": latest,
+            })
+
+    # ── AI Projects ───────────────────────────────────────────
+    proj_dir = outputs_resolved / "ai-projects"
+    if proj_dir.is_dir():
+        for d in sorted(proj_dir.iterdir()):
+            if not d.is_dir() or d.name.startswith("."):
+                continue
+            file_list = []
+            for child in d.rglob("*"):
+                if child.is_file() and not any(
+                    part in _SKIP_DIRS | {"__pycache__", ".pytest_cache"}
+                    for part in child.parts
+                ):
+                    file_list.append(str(child))
+            if not file_list:
+                continue
+
+            title = d.name.replace("-", " ").replace("_", " ")
+            title = " ".join(w.capitalize() for w in title.split())
+            readme = d / "README.md"
+            latest = max(Path(f).stat().st_mtime for f in file_list if Path(f).is_file())
+
+            groups.append({
+                "id": f"ai-projects/{d.name}",
+                "title": title,
+                "category": "ai-projects",
+                "primary_file": str(readme) if readme.is_file() else file_list[0],
+                "file_count": len(file_list),
+                "files": file_list,
+                "content_level": None,
+                "duration": None,
+                "has_pdf": False,
+                "size": sum(Path(f).stat().st_size for f in file_list if Path(f).is_file()),
+                "modified": latest,
+            })
+
+    groups.sort(key=lambda x: x["modified"], reverse=True)
+    return JSONResponse(content=groups)
+
+
+# ---------------------------------------------------------------------------
+# Delete output
+# ---------------------------------------------------------------------------
+
+@app.delete("/outputs")
+async def delete_output(path: str) -> JSONResponse:
+    """Delete a file or directory under outputs/."""
+    import shutil
+    resolved = _safe_outputs_path(path)
+    if resolved.is_file():
+        resolved.unlink()
+    elif resolved.is_dir():
+        shutil.rmtree(str(resolved))
+    else:
+        raise HTTPException(status_code=404, detail="Not found")
+    return JSONResponse(content={"ok": True, "deleted": str(resolved)})
+
+
 @app.get("/file")
 async def read_file(path: str) -> JSONResponse:
     resolved = _safe_outputs_path(path)
@@ -387,7 +585,122 @@ async def read_file(path: str) -> JSONResponse:
 
 
 # ---------------------------------------------------------------------------
-# PPTX Preview
+# File download (raw binary with Content-Disposition)
+# ---------------------------------------------------------------------------
+
+@app.get("/file/download")
+async def download_file(path: str):
+    from fastapi.responses import FileResponse
+    resolved = _safe_outputs_path(path)
+    if not resolved.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(
+        path=str(resolved),
+        filename=resolved.name,
+        media_type="application/octet-stream",
+    )
+
+
+# ---------------------------------------------------------------------------
+# ZIP export
+# ---------------------------------------------------------------------------
+
+class ZipRequest(BaseModel):
+    paths: list[str]
+    name: str | None = None
+
+
+@app.post("/outputs/zip")
+async def create_zip(body: ZipRequest):
+    import zipfile
+    from fastapi.responses import StreamingResponse
+
+    if not body.paths:
+        raise HTTPException(status_code=400, detail="No paths provided")
+
+    # Validate all paths
+    resolved_paths: list[Path] = []
+    for p in body.paths:
+        resolved_paths.append(_safe_outputs_path(p))
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for rp in resolved_paths:
+            if rp.is_file():
+                zf.write(str(rp), rp.name)
+            elif rp.is_dir():
+                for child in rp.rglob("*"):
+                    if child.is_file():
+                        arcname = str(child.relative_to(rp.parent))
+                        zf.write(str(child), arcname)
+
+    buf.seek(0)
+    zip_name = (body.name or "csa-copilot-export") + ".zip"
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_name}"'},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Output metadata
+# ---------------------------------------------------------------------------
+
+@app.get("/outputs/metadata")
+async def get_output_metadata(path: str) -> JSONResponse:
+    """Parse structured metadata from an output file or its companion plan."""
+    import re as _re
+    resolved = _safe_outputs_path(path)
+    if not resolved.exists():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    name = resolved.name
+    meta: dict[str, Any] = {
+        "title": name.rsplit(".", 1)[0] if "." in name else name,
+        "category": _classify_output_category(resolved),
+        "size": resolved.stat().st_size if resolved.is_file() else 0,
+        "modified": resolved.stat().st_mtime if resolved.is_file() else 0,
+    }
+
+    # Parse level from filename  e.g.  "keda-banking-l300-30min.pptx"
+    m = _re.search(r"[_-](l[1-4]00)[_-]", name, _re.IGNORECASE)
+    if m:
+        meta["contentLevel"] = m.group(1).upper()
+
+    # Parse duration from filename
+    m = _re.search(r"(\d+)\s*min", name, _re.IGNORECASE)
+    if m:
+        meta["duration"] = f"{m.group(1)} min"
+    else:
+        m = _re.search(r"(\d+)\s*h", name, _re.IGNORECASE)
+        if m:
+            meta["duration"] = f"{m.group(1)}h"
+
+    # Slide count for pptx files
+    if resolved.suffix.lower() == ".pptx" and resolved.is_file():
+        try:
+            from pptx import Presentation as _Prs
+            prs = _Prs(str(resolved))
+            meta["slideCount"] = len(prs.slides)
+        except Exception:
+            pass
+
+    # Try to find companion plan file
+    plans_dir = _app_dir / "plans"
+    if plans_dir.is_dir():
+        stem = name.rsplit(".", 1)[0]
+        for suffix in ["-complete.md", "-plan.md"]:
+            plan = plans_dir / (stem + suffix)
+            if plan.is_file():
+                meta["planFile"] = str(plan)
+                break
+
+    return JSONResponse(content=meta)
+
+
+# ---------------------------------------------------------------------------
+# PPTX Preview — renders actual slide content via LibreOffice + PyMuPDF
 # ---------------------------------------------------------------------------
 
 class PptxPreviewRequest(BaseModel):
@@ -397,79 +710,159 @@ class PptxPreviewRequest(BaseModel):
 
 @app.post("/preview/pptx")
 async def preview_pptx(body: PptxPreviewRequest) -> JSONResponse:
+    """Convert PPTX → PDF (LibreOffice) → PNG per page (PyMuPDF).
+
+    Caches rendered PNGs in outputs/slides/.img_cache/{hash}/.
+    Falls back to text-only placeholders if LibreOffice is unavailable.
+    """
+    import hashlib
+    import shutil
+    import subprocess
+    import tempfile
+
     resolved = _safe_outputs_path(body.path)
     if not resolved.is_file() or resolved.suffix.lower() != ".pptx":
         raise HTTPException(status_code=400, detail="Not a .pptx file")
 
+    # ── Cache key ─────────────────────────────────────────────────────────
+    file_hash = hashlib.md5(
+        f"{resolved.name}:{resolved.stat().st_mtime}:{body.max_width}".encode()
+    ).hexdigest()[:12]
+    cache_dir = _outputs_dir / "slides" / ".img_cache" / file_hash
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    # ── Check cache ───────────────────────────────────────────────────────
+    cached_pngs = sorted(cache_dir.glob("slide-*.png"))
+
+    if not cached_pngs:
+        # Convert PPTX → PDF → per-page PNGs
+        soffice = shutil.which("soffice") or shutil.which("libreoffice")
+        if not soffice:
+            raise HTTPException(status_code=500, detail="LibreOffice not installed")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Step 1: PPTX → PDF
+            try:
+                subprocess.run(
+                    [soffice, "--headless", "--norestore", "--convert-to", "pdf",
+                     "--outdir", tmpdir, str(resolved)],
+                    capture_output=True, timeout=120, check=True,
+                    env={**os.environ, "HOME": tmpdir},  # avoid lock conflicts
+                )
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+                raise HTTPException(status_code=500, detail=f"LibreOffice conversion failed: {exc}")
+
+            pdf_files = list(Path(tmpdir).glob("*.pdf"))
+            if not pdf_files:
+                raise HTTPException(status_code=500, detail="PDF conversion produced no output")
+
+            # Step 2: PDF → PNG per page using PyMuPDF
+            try:
+                import fitz  # PyMuPDF
+            except ImportError:
+                raise HTTPException(status_code=500, detail="PyMuPDF not installed")
+
+            pdf_doc = fitz.open(str(pdf_files[0]))
+            for page_num in range(len(pdf_doc)):
+                page = pdf_doc[page_num]
+                # Scale to requested width
+                scale = body.max_width / page.rect.width
+                mat = fitz.Matrix(scale, scale)
+                pix = page.get_pixmap(matrix=mat)
+                out_path = cache_dir / f"slide-{page_num:03d}.png"
+                pix.save(str(out_path))
+            pdf_doc.close()
+
+        cached_pngs = sorted(cache_dir.glob("slide-*.png"))
+
+    if not cached_pngs:
+        raise HTTPException(status_code=500, detail="No slides rendered")
+
+    # ── Extract notes from PPTX ───────────────────────────────────────────
+    notes_list: list[str] = []
+    titles_list: list[str] = []
     try:
         from pptx import Presentation
-        from pptx.util import Emu
-    except ImportError:
-        raise HTTPException(status_code=500, detail="python-pptx not installed")
-
-    try:
-        from PIL import Image
-    except ImportError:
-        raise HTTPException(status_code=500, detail="Pillow not installed")
-
-    try:
         prs = Presentation(str(resolved))
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Cannot open PPTX: {exc}")
+        for slide in list(prs.slides):
+            notes_text = ""
+            title_text = ""
+            try:
+                if slide.has_notes_slide:
+                    notes_text = slide.notes_slide.notes_text_frame.text
+            except Exception:
+                pass
+            # Extract title
+            texts_found: list[str] = []
+            try:
+                for shape in slide.shapes:
+                    if not shape.has_text_frame:
+                        continue
+                    text = shape.text_frame.text.strip()
+                    if not text:
+                        continue
+                    is_title = False
+                    try:
+                        ph = shape.placeholder_format
+                        if ph and ph.idx in (0, 15):
+                            is_title = True
+                    except (ValueError, AttributeError):
+                        pass
+                    if not is_title and hasattr(shape, "name") and "title" in shape.name.lower():
+                        is_title = True
+                    if is_title and not title_text:
+                        title_text = text
+                    else:
+                        texts_found.append(text[:200])
+                if not title_text and texts_found:
+                    candidates = texts_found[:3]
+                    title_text = max(candidates, key=len)
+            except Exception:
+                pass
+            notes_list.append(notes_text[:2000])
+            titles_list.append(title_text)
+    except Exception:
+        pass
 
+    # ── Build response ────────────────────────────────────────────────────
     slides_data = []
-    slide_width_emu = prs.slide_width
-    slide_height_emu = prs.slide_height
-
-    # Calculate pixel dimensions preserving aspect ratio
-    px_width = body.max_width
-    aspect = slide_height_emu / slide_width_emu if slide_width_emu else 9 / 16
-    px_height = int(px_width * aspect)
-
-    for i, slide in enumerate(prs.slides):
-        # Build a white canvas with text overlay using Pillow
-        # (Full rendering requires LibreOffice; we create a styled placeholder)
-        img = Image.new("RGB", (px_width, px_height), color=(18, 18, 24))
-
-        # Extract speaker notes
-        notes_text = ""
-        if slide.has_notes_slide:
-            with contextlib.suppress(Exception):
-                notes_text = slide.notes_slide.notes_text_frame.text
-
-        # Extract slide title and body text for the thumbnail
-        title_text = ""
-        body_texts: list[str] = []
-        for shape in slide.shapes:
-            if not shape.has_text_frame:
-                continue
-            text = shape.text_frame.text.strip()
-            if not text:
-                continue
-            ph = getattr(shape, "placeholder_format", None)
-            if ph and ph.idx == 0:
-                title_text = text
-            else:
-                body_texts.append(text[:200])
-
-        # Encode to PNG base64
-        buf = io.BytesIO()
-        img.save(buf, format="PNG", optimize=True)
-        png_b64 = base64.b64encode(buf.getvalue()).decode("ascii")
-
+    for i, png_path in enumerate(cached_pngs):
+        png_b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")
+        # Get dimensions from the PNG
+        try:
+            from PIL import Image as _PILImage
+            with _PILImage.open(png_path) as img:
+                w, h = img.size
+        except Exception:
+            w, h = body.max_width, int(body.max_width * 9 / 16)
         slides_data.append({
             "index": i,
-            "title": title_text,
-            "body_preview": "\n".join(body_texts[:5]),
-            "notes": notes_text[:2000],
+            "title": titles_list[i] if i < len(titles_list) else "",
+            "body_preview": "",
+            "notes": notes_list[i] if i < len(notes_list) else "",
             "png_base64": png_b64,
-            "width": px_width,
-            "height": px_height,
+            "width": w,
+            "height": h,
         })
 
     return JSONResponse(content={"slides": slides_data, "total": len(slides_data)})
 
 
+# Hifi endpoint now just redirects to the main one (same pipeline)
+@app.post("/preview/pptx-hifi")
+async def preview_pptx_hifi(body: PptxPreviewRequest) -> JSONResponse:
+    return await preview_pptx(body)
+
+
+# ---------------------------------------------------------------------------
+# WebSocket — agent streaming
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# WebSocket — agent streaming
+# ---------------------------------------------------------------------------
+
+@app.websocket("/ws/{session_id}")
 # ---------------------------------------------------------------------------
 # WebSocket — agent streaming
 # ---------------------------------------------------------------------------
@@ -481,7 +874,7 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
         push_user_response,
         set_active_ws,
         set_cancel_flag,
-        ws_handle_event,
+        _make_ws_handler,
         ws_reset,
         _send,
     )
@@ -489,8 +882,8 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
     from router import route_to_agent
 
     await websocket.accept()
-    set_active_ws(websocket)
-    ws_reset()
+    set_active_ws(session_id, websocket)
+    ws_reset(session_id)
 
     # Look up or create session
     session = _session_map.get(session_id)
@@ -499,11 +892,12 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
             {"type": "error", "message": f"Session {session_id!r} not found"}
         ))
         await websocket.close()
-        set_active_ws(None)
+        set_active_ws(session_id, None)
         return
 
-    # Register WS event handler alongside existing terminal handler
-    session.on(ws_handle_event)
+    # Register per-session WS event handler
+    ws_event_handler = _make_ws_handler(session_id)
+    session.on(ws_event_handler)
 
     current_turn_task: asyncio.Task[Any] | None = None
 
@@ -525,7 +919,7 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                 if not content:
                     continue
 
-                ws_reset()
+                ws_reset(session_id)
 
                 # Determine agent via router
                 try:
@@ -551,7 +945,7 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                         user_prompt=clean,
                     )
 
-                _send({"type": "turn_started", "agent": agent_name})
+                _send({"type": "turn_started", "agent": agent_name}, session_id)
 
                 before_time = time.time()
                 turn_status = "success"
@@ -561,13 +955,13 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                     )
                 except asyncio.CancelledError:
                     turn_status = "cancelled"
-                    _send({"type": "cancelled"})
+                    _send({"type": "cancelled"}, session_id)
                 except TimeoutError:
                     turn_status = "timeout"
-                    _send({"type": "error", "message": "timeout"})
+                    _send({"type": "error", "message": "timeout"}, session_id)
                 except Exception as exc:
                     turn_status = "error"
-                    _send({"type": "error", "message": str(exc)})
+                    _send({"type": "error", "message": str(exc)}, session_id)
 
                 # Detect new output files
                 new_files = _find_new_outputs(before_time)
@@ -575,9 +969,9 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                     _send({
                         "type": "new_files",
                         "files": [str(f) for f in new_files],
-                    })
+                    }, session_id)
 
-                _send({"type": "done", "status": turn_status})
+                _send({"type": "done", "status": turn_status}, session_id)
 
                 if _collector and turn_id:
                     _collector.on_turn_end(
@@ -587,13 +981,13 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                     )
 
             elif msg_type == "cancel":
-                set_cancel_flag(True)
+                set_cancel_flag(True, session_id)
                 if current_turn_task and not current_turn_task.done():
                     current_turn_task.cancel()
 
             elif msg_type == "user_response":
                 content = str(msg.get("content", ""))
-                push_user_response(content)
+                push_user_response(content, session_id)
 
             else:
                 await websocket.send_text(json.dumps(
@@ -607,9 +1001,9 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
     finally:
         with contextlib.suppress(Exception):
             session._event_handlers = [
-                h for h in session._event_handlers if h is not ws_handle_event
+                h for h in session._event_handlers if h is not ws_event_handler
             ]
-        set_active_ws(None)
+        set_active_ws(session_id, None)
 
 
 # ---------------------------------------------------------------------------

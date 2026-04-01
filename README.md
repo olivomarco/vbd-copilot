@@ -10,7 +10,7 @@
 
 Customer meeting on Wednesday, and you need a 45-slide deck on a service you last touched three months ago. The official deck is two releases behind. Your demo scripts live in five different OneNote pages. You'll spend tonight copy-pasting from MS Learn and wrangling PowerPoint.
 
-CSA-Copilot kills that cycle. It's a terminal-based AI platform built on the GitHub Copilot SDK with **four workflows** — each run by a conductor agent that orchestrates specialist subagents, asks for your approval at key stops, and runs QA checks before delivering output. 27 agents behind the scenes; you just type a prompt.
+CSA-Copilot kills that cycle. It's an AI platform built on the GitHub Copilot SDK with **four workflows** — each run by a conductor agent that orchestrates specialist subagents, asks for your approval at key stops, and runs QA checks before delivering output. 27 agents behind the scenes; you just describe what you need.
 
 1. **Presentations** — Complete `.pptx` with speaker notes from a single prompt, researched against official sources
 2. **Demos** — Step-by-step guides with runnable scripts, troubleshooting tables, and "say this" presenter cues
@@ -138,11 +138,25 @@ Every output goes through multiple quality layers before delivery. See [docs/QUA
 - A **GitHub Copilot** subscription (Individual, Business, or Enterprise) with CLI access
 - The [**GitHub CLI** (`gh`)](https://cli.github.com/) installed and authenticated (`gh auth login`)
 
-### Quickstart (Docker)
+### Quickstart — Desktop App (recommended)
 
 ```bash
 git clone https://github.com/olivomarco/vbd-copilot.git
 cd vbd-copilot
+
+# Python backend
+uv venv .venv && source .venv/bin/activate && uv pip install -e .
+
+# Frontend
+cd frontend && npm install && npm run dev   # Terminal 1
+npm run electron:dev                         # Terminal 2
+```
+
+The desktop app gives you form-based briefs, concurrent agent runs, inline output previews (PPTX carousel, Markdown renderer, code explorer), and a full output library — all in one window.
+
+### Quickstart — CLI (alternative)
+
+```bash
 docker build -t csa-copilot .
 docker run -it --rm \
   -e GITHUB_TOKEN=$(gh auth token) \
@@ -150,23 +164,9 @@ docker run -it --rm \
   csa-copilot
 ```
 
-Other installation options (Copilot plugin, Codespaces, native): [docs/INSTALLATION.md](docs/INSTALLATION.md)
+Same agents, same workflows — just text instead of a GUI.
 
----
-
-## Key Commands
-
-| Command | Description |
-|---------|-------------|
-| `/new [agent]` | Start a new session |
-| `/resume [id\|name]` | Resume a previous session |
-| `/agent <name>` | Switch agent mid-session |
-| `/agents` | List all available agents |
-| `/model <id>` | Switch the LLM model |
-| `/usage` | Token counts, cost, context window |
-| `/sessions` | List and inspect sessions |
-| `/debug` | Toggle debug mode |
-| `/help` | Full command reference |
+Full installation options (Copilot plugin, Codespaces, native, browser-only): [docs/INSTALLATION.md](docs/INSTALLATION.md)
 
 Full command reference and usage examples: [docs/USAGE.md](docs/USAGE.md)
 
