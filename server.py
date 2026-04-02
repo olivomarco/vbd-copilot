@@ -867,6 +867,7 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
         add_ws,
         remove_ws,
         push_user_response,
+        pop_user_response,
         set_active_ws,
         set_cancel_flag,
         _make_ws_handler,
@@ -944,6 +945,43 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
 
     current_turn_task: asyncio.Task[Any] | None = None
 
+    async def _run_turn(clean: str, agent_name: str | None, turn_id: str | None) -> None:
+        nonlocal current_turn_task
+
+        before_time = time.time()
+        turn_status = "success"
+        try:
+            await session.send_and_wait(
+                {"prompt": clean}, timeout=DEFAULT_TIMEOUT
+            )
+        except asyncio.CancelledError:
+            turn_status = "cancelled"
+        except TimeoutError:
+            turn_status = "timeout"
+            _send({"type": "error", "message": "timeout"}, session_id)
+        except Exception as exc:
+            turn_status = "error"
+            _send({"type": "error", "message": str(exc)}, session_id)
+        finally:
+            new_files = _find_new_outputs(before_time)
+            if new_files:
+                _send({
+                    "type": "new_files",
+                    "files": [str(f) for f in new_files],
+                }, session_id)
+
+            _send({"type": "done", "status": turn_status}, session_id)
+
+            if _collector and turn_id:
+                _collector.on_turn_end(
+                    turn_id,
+                    assistant_response="",
+                    status=turn_status,
+                )
+
+            if current_turn_task is asyncio.current_task():
+                current_turn_task = None
+
     try:
         while True:
             raw = await websocket.receive_text()
@@ -960,6 +998,16 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
             if msg_type == "message":
                 content = str(msg.get("content", "")).strip()
                 if not content:
+                    continue
+
+                if current_turn_task and not current_turn_task.done():
+                    _send(
+                        {
+                            "type": "error",
+                            "message": "A turn is already running. Respond to the active prompt or cancel it first.",
+                        },
+                        session_id,
+                    )
                     continue
 
                 ws_reset(session_id)
@@ -989,38 +1037,7 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                     )
 
                 _send({"type": "turn_started", "agent": agent_name}, session_id)
-
-                before_time = time.time()
-                turn_status = "success"
-                try:
-                    reply = await session.send_and_wait(
-                        {"prompt": clean}, timeout=DEFAULT_TIMEOUT
-                    )
-                except asyncio.CancelledError:
-                    turn_status = "cancelled"
-                except TimeoutError:
-                    turn_status = "timeout"
-                    _send({"type": "error", "message": "timeout"}, session_id)
-                except Exception as exc:
-                    turn_status = "error"
-                    _send({"type": "error", "message": str(exc)}, session_id)
-
-                # Detect new output files
-                new_files = _find_new_outputs(before_time)
-                if new_files:
-                    _send({
-                        "type": "new_files",
-                        "files": [str(f) for f in new_files],
-                    }, session_id)
-
-                _send({"type": "done", "status": turn_status}, session_id)
-
-                if _collector and turn_id:
-                    _collector.on_turn_end(
-                        turn_id,
-                        assistant_response="",
-                        status=turn_status,
-                    )
+                current_turn_task = asyncio.create_task(_run_turn(clean, agent_name, turn_id))
 
             elif msg_type == "cancel":
                 set_cancel_flag(True, session_id)
@@ -1030,6 +1047,9 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
             elif msg_type == "user_response":
                 content = str(msg.get("content", ""))
                 push_user_response(content, session_id)
+
+            elif msg_type == "ping":
+                _send({"type": "pong"}, session_id)
 
             else:
                 await websocket.send_text(json.dumps(

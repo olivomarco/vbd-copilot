@@ -9,14 +9,28 @@ import {
   MenuPopover,
   MenuList,
   MenuItem,
+  Input,
+  Spinner,
+  TabList,
+  Tab,
 } from "@fluentui/react-components";
-import { Add20Regular, Delete20Regular } from "@fluentui/react-icons";
+import {
+  Add20Regular,
+  Delete20Regular,
+  ChevronDown20Regular,
+  ChevronRight20Regular,
+  ArrowDownload20Regular,
+  Search20Regular,
+  Play20Regular,
+} from "@fluentui/react-icons";
 import { useJobStore, type Job } from "@/stores/jobStore";
 import { AGENT_META } from "@/api/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BriefForm } from "@/components/brief/BriefForm";
 import type { AgentType } from "@/api/types";
+import type { SessionInfo, Turn } from "@/api/types";
 import { AgentIcon } from "@/components/common/AgentIcon";
+import { listSessions, getSessionTurns, resumeSession as apiResumeSession } from "@/api/client";
 
 function formatElapsed(job: Job): string {
   const ms = (job.completedAt || Date.now()) - job.startedAt;
@@ -165,8 +179,17 @@ function JobCard({ job }: { job: Job }) {
 export function MissionControl() {
   const navigate = useNavigate();
   const jobs = useJobStore((s) => s.jobs);
+  const addJob = useJobStore((s) => s.addJob);
   const allJobs = Object.values(jobs);
   const [briefAgent, setBriefAgent] = useState<AgentType | null>(null);
+
+  // History state (from backend SQLite)
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showHistory, setShowHistory] = useState(false);
 
   const running = allJobs.filter((j) => j.status === "running" || j.status === "queued");
   const waiting = allJobs.filter((j) => j.status === "waiting");
@@ -176,6 +199,89 @@ export function MissionControl() {
 
   // Sort by most recent first
   completed.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+
+  // Lazy-load history when section is expanded
+  useEffect(() => {
+    if (showHistory && !historyLoaded) {
+      setHistoryLoading(true);
+      listSessions(true)
+        .then(setSessions)
+        .catch(() => {})
+        .finally(() => {
+          setHistoryLoading(false);
+          setHistoryLoaded(true);
+        });
+    }
+  }, [showHistory, historyLoaded]);
+
+  const handleResume = async (sessionId: string) => {
+    try {
+      const res = await apiResumeSession(sessionId);
+      const job: Job = {
+        id: res.session_id,
+        title: `Resumed: ${res.agent || "session"}`,
+        agent: (res.agent || "slide-conductor") as AgentType,
+        brief: { topic: "Resumed session", contentLevel: "L300", duration: "30 min" },
+        status: "queued",
+        phase: "researching",
+        startedAt: Date.now(),
+        progress: { toolCalls: 0, subagentRuns: 0, currentStep: "Resumed — waiting for input" },
+        events: [],
+        outputFiles: [],
+        usage: { inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 },
+      };
+      addJob(job);
+      navigate(`/workspace?id=${res.session_id}`);
+    } catch (e: any) {
+      alert(`Failed to resume: ${e.message}`);
+    }
+  };
+
+  const handleViewSession = (sessionId: string) => {
+    const existing = useJobStore.getState().getJob(sessionId);
+    if (existing) {
+      navigate(`/workspace?id=${sessionId}`);
+      return;
+    }
+    const session = sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+    const job: Job = {
+      id: session.id,
+      title: session.agent || "Session",
+      agent: (session.agent || "slide-conductor") as AgentType,
+      brief: { topic: session.agent || "session", contentLevel: "L300", duration: "" },
+      status: session.status === "active" ? "running" : "completed",
+      phase: session.status === "active" ? "building" : "done",
+      startedAt: new Date(session.started_at).getTime(),
+      completedAt: session.ended_at ? new Date(session.ended_at).getTime() : undefined,
+      progress: { toolCalls: 0, subagentRuns: 0, currentStep: session.status },
+      events: [],
+      outputFiles: [],
+      usage: {
+        inputTokens: session.total_input_tokens,
+        outputTokens: session.total_output_tokens,
+        estimatedCostUsd: 0,
+      },
+    };
+    addJob(job);
+    navigate(`/workspace?id=${sessionId}`);
+  };
+
+  // Filter sessions for history tab
+  const filteredSessions = sessions.filter((s) => {
+    if (statusFilter === "active" && s.status !== "active") return false;
+    if (statusFilter === "ended" && s.status !== "ended") return false;
+    if (statusFilter === "resumable" && !s.resumable) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      return (
+        s.id.toLowerCase().includes(q) ||
+        (s.agent || "").toLowerCase().includes(q) ||
+        (s.nickname || "").toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
   return (
     <div style={{ padding: "32px 48px", maxWidth: 1000, margin: "0 auto" }}>
@@ -234,7 +340,7 @@ export function MissionControl() {
         </div>
       </div>
 
-      {allJobs.length === 0 && (
+      {allJobs.length === 0 && !showHistory && (
         <div
           style={{
             textAlign: "center",
@@ -329,6 +435,117 @@ export function MissionControl() {
         </div>
       )}
 
+      {/* ── History (from SQLite backend) ─────────────────────────── */}
+      <div
+        style={{
+          borderTop: "1px solid var(--border)",
+          paddingTop: 20,
+          marginTop: allJobs.length > 0 ? 12 : 0,
+        }}
+      >
+        <div
+          onClick={() => setShowHistory(!showHistory)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            cursor: "pointer",
+            marginBottom: showHistory ? 16 : 0,
+            userSelect: "none",
+          }}
+        >
+          {showHistory ? <ChevronDown20Regular /> : <ChevronRight20Regular />}
+          <Text
+            weight="semibold"
+            size={300}
+            style={{
+              textTransform: "uppercase",
+              fontSize: 11,
+              letterSpacing: "0.04em",
+              color: "var(--text-secondary)",
+            }}
+          >
+            Session History
+          </Text>
+          {historyLoaded && (
+            <Badge appearance="tint" size="small" color="informative">
+              {sessions.length}
+            </Badge>
+          )}
+        </div>
+
+        {showHistory && (
+          <div>
+            {/* Search + filter bar */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+              <Input
+                contentBefore={<Search20Regular />}
+                placeholder="Search by ID, agent, nickname..."
+                value={search}
+                onChange={(_, d) => setSearch(d.value)}
+                style={{ width: 260 }}
+                size="small"
+              />
+              <TabList
+                selectedValue={statusFilter}
+                onTabSelect={(_, d) => setStatusFilter(d.value as string)}
+                size="small"
+              >
+                <Tab value="all">All</Tab>
+                <Tab value="active">Active</Tab>
+                <Tab value="resumable">Resumable</Tab>
+                <Tab value="ended">Ended</Tab>
+              </TabList>
+            </div>
+
+            {/* Column headers */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "0 16px 8px 40px",
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              <span style={{ minWidth: 80 }}>ID</span>
+              <span style={{ minWidth: 120 }}>Agent</span>
+              <span style={{ minWidth: 90 }}>Model</span>
+              <span style={{ minWidth: 50, textAlign: "center" }}>Turns</span>
+              <span style={{ minWidth: 60 }}>Tokens</span>
+              <span style={{ minWidth: 70 }}>Duration</span>
+              <span style={{ flex: 1 }} />
+              <span>Status</span>
+            </div>
+
+            {historyLoading ? (
+              <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
+                <Spinner size="small" label="Loading history..." />
+              </div>
+            ) : filteredSessions.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-secondary)" }}>
+                <Text size={300}>No sessions found</Text>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {filteredSessions.map((s) => (
+                  <HistoryRow
+                    key={s.id}
+                    session={s}
+                    onResume={handleResume}
+                    onView={handleViewSession}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Brief form slide-over */}
       {briefAgent && (
         <BriefForm
@@ -348,5 +565,203 @@ export function MissionControl() {
         }
       `}</style>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* History row (from SQLite sessions)                                  */
+/* ------------------------------------------------------------------ */
+
+function historyDuration(startedAt: string, endedAt: string | null): string {
+  const start = new Date(startedAt).getTime();
+  const end = endedAt ? new Date(endedAt).getTime() : Date.now();
+  const sec = Math.round((end - start) / 1000);
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}m ${s}s`;
+}
+
+function historyStatusBadge(status: string, resumable: number) {
+  if (status === "active") {
+    return <Badge appearance="filled" color="success" size="small">Active</Badge>;
+  }
+  if (resumable) {
+    return <Badge appearance="tint" color="informative" size="small">Resumable</Badge>;
+  }
+  return <Badge appearance="tint" color="subtle" size="small">Ended</Badge>;
+}
+
+function HistoryRow({
+  session,
+  onResume,
+  onView,
+}: {
+  session: SessionInfo;
+  onResume: (id: string) => void;
+  onView: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [loadingTurns, setLoadingTurns] = useState(false);
+
+  const handleExpand = () => {
+    if (!expanded && turns.length === 0) {
+      setLoadingTurns(true);
+      getSessionTurns(session.id)
+        .then(setTurns)
+        .catch(() => {})
+        .finally(() => setLoadingTurns(false));
+    }
+    setExpanded(!expanded);
+  };
+
+  return (
+    <Card
+      style={{
+        border: "1px solid var(--border)",
+        borderRadius: 8,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        onClick={handleExpand}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "10px 16px",
+          cursor: "pointer",
+          transition: "background 0.1s",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "var(--hover-bg)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "transparent";
+        }}
+      >
+        {expanded ? <ChevronDown20Regular /> : <ChevronRight20Regular />}
+
+        <Text
+          size={200}
+          style={{ fontFamily: "monospace", minWidth: 80, color: "var(--text-secondary)" }}
+        >
+          {session.id.slice(0, 8)}
+        </Text>
+
+        <Text weight="semibold" size={200} style={{ minWidth: 120 }}>
+          {session.agent || "copilot"}
+        </Text>
+
+        <Text size={200} style={{ color: "var(--text-secondary)", minWidth: 90 }}>
+          {session.model ? session.model.split("/").pop()?.slice(0, 15) : "—"}
+        </Text>
+
+        <Text size={200} style={{ minWidth: 50, textAlign: "center" }}>
+          {session.turn_count}
+        </Text>
+
+        <Text size={200} style={{ minWidth: 60, color: "var(--text-secondary)" }}>
+          {formatTokens(session.total_input_tokens + session.total_output_tokens)}
+        </Text>
+
+        <Text size={200} style={{ minWidth: 70, color: "var(--text-secondary)" }}>
+          {historyDuration(session.started_at, session.ended_at)}
+        </Text>
+
+        <div style={{ flex: 1 }} />
+        {historyStatusBadge(session.status, session.resumable)}
+      </div>
+
+      {expanded && (
+        <div style={{ padding: "0 16px 14px 48px", borderTop: "1px solid var(--border)" }}>
+          <div style={{ display: "flex", gap: 20, marginTop: 10, marginBottom: 12, flexWrap: "wrap" }}>
+            <Text size={200}>
+              <strong>Started:</strong> {new Date(session.started_at).toLocaleString()}
+            </Text>
+            {session.ended_at && (
+              <Text size={200}>
+                <strong>Ended:</strong> {new Date(session.ended_at).toLocaleString()}
+              </Text>
+            )}
+            <Text size={200}>
+              <strong>Frontend:</strong> {session.frontend}
+            </Text>
+          </div>
+
+          {loadingTurns && <Spinner size="tiny" label="Loading turns..." />}
+
+          {turns.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {turns.map((t) => (
+                <div
+                  key={t.id}
+                  style={{
+                    padding: "6px 10px",
+                    background: "var(--hover-bg)",
+                    borderRadius: 6,
+                    fontSize: 12,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                    <Badge size="small" color="informative">
+                      Turn {t.turn_number}
+                    </Badge>
+                    <Text size={200} style={{ color: "var(--text-secondary)" }}>
+                      {t.agent || "copilot"} · {t.tool_call_count} tools · {t.subagent_count} subagents · {formatTokens(t.input_tokens + t.output_tokens)} tok
+                    </Text>
+                  </div>
+                  <Text
+                    size={200}
+                    style={{
+                      display: "block",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {t.user_prompt || "(system)"}
+                  </Text>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <Button appearance="outline" size="small" onClick={() => onView(session.id)}>
+              View
+            </Button>
+            {session.resumable ? (
+              <Button
+                appearance="primary"
+                size="small"
+                icon={<Play20Regular />}
+                onClick={() => onResume(session.id)}
+              >
+                Resume
+              </Button>
+            ) : null}
+            <Button
+              appearance="subtle"
+              icon={<ArrowDownload20Regular />}
+              size="small"
+              onClick={() => {
+                const data = { session, turns };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `session-${session.id.slice(0, 8)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Export
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }

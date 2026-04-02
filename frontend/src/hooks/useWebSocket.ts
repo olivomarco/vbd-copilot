@@ -4,8 +4,9 @@ import type { AgentPhase } from "@/stores/jobStore";
 
 const BASE_WS = import.meta.env.VITE_WS_URL ?? `ws://${window.location.hostname}:${window.location.port}`;
 
-const MAX_RECONNECT_ATTEMPTS = 3;
+const MAX_RECONNECT_ATTEMPTS = 12;
 const RECONNECT_DELAY_MS = 2000;
+const HEARTBEAT_INTERVAL_MS = 25000;
 
 /**
  * Opens a WebSocket to /ws/{sessionId}, parses events, and updates
@@ -37,10 +38,10 @@ export function useWebSocket(sessionId: string | null) {
 
     ws.onopen = () => {
       reconnectAttempts.current = 0;
-      // Only set to running if not already completed
+      // Preserve a waiting review gate if the socket reconnects mid-approval.
       const job = useJobStore.getState().getJob(sid);
       if (job && job.status !== "completed" && job.status !== "failed" && job.status !== "cancelled") {
-        updateJob(sid, { status: "running" });
+        updateJob(sid, { status: job.pendingInput ? "waiting" : "running" });
       }
     };
 
@@ -54,8 +55,10 @@ export function useWebSocket(sessionId: string | null) {
 
       const t = msg.type as string;
 
-      // Push raw event to the activity feed
-      pushEvent(sid, { type: t, data: msg });
+      if (t !== "pong" && t !== "heartbeat") {
+        // Push raw event to the activity feed
+        pushEvent(sid, { type: t, data: msg });
+      }
 
       switch (t) {
         case "turn_started":
@@ -126,6 +129,10 @@ export function useWebSocket(sessionId: string | null) {
           }
           break;
         }
+
+        case "pong":
+        case "heartbeat":
+          break;
 
         case "new_files": {
           const job = useJobStore.getState().getJob(sid);
@@ -207,14 +214,25 @@ export function useWebSocket(sessionId: string | null) {
         reconnectAttempts.current += 1;
         reconnectTimer.current = setTimeout(() => connect(sid), RECONNECT_DELAY_MS);
       } else {
+        const hasPendingInput = !!job.pendingInput;
         updateJob(sid, {
-          status: "failed",
-          phase: "done",
-          completedAt: Date.now(),
+          status: hasPendingInput ? "waiting" : "failed",
+          phase: hasPendingInput ? "reviewing" : "done",
+          completedAt: hasPendingInput ? undefined : Date.now(),
+          progress: {
+            ...job.progress,
+            currentStep: hasPendingInput
+              ? "Connection interrupted — reconnecting…"
+              : "Connection lost. Restart the server and try again.",
+          },
         });
         pushEvent(sid, {
           type: "connection_error",
-          data: { message: "Connection lost. Restart the server and try again." },
+          data: {
+            message: hasPendingInput
+              ? "Connection interrupted while waiting for input. Reconnect in progress."
+              : "Connection lost. Restart the server and try again.",
+          },
         });
       }
     };
@@ -244,19 +262,56 @@ export function useWebSocket(sessionId: string | null) {
     };
   }, [sessionId, connect]);
 
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const interval = setInterval(() => {
+      const job = useJobStore.getState().getJob(sessionId);
+      if (!job) return;
+      if (job.status === "completed" || job.status === "failed" || job.status === "cancelled") return;
+
+      const ws = wsRef.current;
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "ping" }));
+      } else if (!ws || ws.readyState === WebSocket.CLOSED) {
+        connect(sessionId);
+      }
+    }, HEARTBEAT_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [sessionId, connect]);
+
   const safeSend = useCallback((data: string) => {
-    const ws = wsRef.current;
-    if (!ws) return;
-    if (ws.readyState === WebSocket.OPEN) {
+    let ws = wsRef.current;
+
+    if (ws?.readyState === WebSocket.OPEN) {
       ws.send(data);
-    } else if (ws.readyState === WebSocket.CONNECTING) {
-      const handler = () => {
-        ws.removeEventListener("open", handler);
-        if (ws.readyState === WebSocket.OPEN) ws.send(data);
-      };
-      ws.addEventListener("open", handler);
+      return;
     }
-  }, []);
+
+    const attachOpenHandler = (socket: WebSocket) => {
+      const handler = () => {
+        socket.removeEventListener("open", handler);
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(data);
+        }
+      };
+      socket.addEventListener("open", handler);
+    };
+
+    if (ws?.readyState === WebSocket.CONNECTING) {
+      attachOpenHandler(ws);
+      return;
+    }
+
+    if (!sessionId) return;
+
+    connect(sessionId);
+    ws = wsRef.current;
+    if (ws) {
+      attachOpenHandler(ws);
+    }
+  }, [sessionId, connect]);
 
   const sendMessage = useCallback(
     (content: string) => safeSend(JSON.stringify({ type: "message", content })),

@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Button,
@@ -5,25 +6,34 @@ import {
   Badge,
   Divider,
   Text,
+  Input,
 } from "@fluentui/react-components";
 import {
   Home24Regular,
   Home24Filled,
   Library24Regular,
   Library24Filled,
-  History24Regular,
-  History24Filled,
   Settings24Regular,
   Settings24Filled,
   PanelLeftContract24Regular,
   PanelLeftExpand24Regular,
   PlayCircle24Regular,
   PlayCircle24Filled,
+  Send16Regular,
+  DismissCircle16Regular,
 } from "@fluentui/react-icons";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { useJobStore } from "@/stores/jobStore";
+import { useJobStore, type Job } from "@/stores/jobStore";
 import { AGENT_META } from "@/api/types";
 import { AgentIcon } from "@/components/common/AgentIcon";
+
+/** Send a user response directly via the job's stored WebSocket. */
+function sendResponseForJob(job: Job, content: string) {
+  const ws = job._ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type: "user_response", content }));
+  useJobStore.getState().updateJob(job.id, { status: "running", pendingInput: undefined });
+}
 
 const NAV_ITEMS = [
   {
@@ -45,18 +55,147 @@ const NAV_ITEMS = [
     IconFilled: Library24Filled,
   },
   {
-    path: "/sessions",
-    label: "Sessions",
-    Icon: History24Regular,
-    IconFilled: History24Filled,
-  },
-  {
     path: "/settings",
     label: "Settings",
     Icon: Settings24Regular,
     IconFilled: Settings24Filled,
   },
 ];
+
+/** Compact inline input widget shown under a waiting job in the sidebar. */
+function SidebarJobItem({ job, navigate }: { job: Job; navigate: (to: string) => void }) {
+  const [reply, setReply] = useState("");
+  const isWaiting = job.status === "waiting" && job.pendingInput;
+  const hasChoices = isWaiting && job.pendingInput!.choices && job.pendingInput!.choices.length > 0;
+
+  const handleSend = useCallback(() => {
+    const text = reply.trim();
+    if (!text) return;
+    sendResponseForJob(job, text);
+    setReply("");
+  }, [reply, job]);
+
+  return (
+    <div
+      style={{
+        marginBottom: isWaiting ? 6 : 0,
+        borderRadius: 6,
+        background: isWaiting ? "rgba(255, 185, 0, 0.06)" : "transparent",
+        border: isWaiting ? "1px solid rgba(255, 185, 0, 0.25)" : "1px solid transparent",
+        transition: "all 0.2s ease",
+      }}
+    >
+      {/* Job row */}
+      <Button
+        appearance="transparent"
+        onClick={() => navigate(`/workspace?id=${job.id}`)}
+        style={{
+          justifyContent: "flex-start",
+          width: "100%",
+          minHeight: 32,
+          borderRadius: 6,
+          paddingLeft: 12,
+          fontSize: 12,
+        }}
+      >
+        <span style={{ marginRight: 6 }}>
+          {isWaiting ? "⚠️" : <AgentIcon agent={job.agent} size="inline" />}
+        </span>
+        <span
+          style={{
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {job.brief.topic.slice(0, 20)}
+        </span>
+      </Button>
+
+      {/* Inline input area for waiting jobs */}
+      {isWaiting && (
+        <div style={{ padding: "2px 10px 8px" }}>
+          <Text
+            size={100}
+            style={{
+              display: "block",
+              color: "var(--text-secondary)",
+              fontSize: 10,
+              lineHeight: "14px",
+              marginBottom: 4,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={job.pendingInput!.question}
+          >
+            {job.pendingInput!.question}
+          </Text>
+
+          {hasChoices && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 4 }}>
+              {job.pendingInput!.choices!.slice(0, 4).map((choice, i) => (
+                <button
+                  key={i}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    sendResponseForJob(job, choice);
+                  }}
+                  style={{
+                    padding: "1px 7px",
+                    fontSize: 10,
+                    lineHeight: "18px",
+                    borderRadius: 4,
+                    border: "1px solid var(--border)",
+                    background: "var(--card-bg)",
+                    color: "var(--text-primary)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxWidth: "100%",
+                  }}
+                  title={choice}
+                >
+                  {choice.length > 24 ? choice.slice(0, 22) + "…" : choice}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!hasChoices && (
+            <div style={{ display: "flex", gap: 3 }}>
+              <Input
+                size="small"
+                value={reply}
+                onChange={(_, d) => setReply(d.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }}
+                placeholder="Reply…"
+                style={{ flex: 1, fontSize: 11, minWidth: 0 }}
+              />
+              <Button
+                appearance="subtle"
+                icon={<Send16Regular />}
+                size="small"
+                onClick={handleSend}
+                disabled={!reply.trim()}
+                style={{ minWidth: 28, padding: 0 }}
+              />
+              <Button
+                appearance="subtle"
+                icon={<DismissCircle16Regular />}
+                size="small"
+                onClick={() => sendResponseForJob(job, "Skip this question and decide for me.")}
+                title="Skip"
+                style={{ minWidth: 28, padding: 0 }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Sidebar() {
   const navigate = useNavigate();
@@ -184,37 +323,9 @@ export function Sidebar() {
           >
             Active Jobs
           </Text>
-          {activeJobs.map((job) => {
-            const meta = AGENT_META[job.agent];
-            return (
-              <Button
-                key={job.id}
-                appearance="transparent"
-                onClick={() => navigate(`/workspace?id=${job.id}`)}
-                style={{
-                  justifyContent: "flex-start",
-                  width: "100%",
-                  minHeight: 32,
-                  borderRadius: 6,
-                  paddingLeft: 12,
-                  fontSize: 12,
-                }}
-              >
-                <span style={{ marginRight: 6 }}>
-                  {job.status === "waiting" ? "⚠️" : <AgentIcon agent={job.agent} size="inline" />}
-                </span>
-                <span
-                  style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {job.brief.topic.slice(0, 20)}
-                </span>
-              </Button>
-            );
-          })}
+          {activeJobs.map((job) => (
+            <SidebarJobItem key={job.id} job={job} navigate={navigate} />
+          ))}
         </div>
       )}
 

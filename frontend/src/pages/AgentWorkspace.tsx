@@ -13,6 +13,7 @@ import {
   Dismiss20Regular,
   Checkmark20Regular,
   ArrowDownload20Regular,
+  Send20Regular,
 } from "@fluentui/react-icons";
 import { useJobStore, type Job, type AgentPhase, type JobEvent } from "@/stores/jobStore";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -111,8 +112,15 @@ function EventCard({ event }: { event: JobEvent }) {
   if (t === "waiting_for_input") {
     return (
       <div style={{ padding: "8px 12px", background: "#fff5e6", borderRadius: 6, fontSize: 13 }}>
-        <span style={{ marginRight: 6 }}>⏸️</span>
-        Waiting for input: {d.question}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+          <span>⏸️</span>
+          <strong>Waiting for input</strong>
+        </div>
+        <div className="md-content" style={{ fontSize: 13 }}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {String(d.question || "The agent has a question")}
+          </ReactMarkdown>
+        </div>
       </div>
     );
   }
@@ -187,6 +195,12 @@ export function AgentWorkspace() {
     sendMessage(prompt);
   }, [job?.id, job?.status]);
 
+  useEffect(() => {
+    if (job?.pendingInput?.question) {
+      setEditedPlan("");
+    }
+  }, [job?.pendingInput?.question]);
+
   // Elapsed time ticker
   useEffect(() => {
     if (!job || job.status === "completed" || job.status === "failed" || job.status === "cancelled") return;
@@ -219,6 +233,25 @@ export function AgentWorkspace() {
 
   const meta = AGENT_META[job.agent] || { icon: "🔧", label: job.agent, color: "#0078D4" };
   const currentPhaseIdx = phaseIndex(job.phase);
+
+  // Determine which phase the job actually reached before failing.
+  // Walk the events backwards to find the last real phase_changed event.
+  const lastReachedPhase = useMemo(() => {
+    if (job.status !== "failed" && job.status !== "cancelled") return currentPhaseIdx;
+    // Find the last phase_changed event to know where it actually got to
+    for (let i = job.events.length - 1; i >= 0; i--) {
+      const e = job.events[i];
+      if (e.type === "phase_changed" && (e.data as any).phase) {
+        const idx = phaseIndex((e.data as any).phase as AgentPhase);
+        if (idx >= 0) return idx;
+      }
+    }
+    // Fallback: use tool/subagent events to infer
+    const hadTools = job.progress.toolCalls > 0;
+    const hadSubagents = job.progress.subagentRuns > 0;
+    if (!hadTools && !hadSubagents) return 0; // never got past research
+    return 0; // conservative: only mark research as reached
+  }, [job.events, job.status, job.progress, currentPhaseIdx]);
 
   // Filter to only meaningful events for the activity feed
   const feedEvents = job.events.filter(
@@ -272,9 +305,16 @@ export function AgentWorkspace() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {PHASES.map((p, i) => {
-            const isDone = i < currentPhaseIdx;
-            const isActive = i === currentPhaseIdx && job.status !== "completed" && job.status !== "failed";
-            const isPending = i > currentPhaseIdx;
+            const isFailed = job.status === "failed" || job.status === "cancelled";
+            const effectiveIdx = isFailed ? lastReachedPhase : currentPhaseIdx;
+            const isDone = isFailed
+              ? i < effectiveIdx                      // only phases before the failure point
+              : i < currentPhaseIdx;
+            const isFailedPhase = isFailed && i === effectiveIdx && p.key !== "done";
+            const isActive = !isFailed && i === currentPhaseIdx && job.status !== "completed";
+            const isPending = isFailed
+              ? i > effectiveIdx || (i === effectiveIdx && !isFailedPhase)
+              : i > currentPhaseIdx;
 
             return (
               <div
@@ -285,7 +325,11 @@ export function AgentWorkspace() {
                   gap: 10,
                   padding: "6px 8px",
                   borderRadius: 6,
-                  background: isActive ? "rgba(0,120,212,0.06)" : "transparent",
+                  background: isActive
+                    ? "rgba(0,120,212,0.06)"
+                    : isFailedPhase
+                      ? "rgba(209,52,56,0.06)"
+                      : "transparent",
                 }}
               >
                 <div
@@ -301,21 +345,27 @@ export function AgentWorkspace() {
                     flexShrink: 0,
                     background: isDone
                       ? "#7FBA00"
-                      : isActive
-                        ? "var(--brand-primary)"
-                        : "#edebe9",
-                    color: isDone || isActive ? "#fff" : "#a19f9d",
+                      : isFailedPhase
+                        ? "#d13438"
+                        : isActive
+                          ? "var(--brand-primary)"
+                          : "#edebe9",
+                    color: isDone || isActive || isFailedPhase ? "#fff" : "#a19f9d",
                     animation: isActive ? "pulse 2s infinite" : undefined,
                   }}
                 >
-                  {isDone ? "✓" : i + 1}
+                  {isDone ? "✓" : isFailedPhase ? "✕" : i + 1}
                 </div>
                 <div>
                   <Text
                     size={200}
-                    weight={isActive ? "semibold" : "regular"}
+                    weight={isActive || isFailedPhase ? "semibold" : "regular"}
                     style={{
-                      color: isPending ? "#a19f9d" : "var(--text-primary)",
+                      color: isPending && !isFailedPhase
+                        ? "#a19f9d"
+                        : isFailedPhase
+                          ? "#d13438"
+                          : "var(--text-primary)",
                       display: "block",
                     }}
                   >
@@ -401,25 +451,20 @@ export function AgentWorkspace() {
           )}
         </div>
 
-        {/* Plan Review Gate */}
-        {job.status === "waiting" && job.pendingInput && (
+        {/* Plan Review / Question Gate */}
+        {job.status === "waiting" && job.pendingInput && (() => {
+          const isPlanReview = deltaText.length > 50;
+          const hasChoices = !!(job.pendingInput.choices && job.pendingInput.choices.length > 0);
+          return (
           <Card
             style={{
               margin: "16px 24px",
-              border: "2px solid #FFB900",
+              border: `2px solid ${isPlanReview ? "#FFB900" : "#0078D4"}`,
               borderRadius: 10,
               padding: "20px 24px",
-              background: "#fffbf0",
+              background: isPlanReview ? "#fffbf0" : "#f0f6ff",
             }}
           >
-            <Text
-              weight="semibold"
-              size={400}
-              style={{ display: "block", marginBottom: 10 }}
-            >
-              📋 {job.pendingInput.question}
-            </Text>
-
             {deltaText && (
               <div
                 className="md-content"
@@ -440,34 +485,96 @@ export function AgentWorkspace() {
               </div>
             )}
 
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 12 }}>
+              <span style={{ fontSize: 18, lineHeight: 1.6 }}>{isPlanReview ? "📋" : "💬"}</span>
+              <div className="md-content" style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {job.pendingInput.question}
+                </ReactMarkdown>
+              </div>
+            </div>
+
+            {hasChoices && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+                {job.pendingInput.choices!.map((choice, i) => (
+                  <Button
+                    key={i}
+                    appearance="outline"
+                    onClick={() => sendUserResponse(choice)}
+                    style={{ fontSize: 13 }}
+                  >
+                    {choice}
+                  </Button>
+                ))}
+              </div>
+            )}
+
+            <Textarea
+              id="plan-edit"
+              value={editedPlan}
+              onChange={(_, data) => setEditedPlan(data.value)}
+              placeholder={isPlanReview
+                ? "Optional: add clarifications or edits before approving"
+                : "Type your answer..."
+              }
+              resize="vertical"
+              rows={isPlanReview ? 3 : 2}
+              style={{ marginBottom: 14 }}
+            />
+
             <div style={{ display: "flex", gap: 10 }}>
-              <Button
-                appearance="primary"
-                icon={<Checkmark20Regular />}
-                onClick={() => sendUserResponse("Looks good, proceed with building.")}
-              >
-                Approve
-              </Button>
-              <Button
-                appearance="outline"
-                onClick={() => {
-                  const editInput = document.getElementById("plan-edit") as HTMLTextAreaElement;
-                  const text = editInput?.value || "Approved with modifications";
-                  sendUserResponse(text);
-                }}
-              >
-                Edit & Approve
-              </Button>
-              <Button
-                appearance="subtle"
-                onClick={() => sendUserResponse("Reject this plan. Cancel the job.")}
-                style={{ color: "#d13438" }}
-              >
-                Reject
-              </Button>
+              {isPlanReview ? (
+                <>
+                  <Button
+                    appearance="primary"
+                    icon={<Checkmark20Regular />}
+                    onClick={() => sendUserResponse(editedPlan.trim() || "Looks good, proceed with building.")}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    appearance="outline"
+                    onClick={() => {
+                      const text = editedPlan.trim() || "Approved with modifications";
+                      sendUserResponse(text);
+                    }}
+                  >
+                    Edit & Approve
+                  </Button>
+                  <Button
+                    appearance="subtle"
+                    onClick={() => sendUserResponse("Reject this plan. Cancel the job.")}
+                    style={{ color: "#d13438" }}
+                  >
+                    Reject
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    appearance="primary"
+                    icon={<Send20Regular />}
+                    disabled={!editedPlan.trim() && !hasChoices}
+                    onClick={() => {
+                      if (editedPlan.trim()) {
+                        sendUserResponse(editedPlan.trim());
+                      }
+                    }}
+                  >
+                    Reply
+                  </Button>
+                  <Button
+                    appearance="subtle"
+                    onClick={() => sendUserResponse("Skip this question and decide for me.")}
+                  >
+                    Skip
+                  </Button>
+                </>
+              )}
             </div>
           </Card>
-        )}
+          );
+        })()}
 
         {/* Activity feed */}
         <div

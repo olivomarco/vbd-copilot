@@ -5,7 +5,6 @@ import { OutputLibrary } from "./pages/OutputLibrary";
 import { SlideViewer } from "./components/viewers/SlideViewer";
 import { MarkdownViewer } from "./components/viewers/MarkdownViewer";
 import { ProjectExplorer } from "./components/viewers/ProjectExplorer";
-import { Sessions } from "./pages/Sessions";
 import { Settings } from "./pages/Settings";
 import { AgentWorkspace } from "./pages/AgentWorkspace";
 import { MissionControl } from "./pages/MissionControl";
@@ -54,7 +53,6 @@ export function App() {
         <Route path="/library/slides" element={<SlideViewer />} />
         <Route path="/library/markdown" element={<MarkdownViewer />} />
         <Route path="/library/project" element={<ProjectExplorer />} />
-        <Route path="/sessions" element={<Sessions />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
