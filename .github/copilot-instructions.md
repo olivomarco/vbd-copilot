@@ -62,6 +62,7 @@ Skills live in `skills/<skill-name>/` directories. Each skill has a `SKILL.md` a
 ## Landmines
 
 - Use `uv` instead of `pip` for all Python dependency operations
+- **Frontend icons:** Never use emoji (🚀, 🏗️, etc.) in the frontend UI — always use Fluent UI `@fluentui/react-icons` components instead. The `AgentIcon` component in `frontend/src/components/common/AgentIcon.tsx` is the canonical icon renderer for agents. The emoji `icon` field in `AGENT_META` is legacy metadata only — it is never rendered in the UI.
 - Do not refactor `skills/pptx-generator/pptx_utils.py` - it is a shared contract across all subagents
 - Fragment files in `outputs/slides/.fragments/` are unindented by design - do not auto-format them
 - Plan files in `plans/` are intermediate and may be incomplete - do not treat them as ground truth
