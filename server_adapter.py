@@ -233,7 +233,7 @@ def _make_ws_handler(session_id: str):
             return
 
         if etype == SessionEventType.TOOL_EXECUTION_START:
-            tool = getattr(d, "tool_name", None) or getattr(d, "mcp_tool_name", "?")
+            tool = getattr(d, "tool_name", None) or getattr(d, "mcp_tool_name", None) or "?"
             args_raw = getattr(d, "arguments", None)
             args_str = json.dumps(args_raw, ensure_ascii=False) if args_raw else "{}"
             tool_starts[str(tool)] = time.time()
@@ -246,7 +246,7 @@ def _make_ws_handler(session_id: str):
             return
 
         if etype == SessionEventType.TOOL_EXECUTION_COMPLETE:
-            tool = getattr(d, "tool_name", None) or getattr(d, "mcp_tool_name", "?")
+            tool = getattr(d, "tool_name", None) or getattr(d, "mcp_tool_name", None) or "?"
             started = tool_starts.pop(str(tool), _last_times.get(session_id, 0))
             duration_ms = int((time.time() - started) * 1000)
             output_raw = getattr(d, "output", None)

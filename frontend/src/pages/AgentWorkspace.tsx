@@ -48,18 +48,22 @@ function EventCard({ event }: { event: JobEvent }) {
   const d = event.data as any;
 
   if (t === "tool_started") {
+    const toolName = d.tool && d.tool !== "None" && d.tool !== "?" ? d.tool : null;
+    if (!toolName) return null;
     return (
       <div style={{ padding: "8px 12px", background: "var(--hover-bg)", borderRadius: 6, fontSize: 13 }}>
         <span style={{ marginRight: 6 }}>🔧</span>
-        <strong>{d.tool}</strong>
+        <strong>{toolName}</strong>
       </div>
     );
   }
   if (t === "tool_completed") {
+    const toolName = d.tool && d.tool !== "None" && d.tool !== "?" ? d.tool : null;
+    if (!toolName) return null; // suppress unnamed tool completions
     return (
       <div style={{ padding: "8px 12px", background: "#f0faf0", borderRadius: 6, fontSize: 13 }}>
         <span style={{ marginRight: 6 }}>✅</span>
-        <strong>{d.tool}</strong>
+        <strong>{toolName}</strong>
         <span style={{ color: "var(--text-secondary)", marginLeft: 8 }}>
           {d.duration_ms}ms
         </span>
