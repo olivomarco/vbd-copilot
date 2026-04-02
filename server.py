@@ -864,10 +864,13 @@ async def preview_pptx_hifi(body: PptxPreviewRequest) -> JSONResponse:
 async def ws_agent(websocket: WebSocket, session_id: str) -> None:
     """Bidirectional streaming channel for a single agent session."""
     from server_adapter import (
+        add_ws,
+        remove_ws,
         push_user_response,
         set_active_ws,
         set_cancel_flag,
         _make_ws_handler,
+        _ws_map,
         ws_reset,
         _send,
     )
@@ -875,8 +878,12 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
     from router import route_to_agent
 
     await websocket.accept()
-    set_active_ws(session_id, websocket)
-    ws_reset(session_id)
+    # Track whether this connection is the primary (first) for the session.
+    # Only the primary registers the event handler and processes messages.
+    is_primary = session_id not in _ws_map or len(_ws_map.get(session_id, set())) == 0
+    add_ws(session_id, websocket)
+    if is_primary:
+        ws_reset(session_id)
 
     # Look up or create session
     session = _session_map.get(session_id)
@@ -929,9 +936,11 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
             set_active_ws(session_id, None)
             return
 
-    # Register per-session WS event handler
-    ws_event_handler = _make_ws_handler(session_id)
-    session.on(ws_event_handler)
+    # Register per-session WS event handler (only if primary connection)
+    ws_event_handler = None
+    if is_primary:
+        ws_event_handler = _make_ws_handler(session_id)
+        session.on(ws_event_handler)
 
     current_turn_task: asyncio.Task[Any] | None = None
 
@@ -1032,11 +1041,13 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
     except Exception as exc:
         log.error("WebSocket error: %s", exc)
     finally:
-        with contextlib.suppress(Exception):
-            session._event_handlers = [
-                h for h in session._event_handlers if h is not ws_event_handler
-            ]
-        set_active_ws(session_id, None)
+        # Only unregister event handler if this was the primary connection
+        if ws_event_handler is not None:
+            with contextlib.suppress(Exception):
+                session._event_handlers = [
+                    h for h in session._event_handlers if h is not ws_event_handler
+                ]
+        remove_ws(session_id, websocket)
 
 
 # ---------------------------------------------------------------------------

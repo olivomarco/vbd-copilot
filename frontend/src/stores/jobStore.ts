@@ -3,6 +3,51 @@ import { persist } from "zustand/middleware";
 import type { AgentType, ContentLevel } from "@/api/types";
 
 /* ------------------------------------------------------------------ */
+/* Cross-tab sync via BroadcastChannel                                 */
+/* ------------------------------------------------------------------ */
+
+const CHANNEL_NAME = "csa-studio-jobs-sync";
+let _bc: BroadcastChannel | null = null;
+let _suppressBroadcast = false;
+
+try {
+  _bc = new BroadcastChannel(CHANNEL_NAME);
+} catch {
+  // BroadcastChannel not supported — cross-tab sync disabled.
+}
+
+function broadcastJobUpdate(id: string, patch: Partial<Job>) {
+  if (_suppressBroadcast || !_bc) return;
+  try {
+    // Strip non-serialisable fields
+    const { _ws, ...safe } = patch as any;
+    _bc.postMessage({ action: "updateJob", id, patch: safe });
+  } catch { /* quota / closed channel */ }
+}
+
+function broadcastJobAdd(job: Job) {
+  if (_suppressBroadcast || !_bc) return;
+  try {
+    const { _ws, ...safe } = job as any;
+    _bc.postMessage({ action: "addJob", job: safe });
+  } catch {}
+}
+
+function broadcastJobRemove(id: string) {
+  if (_suppressBroadcast || !_bc) return;
+  try {
+    _bc.postMessage({ action: "removeJob", id });
+  } catch {}
+}
+
+function broadcastPushEvent(id: string, event: Omit<JobEvent, "id" | "time">) {
+  if (_suppressBroadcast || !_bc) return;
+  try {
+    _bc.postMessage({ action: "pushEvent", id, event });
+  } catch {}
+}
+
+/* ------------------------------------------------------------------ */
 /* Types                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -94,16 +139,20 @@ export const useJobStore = create<JobStore>()(
     (set, get) => ({
   jobs: {},
 
-  addJob: (job) =>
-    set((s) => ({ jobs: { ...s.jobs, [job.id]: job } })),
+  addJob: (job) => {
+    set((s) => ({ jobs: { ...s.jobs, [job.id]: job } }));
+    broadcastJobAdd(job);
+  },
 
-  removeJob: (id) =>
+  removeJob: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.jobs;
       return { jobs: rest };
-    }),
+    });
+    broadcastJobRemove(id);
+  },
 
-  updateJob: (id, patch) =>
+  updateJob: (id, patch) => {
     set((s) => {
       const existing = s.jobs[id];
       if (!existing) return s;
@@ -117,9 +166,11 @@ export const useJobStore = create<JobStore>()(
         return s;
       }
       return { jobs: { ...s.jobs, [id]: { ...existing, ...patch } } };
-    }),
+    });
+    broadcastJobUpdate(id, patch);
+  },
 
-  pushEvent: (id, event) =>
+  pushEvent: (id, event) => {
     set((s) => {
       const job = s.jobs[id];
       if (!job) return s;
@@ -136,7 +187,9 @@ export const useJobStore = create<JobStore>()(
           [id]: { ...job, events },
         },
       };
-    }),
+    });
+    broadcastPushEvent(id, event);
+  },
 
   setWs: (id, ws) =>
     set((s) => {
@@ -174,3 +227,34 @@ export const useJobStore = create<JobStore>()(
     },
   ),
 );
+
+/* ------------------------------------------------------------------ */
+/* Listen for cross-tab broadcasts                                     */
+/* ------------------------------------------------------------------ */
+
+if (_bc) {
+  _bc.onmessage = (ev: MessageEvent) => {
+    const data = ev.data;
+    if (!data || typeof data !== "object") return;
+    // Suppress re-broadcast to avoid infinite loops
+    _suppressBroadcast = true;
+    try {
+      switch (data.action) {
+        case "updateJob":
+          useJobStore.getState().updateJob(data.id, data.patch);
+          break;
+        case "addJob":
+          useJobStore.getState().addJob(data.job);
+          break;
+        case "removeJob":
+          useJobStore.getState().removeJob(data.id);
+          break;
+        case "pushEvent":
+          useJobStore.getState().pushEvent(data.id, data.event);
+          break;
+      }
+    } finally {
+      _suppressBroadcast = false;
+    }
+  };
+}

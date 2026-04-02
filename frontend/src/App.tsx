@@ -12,15 +12,21 @@ import { MissionControl } from "./pages/MissionControl";
 import { useJobStore } from "./stores/jobStore";
 
 // Run ONCE at module load: clean up stale jobs from previous browser sessions.
+// Only marks a job as lost if no other tab is actively updating it.
 const _cleanupDone = (() => {
   // Small delay to let zustand/persist hydrate from localStorage
   setTimeout(() => {
     const jobs = useJobStore.getState().jobs;
+    const now = Date.now();
     for (const [id, job] of Object.entries(jobs)) {
       if (job.status === "running" || job.status === "queued" || job.status === "waiting") {
-        // If the job had real work done (events, tool calls), mark as completed
-        // — it likely finished but the status didn't persist.
-        // If it never started (0 events), mark as failed.
+        // Check if the job has recent event activity (within last 60s).
+        // If it does, another tab is likely driving it — leave it alone.
+        const lastEvent = job.events.length > 0 ? job.events[job.events.length - 1].time : 0;
+        const isRecentlyActive = lastEvent > 0 && (now - lastEvent) < 60_000;
+        if (isRecentlyActive) continue;
+
+        // No recent activity — this job is genuinely orphaned.
         const hadWork = job.progress.toolCalls > 0 || job.events.length > 5;
         useJobStore.getState().updateJob(id, {
           status: hadWork ? "completed" : "cancelled",

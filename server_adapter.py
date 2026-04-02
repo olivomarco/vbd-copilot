@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 # server.py manages one WS per session_id via /ws/{session_id}.
 # ---------------------------------------------------------------------------
 
-_ws_map: dict[str, Any] = {}                    # session_id -> WebSocket
+_ws_map: dict[str, set[Any]] = {}                  # session_id -> set of WebSockets
 _cancel_flags: dict[str, bool] = {}             # session_id -> cancelled
 _input_queues: dict[str, asyncio.Queue[str]] = {}  # session_id -> Queue
 _seen_ids: dict[str, set[str]] = {}             # session_id -> seen event ids
@@ -46,7 +46,7 @@ def set_active_ws(ws_or_session_id: Any | None, ws: Any = _SENTINEL) -> None:
 
     Supports two calling conventions:
       - set_active_ws(ws)                 — legacy single-WS mode
-      - set_active_ws(session_id, ws)     — per-session mode (ws can be None to clear)
+      - set_active_ws(session_id, ws)     — per-session mode (ws can be None/False to remove)
     """
     global _active_ws
     if ws is _SENTINEL:
@@ -56,18 +56,50 @@ def set_active_ws(ws_or_session_id: Any | None, ws: Any = _SENTINEL) -> None:
         # Per-session two-arg: set_active_ws(session_id, ws)
         sid = str(ws_or_session_id)
         if ws is False or ws is None:
+            # Remove this specific websocket from the set
+            conns = _ws_map.get(sid)
+            if conns is not None:
+                # If we were passed None without a specific ws to remove,
+                # it means the caller wants a full teardown (legacy compat).
+                # In the new multi-WS flow, server.py calls remove_ws() instead.
+                pass
+        else:
+            if sid not in _ws_map:
+                _ws_map[sid] = set()
+                _cancel_flags[sid] = False
+                _seen_ids[sid] = set()
+                _tool_starts[sid] = {}
+                _last_times[sid] = 0.0
+                _input_queues.setdefault(sid, asyncio.Queue())
+            _ws_map[sid].add(ws)
+
+
+def add_ws(session_id: str, ws: Any) -> None:
+    """Add a WebSocket connection to a session's subscriber set."""
+    sid = str(session_id)
+    if sid not in _ws_map:
+        _ws_map[sid] = set()
+        _cancel_flags[sid] = False
+        _seen_ids[sid] = set()
+        _tool_starts[sid] = {}
+        _last_times[sid] = 0.0
+        _input_queues.setdefault(sid, asyncio.Queue())
+    _ws_map[sid].add(ws)
+
+
+def remove_ws(session_id: str, ws: Any) -> None:
+    """Remove a single WebSocket from a session's subscriber set."""
+    sid = str(session_id)
+    conns = _ws_map.get(sid)
+    if conns is not None:
+        conns.discard(ws)
+        # Only clean up session state when ALL connections are gone
+        if not conns:
             _ws_map.pop(sid, None)
             _cancel_flags.pop(sid, None)
             _seen_ids.pop(sid, None)
             _tool_starts.pop(sid, None)
             _last_times.pop(sid, None)
-        else:
-            _ws_map[sid] = ws
-            _cancel_flags[sid] = False
-            _seen_ids[sid] = set()
-            _tool_starts[sid] = {}
-            _last_times[sid] = 0.0
-            _input_queues.setdefault(sid, asyncio.Queue())
 
 
 def get_active_ws() -> Any | None:
@@ -110,15 +142,23 @@ async def pop_user_response(timeout: float = 300.0, session_id: str | None = Non
 # ---------------------------------------------------------------------------
 
 def _send(payload: dict[str, Any], session_id: str | None = None) -> None:
-    ws = _ws_map.get(session_id) if session_id else _active_ws
-    if ws is None:
-        ws = _active_ws  # fallback to legacy
-    if ws is None:
-        return
+    """Fan out a JSON message to all WebSockets subscribed to a session."""
+    connections: set[Any] | None = None
+    if session_id:
+        connections = _ws_map.get(session_id)
+    if not connections:
+        # Fallback to legacy single-WS
+        if _active_ws is not None:
+            connections = {_active_ws}
+        else:
+            return
+
+    text = json.dumps(payload, ensure_ascii=False)
     loop = asyncio.get_event_loop()
-    coro = ws.send_text(json.dumps(payload, ensure_ascii=False))
-    if loop.is_running():
-        asyncio.ensure_future(coro)
+    for ws in list(connections):  # list() to avoid mutation during iteration
+        coro = ws.send_text(text)
+        if loop.is_running():
+            asyncio.ensure_future(coro)
 
 
 # ---------------------------------------------------------------------------
