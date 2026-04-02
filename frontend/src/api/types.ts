@@ -96,6 +96,8 @@ export interface GroupedOutput {
   content_level: string | null;
   duration: string | null;
   has_pdf: boolean;
+  has_architecture?: boolean;
+  architecture_docs?: string[];
   size: number;
   modified: number;
 }

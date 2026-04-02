@@ -74,6 +74,10 @@ export interface JobBrief {
   duration: string;
   audience?: string;
   notes?: string;
+  /** Path to an existing architecture project (used by ai-implementor). */
+  architecturePath?: string;
+  /** Paths to architecture design documents to feed to the agent. */
+  architectureDocs?: string[];
 }
 
 export interface JobEvent {

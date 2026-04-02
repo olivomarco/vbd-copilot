@@ -421,7 +421,13 @@ export function AgentWorkspace() {
     } else if (job.agent === "ai-solution-architect") {
       prompt = `@${job.agent} Design an architecture for "${b.topic}"`;
     } else if (job.agent === "ai-implementor") {
-      prompt = `@${job.agent} Build a full project for "${b.topic}"`;
+      let archRef = "";
+      if (b.architectureDocs?.length) {
+        archRef = ` Read and use these architecture documents as your foundation: ${b.architectureDocs.join(", ")}.`;
+      } else if (b.architecturePath) {
+        archRef = ` Use the existing architecture at ${b.architecturePath} as the foundation.`;
+      }
+      prompt = `@${job.agent} Build a full project for "${b.topic}".${archRef}`;
     } else {
       prompt = `@${job.agent} Create ${levelPart}${durationPart}content about "${b.topic}"`;
     }

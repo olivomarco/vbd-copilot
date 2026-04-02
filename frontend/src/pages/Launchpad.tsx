@@ -1,12 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { Text, Card, Button, Badge } from "@fluentui/react-components";
-import { ArrowRight16Regular, ChevronLeft20Regular, ChevronRight20Regular } from "@fluentui/react-icons";
+import { Text, Card, Button, Badge, Tooltip } from "@fluentui/react-components";
+import { ArrowRight16Regular, ChevronLeft20Regular, ChevronRight20Regular, LockClosed16Regular } from "@fluentui/react-icons";
 import { AGENT_META, type AgentType, type ContentLevel } from "@/api/types";
 import { useOutputStore } from "@/stores/outputStore";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { BriefForm } from "@/components/brief/BriefForm";
-import { createSession } from "@/api/client";
-import { useJobStore, type Job } from "@/stores/jobStore";
+import { listGroupedOutputs } from "@/api/client";
 import { AgentIcon } from "@/components/common/AgentIcon";
 
 const AGENTS = Object.entries(AGENT_META) as [AgentType, (typeof AGENT_META)[AgentType]][];
@@ -55,9 +54,9 @@ export function Launchpad() {
   const outputs = useOutputStore((s) => s.outputs);
   const fetchOutputs = useOutputStore((s) => s.fetch);
   const [briefAgent, setBriefAgent] = useState<AgentType | null>(null);
-  const addJob = useJobStore((s) => s.addJob);
-  const [launchingTemplate, setLaunchingTemplate] = useState<number | null>(null);
+  const [briefInitial, setBriefInitial] = useState<Partial<{ topic: string; contentLevel: ContentLevel; duration: string; notes: string }> | undefined>(undefined);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const [hasArchitectures, setHasArchitectures] = useState<boolean | null>(null); // null = loading
 
   const scrollCarousel = useCallback((direction: "left" | "right") => {
     const el = carouselRef.current;
@@ -68,6 +67,13 @@ export function Launchpad() {
 
   useEffect(() => {
     fetchOutputs();
+    // Check if any architecture-ready projects exist
+    listGroupedOutputs()
+      .then((all) => {
+        const archReady = all.some((g) => g.category === "ai-projects" && g.has_architecture);
+        setHasArchitectures(archReady);
+      })
+      .catch(() => setHasArchitectures(false));
   }, []);
 
   const recentOutputs = outputs.slice(0, 6);
@@ -136,7 +142,11 @@ export function Launchpad() {
           marginBottom: 48,
         }}
       >
-        {AGENTS.map(([key, meta], i) => (
+        {AGENTS.map(([key, meta], i) => {
+          const isImplementor = key === "ai-implementor";
+          const locked = isImplementor && hasArchitectures === false;
+
+          const card = (
           <Card
             key={key}
             className="animate-in"
@@ -145,20 +155,23 @@ export function Launchpad() {
               padding: 0,
               border: "1px solid var(--border)",
               borderRadius: 12,
-              cursor: "pointer",
+              cursor: locked ? "default" : "pointer",
               transition: "all 0.2s ease",
               overflow: "hidden",
+              opacity: locked ? 0.55 : 1,
             }}
             onClick={() => {
-              setBriefAgent(key);
+              if (!locked) setBriefAgent(key);
             }}
             onMouseEnter={(e) => {
+              if (locked) return;
               (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
               (e.currentTarget as HTMLElement).style.boxShadow =
                 "0 8px 24px rgba(0,0,0,0.08)";
               (e.currentTarget as HTMLElement).style.borderColor = meta.color;
             }}
             onMouseLeave={(e) => {
+              if (locked) return;
               (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
               (e.currentTarget as HTMLElement).style.boxShadow = "none";
               (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
@@ -199,9 +212,35 @@ export function Launchpad() {
               >
                 {meta.description}
               </Text>
+
+              {locked && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: "6px 10px",
+                    background: "rgba(0,0,0,0.04)",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    color: "var(--text-secondary)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <LockClosed16Regular />
+                  Architect a Solution first
+                </div>
+              )}
             </div>
           </Card>
-        ))}
+          );
+
+          return locked ? (
+            <Tooltip key={key} content="Create an architecture with 'Architect a Solution' first" relationship="description" positioning="below">
+              {card}
+            </Tooltip>
+          ) : card;
+        })}
       </div>
 
       {/* Quick Start Templates */}
@@ -287,31 +326,14 @@ export function Launchpad() {
                   transition: "all 0.2s ease",
                   scrollSnapAlign: "start",
                 }}
-                onClick={async () => {
-                  if (launchingTemplate !== null) return;
-                  setLaunchingTemplate(i);
-                  try {
-                    const res = await createSession(t.agent);
-                    const job: Job = {
-                      id: res.session_id,
-                      title: t.title,
-                      agent: t.agent,
-                      brief: t.brief,
-                      status: "queued" as const,
-                      phase: "researching" as const,
-                      startedAt: Date.now(),
-                      progress: { toolCalls: 0, subagentRuns: 0, currentStep: "Queued" },
-                      events: [],
-                      outputFiles: [],
-                      usage: { inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 },
-                    };
-                    addJob(job);
-                    navigate(`/workspace?id=${res.session_id}`);
-                  } catch (err: any) {
-                    alert(`Failed to launch: ${err.message}\n\nMake sure the backend is running:\n  python app.py --server --port 18080`);
-                  } finally {
-                    setLaunchingTemplate(null);
-                  }
+                onClick={() => {
+                  setBriefInitial({
+                    topic: t.brief.topic,
+                    contentLevel: t.brief.contentLevel,
+                    duration: t.brief.duration,
+                    notes: t.brief.notes,
+                  });
+                  setBriefAgent(t.agent);
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLElement).style.borderColor = meta.color;
@@ -325,11 +347,7 @@ export function Launchpad() {
                 }}
               >
                 <div style={{ marginBottom: 10 }}>
-                  {launchingTemplate === i ? (
-                    <span style={{ fontSize: 22 }}>⏳</span>
-                  ) : (
-                    <AgentIcon agent={t.agent} size="small" />
-                  )}
+                  <AgentIcon agent={t.agent} size="small" />
                 </div>
                 <Text
                   weight="semibold"
@@ -454,9 +472,11 @@ export function Launchpad() {
       {briefAgent && (
         <BriefForm
           agent={briefAgent}
-          onClose={() => setBriefAgent(null)}
+          initialBrief={briefInitial}
+          onClose={() => { setBriefAgent(null); setBriefInitial(undefined); }}
           onJobCreated={(id) => {
             setBriefAgent(null);
+            setBriefInitial(undefined);
             navigate(`/workspace?id=${id}`);
           }}
         />

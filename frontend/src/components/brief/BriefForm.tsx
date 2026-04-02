@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Text,
   Button,
@@ -10,7 +10,12 @@ import {
   Option,
   Spinner,
 } from "@fluentui/react-components";
-import { Dismiss24Regular } from "@fluentui/react-icons";
+import {
+  Dismiss24Regular,
+  Building20Regular,
+  Checkmark12Regular,
+  RocketRegular,
+} from "@fluentui/react-icons";
 import {
   AGENT_META,
   CONTENT_LEVELS,
@@ -18,8 +23,9 @@ import {
   DURATIONS,
   type AgentType,
   type ContentLevel,
+  type GroupedOutput,
 } from "@/api/types";
-import { createSession } from "@/api/client";
+import { createSession, listGroupedOutputs } from "@/api/client";
 import { useJobStore, type JobBrief, type Job } from "@/stores/jobStore";
 import { AgentIcon } from "@/components/common/AgentIcon";
 
@@ -27,18 +33,44 @@ interface BriefFormProps {
   agent: AgentType;
   onClose: () => void;
   onJobCreated: (jobId: string) => void;
+  /** Optional initial values to pre-populate from a template. */
+  initialBrief?: Partial<{ topic: string; contentLevel: ContentLevel; duration: string; audience: string; notes: string }>;
 }
 
-export function BriefForm({ agent, onClose, onJobCreated }: BriefFormProps) {
+export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefFormProps) {
   const meta = AGENT_META[agent];
   const addJob = useJobStore((s) => s.addJob);
 
-  const [topic, setTopic] = useState("");
-  const [level, setLevel] = useState<ContentLevel>(meta.defaultLevel);
-  const [duration, setDuration] = useState("30 min");
-  const [audience, setAudience] = useState("");
-  const [notes, setNotes] = useState("");
+  const [topic, setTopic] = useState(initialBrief?.topic || "");
+  const [level, setLevel] = useState<ContentLevel>(initialBrief?.contentLevel as ContentLevel || meta.defaultLevel);
+  const [duration, setDuration] = useState(initialBrief?.duration || "30 min");
+  const [audience, setAudience] = useState(initialBrief?.audience || "");
+  const [notes, setNotes] = useState(initialBrief?.notes || "");
   const [submitting, setSubmitting] = useState(false);
+
+  // Architecture picker state (for ai-implementor)
+  const needsArchitecture = agent === "ai-implementor";
+  const [architectures, setArchitectures] = useState<GroupedOutput[]>([]);
+  const [archLoading, setArchLoading] = useState(false);
+  const [selectedArch, setSelectedArch] = useState<GroupedOutput | null>(null);
+
+  useEffect(() => {
+    if (!needsArchitecture) return;
+    setArchLoading(true);
+    listGroupedOutputs()
+      .then((all) => setArchitectures(
+        all.filter((g) => {
+          if (g.category !== "ai-projects") return false;
+          // Use has_architecture flag if available; fall back to file-name scan
+          if (typeof g.has_architecture === "boolean") return g.has_architecture;
+          return g.files.some((f) =>
+            f.includes("solution-design") || f.includes("architecture-diagram") || f.includes("architecture.md")
+          );
+        })
+      ))
+      .catch(() => {})
+      .finally(() => setArchLoading(false));
+  }, [needsArchitecture]);
 
   const handleSubmit = useCallback(async () => {
     if (!topic.trim()) return;
@@ -53,6 +85,12 @@ export function BriefForm({ agent, onClose, onJobCreated }: BriefFormProps) {
         duration,
         audience: audience.trim() || undefined,
         notes: notes.trim() || undefined,
+        architecturePath: selectedArch?.primary_file
+          ? selectedArch.primary_file
+          : undefined,
+        architectureDocs: selectedArch?.architecture_docs?.length
+          ? selectedArch.architecture_docs
+          : undefined,
       };
 
       const titleParts = [topic.trim()];
@@ -229,6 +267,116 @@ export function BriefForm({ agent, onClose, onJobCreated }: BriefFormProps) {
           </div>
           )}
 
+          {/* Architecture picker — only for ai-implementor */}
+          {needsArchitecture && (
+            <div>
+              <Text
+                weight="semibold"
+                size={300}
+                style={{ display: "block", marginBottom: 6 }}
+              >
+                Architecture *
+              </Text>
+              <Text
+                size={200}
+                style={{ display: "block", marginBottom: 10, color: "var(--text-secondary)" }}
+              >
+                Select an existing architecture to build from
+              </Text>
+
+              {archLoading && (
+                <div style={{ padding: 16, textAlign: "center" }}>
+                  <Spinner size="small" label="Loading architectures…" />
+                </div>
+              )}
+
+              {!archLoading && architectures.length === 0 && (
+                <div
+                  style={{
+                    padding: "16px",
+                    background: "#fff5e6",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255, 185, 0, 0.3)",
+                    fontSize: 13,
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  <span style={{ marginRight: 6 }}>⚠️</span>
+                  No architectures found. Use <strong>Architect a Solution</strong> first to
+                  create one, then come back here.
+                </div>
+              )}
+
+              {!archLoading && architectures.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {architectures.map((arch) => {
+                    const isSelected = selectedArch?.id === arch.id;
+                    const archDocCount = arch.architecture_docs?.length || 0;
+                    return (
+                      <div
+                        key={arch.id}
+                        onClick={() => setSelectedArch(isSelected ? null : arch)}
+                        style={{
+                          padding: "10px 14px",
+                          borderRadius: 8,
+                          border: isSelected
+                            ? "2px solid var(--brand-primary)"
+                            : "1px solid var(--border)",
+                          background: isSelected
+                            ? "rgba(0, 120, 212, 0.06)"
+                            : "var(--card-bg)",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <Building20Regular style={{ color: "#8661C5", flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <Text
+                              weight="semibold"
+                              size={300}
+                              style={{
+                                display: "block",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {arch.title}
+                            </Text>
+                            <Text
+                              size={200}
+                              style={{ color: "var(--text-secondary)", display: "block" }}
+                            >
+                              {archDocCount} design doc{archDocCount !== 1 ? "s" : ""} · {arch.file_count} files total
+                            </Text>
+                          </div>
+                          {isSelected && (
+                            <span
+                              style={{
+                                width: 20,
+                                height: 20,
+                                borderRadius: "50%",
+                                background: "var(--brand-primary)",
+                                color: "white",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                              }}
+                            >
+                              <Checkmark12Regular />
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Audience */}
           <div>
             <Text
@@ -285,7 +433,7 @@ export function BriefForm({ agent, onClose, onJobCreated }: BriefFormProps) {
             appearance="primary"
             size="large"
             onClick={handleSubmit}
-            disabled={!topic.trim() || submitting}
+            disabled={!topic.trim() || submitting || (needsArchitecture && !selectedArch)}
             style={{
               width: "100%",
               height: 44,
@@ -294,7 +442,7 @@ export function BriefForm({ agent, onClose, onJobCreated }: BriefFormProps) {
               borderRadius: 8,
             }}
           >
-            {submitting ? <Spinner size="tiny" /> : "🚀 Generate"}
+            {submitting ? <Spinner size="tiny" /> : <><RocketRegular style={{ marginRight: 6 }} />Generate</>}
           </Button>
           <Text
             size={200}

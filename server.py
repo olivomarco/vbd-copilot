@@ -518,6 +518,7 @@ async def list_outputs_grouped() -> JSONResponse:
             })
 
     # ── AI Projects ───────────────────────────────────────────
+    _ARCH_DOC_NAMES = {"solution-design.md", "architecture-diagram.md", "architecture.md"}
     proj_dir = outputs_resolved / "ai-projects"
     if proj_dir.is_dir():
         for d in sorted(proj_dir.iterdir()):
@@ -538,6 +539,14 @@ async def list_outputs_grouped() -> JSONResponse:
             readme = d / "README.md"
             latest = max(Path(f).stat().st_mtime for f in file_list if Path(f).is_file())
 
+            # Check for architecture documents in docs/
+            docs_dir = d / "docs"
+            arch_docs: list[str] = []
+            if docs_dir.is_dir():
+                for ad in docs_dir.iterdir():
+                    if ad.is_file() and ad.name.lower() in _ARCH_DOC_NAMES:
+                        arch_docs.append(str(ad))
+
             groups.append({
                 "id": f"ai-projects/{d.name}",
                 "title": title,
@@ -548,6 +557,8 @@ async def list_outputs_grouped() -> JSONResponse:
                 "content_level": None,
                 "duration": None,
                 "has_pdf": False,
+                "has_architecture": len(arch_docs) > 0,
+                "architecture_docs": arch_docs,
                 "size": sum(Path(f).stat().st_size for f in file_list if Path(f).is_file()),
                 "modified": latest,
             })
