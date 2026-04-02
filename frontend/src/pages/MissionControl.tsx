@@ -49,17 +49,6 @@ function JobCard({ job }: { job: Job }) {
   const navigate = useNavigate();
   const meta = AGENT_META[job.agent] || { icon: "🔧", label: job.agent, color: "#666" };
 
-  const statusColor =
-    job.status === "running"
-      ? "brand"
-      : job.status === "waiting"
-        ? "warning"
-        : job.status === "completed"
-          ? "success"
-          : job.status === "failed"
-            ? "danger"
-            : "subtle";
-
   return (
     <Card
       style={{
@@ -78,9 +67,9 @@ function JobCard({ job }: { job: Job }) {
         (e.currentTarget as HTMLElement).style.boxShadow = "none";
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <AgentIcon agent={job.agent} size="inline" />
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <Text
             weight="semibold"
             size={300}
@@ -93,17 +82,45 @@ function JobCard({ job }: { job: Job }) {
           >
             {job.title}
           </Text>
-          <Text size={200} style={{ color: "var(--text-secondary)" }}>
+          <Text
+            size={200}
+            style={{
+              color: "var(--text-secondary)",
+              display: "block",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
             {job.agent} · {job.progress.currentStep}
           </Text>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Text size={200} style={{ color: "var(--text-secondary)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <Text size={200} style={{ color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
             {formatElapsed(job)}
           </Text>
-          <Badge size="small" color={statusColor}>
+          <span
+            style={{
+              padding: "2px 8px",
+              borderRadius: 5,
+              fontSize: 10,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.02em",
+              color: "white",
+              whiteSpace: "nowrap",
+              background:
+                job.status === "completed"
+                  ? "#7FBA00"
+                  : job.status === "failed"
+                    ? "#d13438"
+                    : job.status === "waiting"
+                      ? "#d48806"
+                      : "var(--brand-primary)",
+            }}
+          >
             {job.status}
-          </Badge>
+          </span>
         </div>
 
         {/* Progress indication for running jobs */}

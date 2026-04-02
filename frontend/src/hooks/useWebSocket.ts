@@ -108,7 +108,6 @@ export function useWebSocket(sessionId: string | null) {
         case "waiting_for_input":
           updateJob(sid, {
             status: "waiting",
-            phase: "reviewing",
             pendingInput: {
               question: msg.question || "The agent has a question",
               choices: msg.choices || undefined,
@@ -322,6 +321,8 @@ export function useWebSocket(sessionId: string | null) {
     (content: string) => {
       if (!sessionId) return;
       safeSend(JSON.stringify({ type: "user_response", content }));
+      // Push the response as an event so it appears in the activity feed
+      pushEvent(sessionId, { type: "user_response", data: { content } });
       updateJob(sessionId, { status: "running", pendingInput: undefined });
     },
     [sessionId, safeSend],

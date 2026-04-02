@@ -155,10 +155,28 @@ def _send(payload: dict[str, Any], session_id: str | None = None) -> None:
 
     text = json.dumps(payload, ensure_ascii=False)
     loop = asyncio.get_event_loop()
+    dead: list[Any] = []
+
+    async def _safe_send(ws: Any) -> None:
+        try:
+            await ws.send_text(text)
+        except (RuntimeError, Exception):
+            dead.append(ws)
+
     for ws in list(connections):  # list() to avoid mutation during iteration
-        coro = ws.send_text(text)
-        if loop.is_running():
-            asyncio.ensure_future(coro)
+        try:
+            # Skip WebSockets that are already closed
+            if hasattr(ws, "client_state") and ws.client_state.name == "DISCONNECTED":
+                dead.append(ws)
+                continue
+            if loop.is_running():
+                asyncio.ensure_future(_safe_send(ws))
+        except RuntimeError:
+            dead.append(ws)
+    # Clean up dead connections
+    if dead and session_id and session_id in _ws_map:
+        for ws in dead:
+            _ws_map[session_id].discard(ws)
 
 
 # ---------------------------------------------------------------------------
@@ -171,16 +189,31 @@ _QA_TOOLS = {"run_pptx_qa_checks", "run_demo_qa_checks", "run_hackathon_qa_check
 
 
 def _detect_phase(tool: str = "", agent: str = "") -> str | None:
+    tl = tool.lower()
+    al = agent.lower()
+
+    # Research phase: web search, fetching, research subagents
     if tool in _RESEARCH_TOOLS:
         return "researching"
+    if "research" in al:
+        return "researching"
+
+    # Planning phase: ask_user (discovery questions), report_intent
+    if tl in ("ask_user", "report_intent"):
+        return "planning"
+
+    # Building phase: builder subagents, code/file tools
+    if "builder" in al or "implementor" in al:
+        return "building"
+    if tl in ("str_replace_editor", "bash"):
+        return "building"
+
+    # QA phase: QA tools, reviewer subagents
     if tool in _QA_TOOLS:
         return "qa"
-    if "builder" in agent or "implementor" in agent:
-        return "building"
-    if "researcher" in agent or "research" in agent:
-        return "researching"
-    if "reviewer" in agent or "review" in agent:
+    if "reviewer" in al or "review" in al:
         return "qa"
+
     return None
 
 

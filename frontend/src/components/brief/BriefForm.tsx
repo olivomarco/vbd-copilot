@@ -29,6 +29,13 @@ import { createSession, listGroupedOutputs } from "@/api/client";
 import { useJobStore, type JobBrief, type Job } from "@/stores/jobStore";
 import { AgentIcon } from "@/components/common/AgentIcon";
 
+/** Agents where the topic field expects longer descriptive text. */
+const LONG_TOPIC_AGENTS: Set<AgentType> = new Set([
+  "ai-brainstorming",
+  "ai-solution-architect",
+  "ai-implementor",
+]);
+
 interface BriefFormProps {
   agent: AgentType;
   onClose: () => void;
@@ -47,6 +54,15 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
   const [audience, setAudience] = useState(initialBrief?.audience || "");
   const [notes, setNotes] = useState(initialBrief?.notes || "");
   const [submitting, setSubmitting] = useState(false);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
 
   // Architecture picker state (for ai-implementor)
   const needsArchitecture = agent === "ai-implementor";
@@ -192,15 +208,26 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
               size={300}
               style={{ display: "block", marginBottom: 6 }}
             >
-              Topic *
+              {meta.topicLabel || "Topic"} *
             </Text>
-            <Input
-              value={topic}
-              onChange={(_, d) => setTopic(d.value)}
-              placeholder="e.g. KEDA autoscaling for banking workloads"
-              style={{ width: "100%" }}
-              autoFocus
-            />
+            {LONG_TOPIC_AGENTS.has(agent) ? (
+              <Textarea
+                value={topic}
+                onChange={(_, d) => setTopic(d.value)}
+                placeholder={meta.topicPlaceholder || "e.g. KEDA autoscaling for banking workloads"}
+                style={{ width: "100%" }}
+                rows={4}
+                autoFocus
+              />
+            ) : (
+              <Input
+                value={topic}
+                onChange={(_, d) => setTopic(d.value)}
+                placeholder={meta.topicPlaceholder || "e.g. KEDA autoscaling for banking workloads"}
+                style={{ width: "100%" }}
+                autoFocus
+              />
+            )}
           </div>
 
           {/* Content Level — only for slides, demos, hackathons */}
@@ -377,7 +404,8 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
             </div>
           )}
 
-          {/* Audience */}
+          {/* Audience — only for presentation-style agents */}
+          {meta.showAudience && (
           <div>
             <Text
               weight="semibold"
@@ -396,6 +424,7 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
               style={{ width: "100%" }}
             />
           </div>
+          )}
 
           {/* Notes */}
           <div>
@@ -444,15 +473,6 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
           >
             {submitting ? <Spinner size="tiny" /> : <><RocketRegular style={{ marginRight: 6 }} />Generate</>}
           </Button>
-          <Text
-            size={200}
-            style={{
-              color: "var(--text-secondary)",
-              textAlign: "center",
-            }}
-          >
-            Estimated time: 8-15 min · Cost: ~$0.30-$1.00
-          </Text>
         </div>
       </div>
 

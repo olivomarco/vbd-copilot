@@ -2,7 +2,14 @@
 
 > AI-powered engagement platform for Cloud Solution Architects — from meeting prep to production-ready Azure delivery
 
-![CSA-Copilot](assets/screenshots/csa-copilot.png)
+![CSA-Copilot](assets/screenshots/csa-copilot-web1.png)
+
+<details>
+<summary>More screenshots</summary>
+
+![CSA-Copilot detail](assets/screenshots/csa-copilot-web2.png)
+
+</details>
 
 ---
 
@@ -155,6 +162,8 @@ npm run electron:dev                         # Terminal 2
 The desktop app gives you form-based briefs, concurrent agent runs, inline output previews (PPTX carousel, Markdown renderer, code explorer), and a full output library — all in one window.
 
 ### Quickstart — CLI (alternative)
+
+![CSA-Copilot CLI](assets/screenshots/csa-copilot-cli.png)
 
 ```bash
 docker build -t csa-copilot .

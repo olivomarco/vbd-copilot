@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   Spinner,
-  Badge,
   Textarea,
 } from "@fluentui/react-components";
 import {
@@ -31,7 +30,6 @@ const PHASES: { key: AgentPhase; label: string }[] = [
   { key: "building", label: "Building" },
   { key: "qa", label: "QA" },
   { key: "delivering", label: "Delivery" },
-  { key: "done", label: "Done" },
 ];
 
 function phaseIndex(phase: AgentPhase): number {
@@ -230,7 +228,7 @@ function CollapsibleWarning({ message, subtle }: { message: string; subtle?: boo
   );
 }
 
-function EventCard({ event, completion }: { event: JobEvent; completion?: JobEvent }) {
+function EventCard({ event, completion, userAnswer }: { event: JobEvent; completion?: JobEvent; userAnswer?: JobEvent }) {
   const t = event.type;
   const d = event.data as any;
 
@@ -348,20 +346,44 @@ function EventCard({ event, completion }: { event: JobEvent; completion?: JobEve
     );
   }
   if (t === "waiting_for_input") {
+    const answered = !!userAnswer;
+    const answerText = (userAnswer?.data as any)?.content;
     return (
-      <div style={{ padding: "8px 12px", background: "#fff5e6", borderRadius: 6, fontSize: 13 }}>
+      <div style={{
+        padding: "8px 12px",
+        background: answered ? "#f5f5f5" : "#fff5e6",
+        borderRadius: 6,
+        fontSize: 13,
+        opacity: answered ? 0.85 : 1,
+      }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-          <span>⏸️</span>
-          <strong>Waiting for input</strong>
+          <span>{answered ? "✅" : "⏸️"}</span>
+          <strong>{answered ? "Question answered" : "Waiting for input"}</strong>
         </div>
         <div className="md-content" style={{ fontSize: 13 }}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {String(d.question || "The agent has a question")}
           </ReactMarkdown>
         </div>
+        {answered && answerText && (
+          <div style={{
+            marginTop: 8,
+            padding: "6px 10px",
+            background: "rgba(0, 120, 212, 0.06)",
+            borderRadius: 6,
+            borderLeft: "3px solid var(--brand-primary)",
+            fontSize: 12,
+            color: "var(--text-primary)",
+          }}>
+            <strong style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 2 }}>Your answer</strong>
+            {answerText}
+          </div>
+        )}
       </div>
     );
   }
+  // user_response events that were merged into a waiting_for_input — skip
+  if (t === "user_response") return null;
   // Catch-all for unknown event types — show them so nothing is silently lost
   return (
     <div style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, color: "var(--text-secondary)" }}>
@@ -541,7 +563,31 @@ export function AgentWorkspace() {
     return ids;
   }, [completionMap]);
 
-  const displayEvents = feedEvents.filter((e) => !mergedCompletionIds.has(e.id));
+  // Build a map from waiting_for_input events to their matching user_response events.
+  const answerMap = useMemo(() => {
+    const map = new Map<number, JobEvent>(); // waiting_for_input event id → user_response event
+    let pendingWaiting: number | null = null;
+    for (const e of feedEvents) {
+      if (e.type === "waiting_for_input") {
+        pendingWaiting = e.id;
+      } else if (e.type === "user_response" && pendingWaiting !== null) {
+        map.set(pendingWaiting, e);
+        pendingWaiting = null;
+      }
+    }
+    return map;
+  }, [feedEvents.length]);
+
+  // IDs of user_response events already merged into waiting_for_input cards
+  const mergedAnswerIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const ae of answerMap.values()) ids.add(ae.id);
+    return ids;
+  }, [answerMap]);
+
+  const displayEvents = feedEvents.filter(
+    (e) => !mergedCompletionIds.has(e.id) && !mergedAnswerIds.has(e.id),
+  );
 
   // Auto-scroll the activity feed to the bottom when new events arrive
   useEffect(() => {
@@ -716,25 +762,42 @@ export function AgentWorkspace() {
             background: "var(--card-bg)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
             <AgentIcon agent={job.agent} size="inline" />
-            <Text weight="semibold" size={400}>
+            <Text
+              weight="semibold"
+              size={400}
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                minWidth: 0,
+              }}
+            >
               {job.title}
             </Text>
-            <Badge
-              size="small"
-              color={
-                job.status === "completed"
-                  ? "success"
-                  : job.status === "failed"
-                    ? "danger"
-                    : job.status === "waiting"
-                      ? "warning"
-                      : "brand"
-              }
+            <span
+              style={{
+                flexShrink: 0,
+                padding: "3px 10px",
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.02em",
+                textTransform: "uppercase",
+                color: "white",
+                background:
+                  job.status === "completed"
+                    ? "#7FBA00"
+                    : job.status === "failed"
+                      ? "#d13438"
+                      : job.status === "waiting"
+                        ? "#d48806"
+                        : "var(--brand-primary)",
+              }}
             >
               {job.status}
-            </Badge>
+            </span>
           </div>
           {(job.status === "running" || job.status === "queued") && (
             <Button
@@ -898,7 +961,7 @@ export function AgentWorkspace() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {displayEvents.map((e) => (
-              <EventCard key={e.id} event={e} completion={completionMap.get(e.id)} />
+              <EventCard key={e.id} event={e} completion={completionMap.get(e.id)} userAnswer={answerMap.get(e.id)} />
             ))}
           </div>
 
@@ -962,45 +1025,6 @@ export function AgentWorkspace() {
           <span>│</span>
           <span>{job.progress.subagentRuns} subagents</span>
         </div>
-
-        {/* Follow-up input — for completed or resumed jobs */}
-        {(job.status === "completed" || job.status === "running") && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const input = (e.currentTarget.elements.namedItem("followup") as HTMLInputElement);
-              const text = input?.value?.trim();
-              if (!text) return;
-              sendMessage(text);
-              input.value = "";
-            }}
-            style={{
-              padding: "10px 24px",
-              borderTop: "1px solid var(--border)",
-              background: "var(--card-bg)",
-              display: "flex",
-              gap: 8,
-            }}
-          >
-            <input
-              name="followup"
-              placeholder="Send a follow-up message..."
-              style={{
-                flex: 1,
-                padding: "8px 12px",
-                border: "1px solid var(--border)",
-                borderRadius: 6,
-                fontSize: 14,
-                background: "var(--brand-light)",
-                color: "var(--text-primary)",
-                outline: "none",
-              }}
-            />
-            <Button appearance="primary" type="submit" size="small">
-              Send
-            </Button>
-          </form>
-        )}
       </div>
     </div>
   );

@@ -32,7 +32,9 @@ function sendResponseForJob(job: Job, content: string) {
   const ws = job._ws;
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   ws.send(JSON.stringify({ type: "user_response", content }));
-  useJobStore.getState().updateJob(job.id, { status: "running", pendingInput: undefined });
+  const store = useJobStore.getState();
+  store.pushEvent(job.id, { type: "user_response", data: { content } });
+  store.updateJob(job.id, { status: "running", pendingInput: undefined });
 }
 
 const NAV_ITEMS = [

@@ -122,7 +122,20 @@ export type AgentType =
 
 export const AGENT_META: Record<
   AgentType,
-  { label: string; icon: string; color: string; description: string; showContentLevel: boolean; showDuration: boolean; defaultLevel: ContentLevel; beta?: boolean }
+  {
+    label: string;
+    icon: string;
+    color: string;
+    description: string;
+    showContentLevel: boolean;
+    showDuration: boolean;
+    showAudience: boolean;
+    defaultLevel: ContentLevel;
+    beta?: boolean;
+    /** Override the "Topic" field label and placeholder per agent. */
+    topicLabel?: string;
+    topicPlaceholder?: string;
+  }
 > = {
   "slide-conductor": {
     label: "Create a Presentation",
@@ -131,6 +144,7 @@ export const AGENT_META: Record<
     description: ".pptx with speaker notes",
     showContentLevel: true,
     showDuration: true,
+    showAudience: true,
     defaultLevel: "L300",
   },
   "demo-conductor": {
@@ -140,6 +154,7 @@ export const AGENT_META: Record<
     description: "Step-by-step guide + companion scripts",
     showContentLevel: true,
     showDuration: true,
+    showAudience: false,
     defaultLevel: "L300",
   },
   "hackathon-conductor": {
@@ -149,6 +164,7 @@ export const AGENT_META: Record<
     description: "What-The-Hack challenges + coach guide",
     showContentLevel: true,
     showDuration: true,
+    showAudience: true,
     defaultLevel: "L300",
     beta: true,
   },
@@ -159,8 +175,11 @@ export const AGENT_META: Record<
     description: "10+ ranked ideas with Azure service mapping",
     showContentLevel: false,
     showDuration: false,
+    showAudience: false,
     defaultLevel: "L200",
     beta: true,
+    topicLabel: "Customer & Industry",
+    topicPlaceholder: "e.g. Contoso — retail banking, 500+ branches",
   },
   "ai-solution-architect": {
     label: "Architect a Solution",
@@ -169,8 +188,11 @@ export const AGENT_META: Record<
     description: "Design docs + diagrams + cost estimate",
     showContentLevel: false,
     showDuration: false,
+    showAudience: false,
     defaultLevel: "L200",
     beta: true,
+    topicLabel: "Business Challenge",
+    topicPlaceholder: "e.g. Automate claims processing for an insurance company",
   },
   "ai-implementor": {
     label: "Build an AI Project",
@@ -179,8 +201,11 @@ export const AGENT_META: Record<
     description: "Bicep + app code + CI/CD + tests",
     showContentLevel: false,
     showDuration: false,
+    showAudience: false,
     defaultLevel: "L200",
     beta: true,
+    topicLabel: "Project Focus",
+    topicPlaceholder: "e.g. Document intelligence pipeline for invoice processing",
   },
 };
 
