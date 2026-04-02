@@ -61,7 +61,6 @@ def set_active_ws(ws_or_session_id: Any | None, ws: Any = _SENTINEL) -> None:
             _seen_ids.pop(sid, None)
             _tool_starts.pop(sid, None)
             _last_times.pop(sid, None)
-            _input_queues.pop(sid, None)
         else:
             _ws_map[sid] = ws
             _cancel_flags[sid] = False
@@ -92,9 +91,8 @@ def get_cancel_flag(session_id: str | None = None) -> bool:
 def push_user_response(content: str, session_id: str | None = None) -> None:
     """Push a user response for the current waiting_for_input prompt."""
     if session_id:
-        q = _input_queues.get(session_id)
-        if q:
-            q.put_nowait(content)
+        q = _input_queues.setdefault(session_id, asyncio.Queue())
+        q.put_nowait(content)
     else:
         _user_input_queue.put_nowait(content)
 
@@ -243,6 +241,9 @@ def _make_ws_handler(session_id: str):
             msg = getattr(d, "message", str(d))
             send({"type": "error", "message": str(msg)})
             return
+
+        # Catch-all for any unhandled event types
+        log.debug("Unhandled session event type %s for session %s", etype, session_id)
 
     return _handler
 
