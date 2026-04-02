@@ -1,0 +1,29 @@
+{
+  "name": "vbd-copilot",
+  "version": "1.0.0",
+  "description": "> AI-powered engagement platform for Cloud Solution Architects — from meeting prep to production-ready Azure delivery",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/olivomarco/vbd-copilot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/olivomarco/vbd-copilot/issues"
+  },
+  "homepage": "https://github.com/olivomarco/vbd-copilot#readme",
+  "dependencies": {
+    "@github/copilot-sdk": "^0.2.0",
+    "vscode-jsonrpc": "^8.2.1"
+  }
+}
