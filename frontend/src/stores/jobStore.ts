@@ -107,6 +107,15 @@ export const useJobStore = create<JobStore>()(
     set((s) => {
       const existing = s.jobs[id];
       if (!existing) return s;
+      const isTerminal =
+        existing.status === "completed" ||
+        existing.status === "failed" ||
+        existing.status === "cancelled";
+      const isReactivation =
+        patch.status === "running" || patch.status === "queued";
+      if (isTerminal && !isReactivation && patch.status !== undefined) {
+        return s;
+      }
       return { jobs: { ...s.jobs, [id]: { ...existing, ...patch } } };
     }),
 

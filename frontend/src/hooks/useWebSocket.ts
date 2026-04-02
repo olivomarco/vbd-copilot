@@ -139,15 +139,24 @@ export function useWebSocket(sessionId: string | null) {
           break;
         }
 
-        case "done":
+        case "done": {
           jobDone.current = true;
+          let jobStatus: "completed" | "failed" | "cancelled";
+          if (msg.status === "success") {
+            jobStatus = "completed";
+          } else if (msg.status === "cancelled") {
+            jobStatus = "cancelled";
+          } else {
+            jobStatus = "failed";
+          }
           updateJob(sid, {
-            status: msg.status === "success" ? "completed" : "failed",
+            status: jobStatus,
             phase: "done",
             completedAt: Date.now(),
             pendingInput: undefined,
           });
           break;
+        }
 
         case "cancelled":
           jobDone.current = true;
@@ -216,7 +225,7 @@ export function useWebSocket(sessionId: string | null) {
 
     // Don't connect for already-completed jobs
     const job = useJobStore.getState().getJob(sessionId);
-    if (job && (job.status === "completed" || job.status === "failed" || job.status === "cancelled")) {
+    if (job && (job.status === "failed" || job.status === "cancelled")) {
       return;
     }
 
