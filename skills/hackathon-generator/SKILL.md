@@ -127,6 +127,36 @@ Content levels define the complexity ceiling of the challenge set:
 | L300 | Code modifications, SDK integration, multi-service wiring | SDK calls, configuration files, workflow definitions, moderate setup |
 | L400 | Live coding, service internals, custom extensions | Custom code, performance tuning, advanced patterns, deep configuration |
 
+## Challenge Integrity - No Solutions
+
+Hackathons are challenges, not tutorials. The entire point is that participants figure things out themselves. Every artifact in the hackathon package must respect this principle.
+
+### What Participant-Facing Materials Must NOT Contain
+
+- **Solution code**: No complete implementations, no working examples that solve the challenge. Participants write the code.
+- **Step-by-step instructions**: No ordered steps that walk participants through the solution. Describe the goal and constraints, not the path.
+- **Solution-revealing comments in code**: Starter code and code snippets in challenge files must NOT contain comments that disclose the approach, implementation steps, or answer. Comments like `// Step 1: Create the service bus client`, `// TODO: Add authentication here`, or `// Use the BlobServiceClient to connect` give away the solution - unless this pertains to the specific challenge that you are building (but that will be more the exception rather than the norm).
+- **Commented-out solution code**: Never include commented-out code that participants just need to uncomment.
+- **Prescriptive variable/function names**: Avoid names that telegraph the solution (e.g., `createServiceBusQueue()` when the challenge is to figure out which messaging service to use).
+
+### Starter Code Rules
+
+Starter code in `resources/starter/` is scaffolding only. It gives participants a starting point so they don't waste time on boilerplate, not a guided path to the answer.
+
+- **Minimal comments**: Only include comments that explain what the starter code itself does (e.g., `// Express server setup`), never comments that hint at what participants should add or how to solve the challenge.
+- **No instructional comments**: Comments like `// Add your code here`, `// Implement the function below`, `// Connect to the database using...` are forbidden. Leave the function body empty or with a simple `pass` / `throw new Error("Not implemented")` / equivalent.
+- **No over-commenting**: Starter code should have the same comment density as production code. If a line of code is self-explanatory, it needs no comment. A 20-line file should not have 15 lines of comments.
+- **Structure only**: Provide project structure, dependency files (`package.json`, `requirements.txt`, etc.), configuration boilerplate, and empty function signatures. Nothing more.
+- **No architecture hints in code**: Do not structure the starter code in a way that reveals the solution architecture (e.g., don't pre-create a `services/queue-handler.ts` file if discovering the need for a queue is part of the challenge).
+
+### Where Solutions ARE Allowed
+
+- `coach/facilitation-guide.md` - coaches need to know the solution to help teams
+- `coach/scoring-rubric.md` - verification commands and expected outputs are fine here
+- `resources/reference-architecture.md` - architectural overview for coach reference
+
+These files are for coaches only. They are never shared with participants during the hackathon.
+
 ## Writing Rules
 
 - **Scenario-driven challenges**: Describe the GOAL, not the steps. Challenges are NOT tutorials. Students must figure out the approach. That is the learning.
@@ -175,3 +205,4 @@ The `hackathon_qa_checks.py` script validates hackathon packages for:
 - Top-level README.md has required sections
 - No placeholder text, emoji, or em-dashes
 - Internal cross-references between challenges are valid
+- **No solution leakage in challenge files or starter code**: Detects solution-revealing comments, step-by-step instructions, commented-out solution code, and excessive comment density in code blocks

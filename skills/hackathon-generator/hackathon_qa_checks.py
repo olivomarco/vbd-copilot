@@ -46,6 +46,37 @@ EMOJI_RE = re.compile(
 # Em-dash
 EM_DASH_RE = re.compile(r"\u2014")
 
+# Solution-revealing comment patterns inside code blocks
+SOLUTION_COMMENT_RE = re.compile(
+    r"(?:#|//|/\*|<!--)\s*(?:"
+    r"step\s+\d|"                      # "Step 1:", "Step 2", etc.
+    r"todo\s*:\s*\w|"                  # "TODO: implement X" (instructional, not placeholder)
+    r"add\s+your\s+code|"             # "Add your code here"
+    r"implement\s+(?:the|this|your)|"  # "Implement the function"
+    r"connect\s+to\s+the|"            # "Connect to the database"
+    r"use\s+the\s+\w+\s+to\s|"        # "Use the BlobServiceClient to"
+    r"create\s+(?:a|the)\s+\w+\s+(?:client|connection|instance)|"  # "Create a ServiceBus client"
+    r"initialize\s+the|"              # "Initialize the connection"
+    r"call\s+the\s+\w+\s+(?:api|method|function|endpoint)|"  # "Call the createQueue API"
+    r"set\s+up\s+(?:the|a)\s|"        # "Set up the authentication"
+    r"configure\s+(?:the|a)\s|"       # "Configure the connection string"
+    r"import\s+(?:the|a)\s+\w+\s+(?:sdk|library|package|module)"  # "Import the Azure SDK"
+    r")",
+    re.IGNORECASE,
+)
+
+# Patterns that directly reveal solutions in challenge text (outside code blocks)
+SOLUTION_TEXT_RE = re.compile(
+    r"(?:"
+    r"the\s+solution\s+is|"
+    r"here\s+is\s+the\s+(?:solution|answer|code)|"
+    r"the\s+correct\s+(?:approach|answer|solution|implementation)\s+is|"
+    r"you\s+(?:should|need\s+to|must)\s+(?:use|create|implement|configure|set\s+up)\s+(?:a\s+|the\s+)?\w+\s+(?:to|for|that)|"
+    r"run\s+the\s+following\s+command(?:s)?\s*:"
+    r")",
+    re.IGNORECASE,
+)
+
 # Challenge file pattern
 CHALLENGE_FILE_RE = re.compile(r"^challenge-(\d{2})\.md$")
 
@@ -427,6 +458,204 @@ def check_cross_references(hackathon_dir: str, challenge_numbers: list[int]) -> 
     return issues
 
 
+def _extract_code_blocks(text: str) -> list[tuple[int, str]]:
+    """Extract fenced code blocks with their starting line numbers.
+
+    Returns a list of (start_line, block_content) tuples.
+    """
+    blocks = []
+    in_block = False
+    block_start = 0
+    block_lines: list[str] = []
+    for line_num, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        if stripped.startswith("```") and not in_block:
+            in_block = True
+            block_start = line_num
+            block_lines = []
+        elif stripped.startswith("```") and in_block:
+            in_block = False
+            blocks.append((block_start, "\n".join(block_lines)))
+        elif in_block:
+            block_lines.append(line)
+    return blocks
+
+
+def check_solution_leakage_challenges(
+    hackathon_dir: str, challenge_numbers: list[int],
+) -> list[dict]:
+    """Check challenge files for solution-revealing content."""
+    issues = []
+    coach_dir = os.path.join(hackathon_dir, "coach")
+
+    for root, _dirs, files in os.walk(hackathon_dir):
+        # Skip coach directory - solutions are allowed there
+        if os.path.abspath(root).startswith(os.path.abspath(coach_dir)):
+            continue
+        for fname in files:
+            if not fname.endswith(".md"):
+                continue
+            fpath = os.path.join(root, fname)
+            rel_path = os.path.relpath(fpath, hackathon_dir)
+            try:
+                with open(fpath, "r", encoding="utf-8", errors="replace") as f:
+                    text = f.read()
+            except Exception:
+                continue
+
+            # Check code blocks for solution-revealing comments
+            for block_start, block_content in _extract_code_blocks(text):
+                for i, line in enumerate(block_content.splitlines(), 1):
+                    match = SOLUTION_COMMENT_RE.search(line)
+                    if match:
+                        issues.append({
+                            "file": rel_path,
+                            "severity": "MAJOR",
+                            "check": "solution_comment",
+                            "message": (
+                                f"Solution-revealing comment in code block at "
+                                f"line ~{block_start + i}: {line.strip()[:120]}"
+                            ),
+                        })
+
+            # Check for commented-out solution code (lines that are ONLY
+            # a comment containing what looks like executable code)
+            for block_start, block_content in _extract_code_blocks(text):
+                block_lines = block_content.splitlines()
+                commented_code = 0
+                total_lines = len([l for l in block_lines if l.strip()])
+                for line in block_lines:
+                    stripped = line.strip()
+                    # Detect commented-out code: comment marker followed by
+                    # code-like content (assignments, function calls, imports)
+                    if re.match(
+                        r"^(?:#|//)\s*(?:"
+                        r"\w+\s*[=(]|"          # var = or func(
+                        r"import\s|"            # import statements
+                        r"from\s|"              # from X import
+                        r"const\s|let\s|var\s|"  # JS declarations
+                        r"return\s|"            # return statements
+                        r"await\s"              # async calls
+                        r")",
+                        stripped,
+                    ):
+                        commented_code += 1
+                if total_lines > 0 and commented_code >= 3:
+                    issues.append({
+                        "file": rel_path,
+                        "severity": "CRITICAL",
+                        "check": "commented_out_solution",
+                        "message": (
+                            f"Code block at line ~{block_start} contains "
+                            f"{commented_code} lines of commented-out code "
+                            f"(likely a hidden solution)"
+                        ),
+                    })
+
+            # Check for solution-revealing text outside code blocks
+            # (only in challenge files, not README)
+            if CHALLENGE_FILE_RE.match(fname):
+                for line_num, line in enumerate(text.splitlines(), 1):
+                    match = SOLUTION_TEXT_RE.search(line)
+                    if match:
+                        issues.append({
+                            "file": rel_path,
+                            "severity": "MAJOR",
+                            "check": "solution_text",
+                            "message": (
+                                f"Solution-revealing text at line {line_num}: "
+                                f"{line.strip()[:120]}"
+                            ),
+                        })
+
+    return issues
+
+
+def check_starter_code_comments(hackathon_dir: str) -> list[dict]:
+    """Check starter code for excessive or solution-revealing comments."""
+    issues = []
+    starter_dir = os.path.join(hackathon_dir, "resources", "starter")
+
+    if not os.path.isdir(starter_dir):
+        return issues
+
+    for root, _dirs, files in os.walk(starter_dir):
+        for fname in files:
+            fpath = os.path.join(root, fname)
+            rel_path = os.path.relpath(fpath, hackathon_dir)
+            try:
+                with open(fpath, "r", encoding="utf-8", errors="replace") as f:
+                    lines = f.readlines()
+            except Exception:
+                continue
+
+            # Detect comment lines based on file extension
+            ext = os.path.splitext(fname)[1].lower()
+            if ext in (".md", ".json", ".yaml", ".yml", ".toml", ".lock"):
+                continue  # Skip config/doc files
+
+            comment_prefixes = {
+                ".py": ("#",),
+                ".js": ("//",),
+                ".ts": ("//",),
+                ".jsx": ("//",),
+                ".tsx": ("//",),
+                ".cs": ("//",),
+                ".java": ("//",),
+                ".go": ("//",),
+                ".rs": ("//",),
+                ".sh": ("#",),
+                ".bash": ("#",),
+                ".rb": ("#",),
+                ".bicep": ("//",),
+                ".tf": ("#",),
+            }
+            prefixes = comment_prefixes.get(ext)
+            if prefixes is None:
+                continue
+
+            total = 0
+            comment_count = 0
+            for line in lines:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                total += 1
+                if any(stripped.startswith(p) for p in prefixes):
+                    comment_count += 1
+
+            # Flag if more than 40% of non-empty lines are comments
+            if total >= 5 and comment_count / total > 0.40:
+                issues.append({
+                    "file": rel_path,
+                    "severity": "MAJOR",
+                    "check": "excessive_comments",
+                    "message": (
+                        f"Excessive comments: {comment_count}/{total} non-empty "
+                        f"lines ({comment_count * 100 // total}%) are comments. "
+                        f"Starter code should be minimal scaffolding, not a guided walkthrough."
+                    ),
+                })
+
+            # Check for solution-revealing comments in starter code
+            for line_num, line in enumerate(lines, 1):
+                stripped = line.strip()
+                if any(stripped.startswith(p) for p in prefixes):
+                    match = SOLUTION_COMMENT_RE.search(stripped)
+                    if match:
+                        issues.append({
+                            "file": rel_path,
+                            "severity": "CRITICAL",
+                            "check": "starter_solution_comment",
+                            "message": (
+                                f"Solution-revealing comment in starter code at "
+                                f"line {line_num}: {stripped[:120]}"
+                            ),
+                        })
+
+    return issues
+
+
 def run_all_checks(
     hackathon_dir: str,
     expected_challenges: int | None = None,
@@ -460,6 +689,10 @@ def run_all_checks(
     all_issues.extend(check_emoji(hackathon_dir))
     all_issues.extend(check_em_dashes(hackathon_dir))
     all_issues.extend(check_cross_references(hackathon_dir, challenge_numbers))
+
+    # Solution leakage checks
+    all_issues.extend(check_solution_leakage_challenges(hackathon_dir, challenge_numbers))
+    all_issues.extend(check_starter_code_comments(hackathon_dir))
 
     # Summarize
     summary = {"CRITICAL": 0, "MAJOR": 0, "MINOR": 0}
