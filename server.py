@@ -860,15 +860,6 @@ async def preview_pptx_hifi(body: PptxPreviewRequest) -> JSONResponse:
 # WebSocket — agent streaming
 # ---------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# WebSocket — agent streaming
-# ---------------------------------------------------------------------------
-
-@app.websocket("/ws/{session_id}")
-# ---------------------------------------------------------------------------
-# WebSocket — agent streaming
-# ---------------------------------------------------------------------------
-
 @app.websocket("/ws/{session_id}")
 async def ws_agent(websocket: WebSocket, session_id: str) -> None:
     """Bidirectional streaming channel for a single agent session."""
@@ -998,7 +989,6 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                     )
                 except asyncio.CancelledError:
                     turn_status = "cancelled"
-                    _send({"type": "cancelled"}, session_id)
                 except TimeoutError:
                     turn_status = "timeout"
                     _send({"type": "error", "message": "timeout"}, session_id)
