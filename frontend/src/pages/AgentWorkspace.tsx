@@ -100,7 +100,7 @@ function EventCard({ event }: { event: JobEvent }) {
       </div>
     );
   }
-  if (t === "error") {
+  if (t === "error" || t === "connection_error") {
     return (
       <div style={{ padding: "8px 12px", background: "#fff0f0", borderRadius: 6, fontSize: 13, color: "#d13438" }}>
         <span style={{ marginRight: 6 }}>⚠️</span>
@@ -108,7 +108,23 @@ function EventCard({ event }: { event: JobEvent }) {
       </div>
     );
   }
-  return null;
+  if (t === "waiting_for_input") {
+    return (
+      <div style={{ padding: "8px 12px", background: "#fff5e6", borderRadius: 6, fontSize: 13 }}>
+        <span style={{ marginRight: 6 }}>⏸️</span>
+        Waiting for input: {d.question}
+      </div>
+    );
+  }
+  // Catch-all for unknown event types — show them so nothing is silently lost
+  return (
+    <div style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, color: "var(--text-secondary)" }}>
+      <span style={{ fontFamily: "monospace", marginRight: 6 }}>{t}</span>
+      {d.tool && <span>{String(d.tool)}</span>}
+      {d.agent && <span>{String(d.agent)}</span>}
+      {d.content && typeof d.content === "string" && <span>{d.content.slice(0, 80)}</span>}
+    </div>
+  );
 }
 
 export function AgentWorkspace() {
@@ -463,9 +479,15 @@ export function AgentWorkspace() {
             </div>
           )}
 
-          {job.status === "running" && feedEvents.length === 0 && (
+          {job.status === "running" && job.events.length === 0 && (
             <div style={{ textAlign: "center", padding: 40 }}>
               <Spinner label="Starting agent..." size="large" />
+            </div>
+          )}
+
+          {job.status === "running" && job.events.length > 0 && feedEvents.length === 0 && (
+            <div style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)", fontSize: 13 }}>
+              Agent is working... ({job.events.length} events received, {job.progress.toolCalls} tool calls)
             </div>
           )}
 

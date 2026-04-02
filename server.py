@@ -140,6 +140,7 @@ async def create_session(body: CreateSessionRequest) -> JSONResponse:
         raise HTTPException(status_code=503, detail="Copilot client not ready")
 
     model = body.model or DEFAULT_MODEL
+    _sid_ref: list[str] = []  # mutable container; filled after create_session
 
     async def _perm(request: Any, _inv: Any) -> Any:
         from copilot.types import PermissionRequestResult
@@ -147,13 +148,13 @@ async def create_session(body: CreateSessionRequest) -> JSONResponse:
 
     async def _user_input(request: Any, _inv: Any) -> Any:
         from copilot.types import UserInputResponse
-        from server_adapter import pop_user_response
+        from server_adapter import pop_user_response, _send
         question = request.get("question", "")
         choices = request.get("choices")
-        from server_adapter import set_active_ws, _send
-        _send({"type": "waiting_for_input", "question": question, "choices": choices})
+        sid = _sid_ref[0] if _sid_ref else None
+        _send({"type": "waiting_for_input", "question": question, "choices": choices}, sid)
         try:
-            answer = await pop_user_response(timeout=300.0)
+            answer = await pop_user_response(timeout=300.0, session_id=sid)
         except asyncio.TimeoutError:
             answer = ""
         return UserInputResponse(answer=answer, wasFreeform=True)
@@ -175,6 +176,7 @@ async def create_session(body: CreateSessionRequest) -> JSONResponse:
         raise HTTPException(status_code=500, detail=str(exc))
 
     sid = session.session_id
+    _sid_ref.append(sid)  # now the _user_input callback can find it
     _session_map[sid] = session
 
     if _collector:
@@ -218,9 +220,9 @@ async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONRes
         from server_adapter import _send, pop_user_response
         question = request.get("question", "")
         choices = request.get("choices")
-        _send({"type": "waiting_for_input", "question": question, "choices": choices})
+        _send({"type": "waiting_for_input", "question": question, "choices": choices}, full_id)
         try:
-            answer = await pop_user_response(timeout=300.0)
+            answer = await pop_user_response(timeout=300.0, session_id=full_id)
         except asyncio.TimeoutError:
             answer = ""
         return UserInputResponse(answer=answer, wasFreeform=True)
@@ -888,12 +890,53 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
     # Look up or create session
     session = _session_map.get(session_id)
     if session is None:
-        await websocket.send_text(json.dumps(
-            {"type": "error", "message": f"Session {session_id!r} not found"}
-        ))
-        await websocket.close()
-        set_active_ws(session_id, None)
-        return
+        # Session may exist in DB but not in memory (server restarted).
+        # Create a fresh Copilot session to handle new messages.
+        if _copilot_client is not None:
+            from agents import ALL_AGENT_CONFIGS, ALL_SKILL_DIRS, DEFAULT_MODEL
+            from tools import ALL_CUSTOM_TOOLS
+
+            async def _perm(request: Any, _inv: Any) -> Any:
+                from copilot.types import PermissionRequestResult
+                return PermissionRequestResult(kind="approved")
+
+            async def _user_input(request: Any, _inv: Any) -> Any:
+                from copilot.types import UserInputResponse
+                question = request.get("question", "")
+                choices = request.get("choices")
+                _send({"type": "waiting_for_input", "question": question, "choices": choices}, session_id)
+                try:
+                    answer = await pop_user_response(timeout=300.0, session_id=session_id)
+                except asyncio.TimeoutError:
+                    answer = ""
+                return UserInputResponse(answer=answer, wasFreeform=True)
+
+            try:
+                session = await _copilot_client.create_session({
+                    "model": DEFAULT_MODEL,
+                    "streaming": True,
+                    "custom_agents": ALL_AGENT_CONFIGS,
+                    "tools": ALL_CUSTOM_TOOLS,
+                    "skill_directories": ALL_SKILL_DIRS,
+                    "on_permission_request": _perm,
+                    "on_user_input_request": _user_input,
+                    "working_directory": str(_app_dir),
+                })
+                _session_map[session_id] = session
+            except Exception as exc:
+                await websocket.send_text(json.dumps(
+                    {"type": "error", "message": f"Failed to create session: {exc}"}
+                ))
+                await websocket.close()
+                set_active_ws(session_id, None)
+                return
+        else:
+            await websocket.send_text(json.dumps(
+                {"type": "error", "message": "Copilot client not ready"}
+            ))
+            await websocket.close()
+            set_active_ws(session_id, None)
+            return
 
     # Register per-session WS event handler
     ws_event_handler = _make_ws_handler(session_id)

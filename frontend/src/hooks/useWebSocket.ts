@@ -158,12 +158,18 @@ export function useWebSocket(sessionId: string | null) {
           });
           break;
 
-        case "error":
-          pushEvent(sid, {
-            type: "error",
-            data: { message: msg.message || "Unknown error" },
-          });
+        case "error": {
+          const job = useJobStore.getState().getJob(sid);
+          if (job) {
+            updateJob(sid, {
+              progress: {
+                ...job.progress,
+                currentStep: `⚠️ ${msg.message || "Error occurred"}`,
+              },
+            });
+          }
           break;
+        }
 
         default:
           break;
