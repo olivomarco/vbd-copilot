@@ -10,7 +10,7 @@ import {
   MenuList,
   MenuItem,
 } from "@fluentui/react-components";
-import { Add20Regular } from "@fluentui/react-icons";
+import { Add20Regular, Delete20Regular } from "@fluentui/react-icons";
 import { useJobStore, type Job } from "@/stores/jobStore";
 import { AGENT_META } from "@/api/types";
 import { useState } from "react";
@@ -131,7 +131,7 @@ function JobCard({ job }: { job: Job }) {
           }}
         >
           <span>⚠️ {job.pendingInput.question.slice(0, 60)}</span>
-          <Button appearance="primary" size="small">
+          <Button appearance="primary" size="small" onClick={() => navigate(`/workspace?id=${job.id}`)}>
             Review
           </Button>
         </div>
@@ -195,7 +195,21 @@ export function MissionControl() {
         >
           Mission Control
         </Text>
-        <Menu>
+        <div style={{ display: "flex", gap: 8 }}>
+          {completed.length > 0 && (
+            <Button
+              appearance="subtle"
+              icon={<Delete20Regular />}
+              onClick={() => {
+                for (const j of completed) {
+                  useJobStore.getState().removeJob(j.id);
+                }
+              }}
+            >
+              Clear Completed
+            </Button>
+          )}
+          <Menu>
           <MenuTrigger disableButtonEnhancement>
             <Button appearance="primary" icon={<Add20Regular />}>
               New Job
@@ -217,6 +231,7 @@ export function MissionControl() {
             </MenuList>
           </MenuPopover>
         </Menu>
+        </div>
       </div>
 
       {allJobs.length === 0 && (

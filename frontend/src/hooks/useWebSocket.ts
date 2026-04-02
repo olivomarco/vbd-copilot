@@ -9,19 +9,27 @@ const RECONNECT_DELAY_MS = 2000;
 
 /**
  * Opens a WebSocket to /ws/{sessionId}, parses events, and updates
- * the job store. Returns helpers to send messages and close.
- * Includes automatic reconnection on unexpected disconnect.
+ * the job store. Handles reconnection and React StrictMode gracefully.
  */
 export function useWebSocket(sessionId: string | null) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intentionalClose = useRef(false);
+  const jobDone = useRef(false); // tracks if we received a "done"/"cancelled" event
   const updateJob = useJobStore((s) => s.updateJob);
   const pushEvent = useJobStore((s) => s.pushEvent);
   const setWs = useJobStore((s) => s.setWs);
 
   const connect = useCallback((sid: string) => {
+    // Close any existing connection first
+    if (wsRef.current && wsRef.current.readyState < WebSocket.CLOSING) {
+      intentionalClose.current = true;
+      wsRef.current.close();
+      intentionalClose.current = false;
+    }
+
+    jobDone.current = false;
     const url = `${BASE_WS}/ws/${sid}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
@@ -29,7 +37,11 @@ export function useWebSocket(sessionId: string | null) {
 
     ws.onopen = () => {
       reconnectAttempts.current = 0;
-      updateJob(sid, { status: "running" });
+      // Only set to running if not already completed
+      const job = useJobStore.getState().getJob(sid);
+      if (job && job.status !== "completed" && job.status !== "failed" && job.status !== "cancelled") {
+        updateJob(sid, { status: "running" });
+      }
     };
 
     ws.onmessage = (ev) => {
@@ -59,9 +71,7 @@ export function useWebSocket(sessionId: string | null) {
           break;
 
         case "phase_changed":
-          updateJob(sid, {
-            phase: msg.phase as AgentPhase,
-          });
+          updateJob(sid, { phase: msg.phase as AgentPhase });
           break;
 
         case "tool_started": {
@@ -71,16 +81,12 @@ export function useWebSocket(sessionId: string | null) {
               progress: {
                 ...job.progress,
                 toolCalls: job.progress.toolCalls + 1,
-                currentStep: `Running ${msg.tool}`,
+                currentStep: `Running ${msg.tool || "tool"}`,
               },
             });
           }
           break;
         }
-
-        case "tool_completed":
-          // Nothing extra needed — event already in feed
-          break;
 
         case "subagent_started": {
           const job = useJobStore.getState().getJob(sid);
@@ -89,7 +95,7 @@ export function useWebSocket(sessionId: string | null) {
               progress: {
                 ...job.progress,
                 subagentRuns: job.progress.subagentRuns + 1,
-                currentStep: `Subagent: ${msg.agent}`,
+                currentStep: `Subagent: ${msg.agent || "agent"}`,
               },
             });
           }
@@ -114,7 +120,7 @@ export function useWebSocket(sessionId: string | null) {
               usage: {
                 inputTokens: job.usage.inputTokens + (msg.input_tokens || 0),
                 outputTokens: job.usage.outputTokens + (msg.output_tokens || 0),
-                estimatedCostUsd: job.usage.estimatedCostUsd, // updated lazily
+                estimatedCostUsd: job.usage.estimatedCostUsd,
               },
             });
           }
@@ -134,6 +140,7 @@ export function useWebSocket(sessionId: string | null) {
         }
 
         case "done":
+          jobDone.current = true;
           updateJob(sid, {
             status: msg.status === "success" ? "completed" : "failed",
             phase: "done",
@@ -143,6 +150,7 @@ export function useWebSocket(sessionId: string | null) {
           break;
 
         case "cancelled":
+          jobDone.current = true;
           updateJob(sid, {
             status: "cancelled",
             phase: "done",
@@ -151,73 +159,108 @@ export function useWebSocket(sessionId: string | null) {
           break;
 
         case "error":
-          // Don't override status if we're still mid-turn
-          pushEvent(sid, { type: "connection_error", data: { message: msg.message } });
+          pushEvent(sid, {
+            type: "error",
+            data: { message: msg.message || "Unknown error" },
+          });
+          break;
+
+        default:
           break;
       }
     };
 
     ws.onerror = () => {
-      if (!intentionalClose.current) {
-        pushEvent(sid, { type: "connection_error", data: { message: "WebSocket connection error" } });
-      }
+      // Suppress errors for intentional closes or completed jobs
     };
 
     ws.onclose = () => {
       setWs(sid, null);
-      // Auto-reconnect if the job is still running and we didn't close on purpose
+
+      // Don't reconnect if:
+      // - We closed intentionally (navigation, cleanup)
+      // - The job completed normally (we got a "done" event)
+      if (intentionalClose.current || jobDone.current) return;
+
       const job = useJobStore.getState().getJob(sid);
-      if (
-        !intentionalClose.current &&
-        job &&
-        (job.status === "running" || job.status === "waiting") &&
-        reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS
-      ) {
+      if (!job) return;
+
+      // Don't reconnect completed/failed/cancelled jobs
+      if (job.status === "completed" || job.status === "failed" || job.status === "cancelled") return;
+
+      if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
         reconnectAttempts.current += 1;
+        reconnectTimer.current = setTimeout(() => connect(sid), RECONNECT_DELAY_MS);
+      } else {
+        updateJob(sid, {
+          status: "failed",
+          phase: "done",
+          completedAt: Date.now(),
+        });
         pushEvent(sid, {
           type: "connection_error",
-          data: { message: `Reconnecting... (attempt ${reconnectAttempts.current})` },
+          data: { message: "Connection lost. Restart the server and try again." },
         });
-        reconnectTimer.current = setTimeout(() => connect(sid), RECONNECT_DELAY_MS);
       }
     };
-  }, []);  // connect is stable — no deps needed
+  }, []);
 
   useEffect(() => {
     if (!sessionId) return;
+
+    // Don't connect for already-completed jobs
+    const job = useJobStore.getState().getJob(sessionId);
+    if (job && (job.status === "completed" || job.status === "failed" || job.status === "cancelled")) {
+      return;
+    }
+
     intentionalClose.current = false;
-    connect(sessionId);
+    jobDone.current = false;
+    const timer = setTimeout(() => connect(sessionId), 800);
 
     return () => {
+      clearTimeout(timer);
       intentionalClose.current = true;
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      wsRef.current?.close();
-      setWs(sessionId, null);
+      if (wsRef.current && wsRef.current.readyState < WebSocket.CLOSING) {
+        wsRef.current.close();
+      }
+      if (sessionId) setWs(sessionId, null);
     };
   }, [sessionId, connect]);
 
+  const safeSend = useCallback((data: string) => {
+    const ws = wsRef.current;
+    if (!ws) return;
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(data);
+    } else if (ws.readyState === WebSocket.CONNECTING) {
+      const handler = () => {
+        ws.removeEventListener("open", handler);
+        if (ws.readyState === WebSocket.OPEN) ws.send(data);
+      };
+      ws.addEventListener("open", handler);
+    }
+  }, []);
+
   const sendMessage = useCallback(
-    (content: string) => {
-      wsRef.current?.send(JSON.stringify({ type: "message", content }));
-    },
-    [],
+    (content: string) => safeSend(JSON.stringify({ type: "message", content })),
+    [safeSend],
   );
 
   const sendUserResponse = useCallback(
     (content: string) => {
       if (!sessionId) return;
-      wsRef.current?.send(JSON.stringify({ type: "user_response", content }));
-      updateJob(sessionId, {
-        status: "running",
-        pendingInput: undefined,
-      });
+      safeSend(JSON.stringify({ type: "user_response", content }));
+      updateJob(sessionId, { status: "running", pendingInput: undefined });
     },
-    [sessionId],
+    [sessionId, safeSend],
   );
 
-  const cancel = useCallback(() => {
-    wsRef.current?.send(JSON.stringify({ type: "cancel" }));
-  }, []);
+  const cancel = useCallback(
+    () => safeSend(JSON.stringify({ type: "cancel" })),
+    [safeSend],
+  );
 
   return { sendMessage, sendUserResponse, cancel };
 }
