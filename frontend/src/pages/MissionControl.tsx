@@ -167,9 +167,73 @@ function JobCard({ job }: { job: Job }) {
           </span>
           <span>{job.progress.toolCalls} tools</span>
           <span>{job.progress.subagentRuns} subagents</span>
-          {job.outputFiles.length > 0 && (
-            <span>{job.outputFiles.length} file(s)</span>
-          )}
+        </div>
+      )}
+
+      {/* Output artifacts for completed jobs */}
+      {job.status === "completed" && job.outputFiles.length > 0 && (
+        <div
+          style={{
+            marginTop: 10,
+            padding: "8px 12px",
+            background: "linear-gradient(135deg, #f0fff0 0%, #f5fef5 100%)",
+            borderRadius: 6,
+            border: "1px solid rgba(127, 186, 0, 0.2)",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {job.outputFiles.map((f) => {
+              const name = f.split("/").pop() || f;
+              const ext = name.includes(".") ? name.split(".").pop()?.toLowerCase() : "";
+              const icon = ext === "pptx" ? "📊" : ext === "py" ? "🐍" : ext === "md" ? "📝" : ext === "sh" ? "⚙️" : "📄";
+              return (
+                <div
+                  key={f}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 12,
+                  }}
+                >
+                  <span>{icon}</span>
+                  <span
+                    style={{
+                      flex: 1,
+                      fontWeight: 500,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {name}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const a = document.createElement("a");
+                      a.href = `/file/download?path=${encodeURIComponent(f)}`;
+                      a.download = name;
+                      a.click();
+                    }}
+                    style={{
+                      padding: "1px 7px",
+                      fontSize: 10,
+                      borderRadius: 4,
+                      border: "1px solid var(--border)",
+                      background: "white",
+                      color: "var(--brand-primary)",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      fontWeight: 500,
+                    }}
+                  >
+                    Download
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </Card>

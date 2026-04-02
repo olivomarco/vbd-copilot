@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Text,
@@ -14,6 +14,8 @@ import {
   Checkmark20Regular,
   ArrowDownload20Regular,
   Send20Regular,
+  ChevronDown12Regular,
+  ChevronRight12Regular,
 } from "@fluentui/react-icons";
 import { useJobStore, type Job, type AgentPhase, type JobEvent } from "@/stores/jobStore";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -43,33 +45,201 @@ function formatElapsed(ms: number): string {
   return `${m}m ${String(s).padStart(2, "0")}s`;
 }
 
-function EventCard({ event }: { event: JobEvent }) {
+/** Format tool args JSON into a short preview string. */
+function argPreview(argsStr?: string): string {
+  if (!argsStr || argsStr === "{}" || argsStr === "null") return "";
+  try {
+    const obj = typeof argsStr === "string" ? JSON.parse(argsStr) : argsStr;
+    // For common tools, pick the most informative field
+    const keys = Object.keys(obj);
+    if (keys.length === 0) return "";
+    // Build a compact summary: first string value, truncated
+    for (const k of keys) {
+      const v = obj[k];
+      if (typeof v === "string" && v.length > 0) {
+        const clean = v.replace(/\n/g, " ").trim();
+        return clean.length > 60 ? clean.slice(0, 58) + "…" : clean;
+      }
+    }
+    // Fallback: key names only
+    return keys.slice(0, 3).join(", ");
+  } catch {
+    const clean = String(argsStr).replace(/\n/g, " ").trim();
+    return clean.length > 60 ? clean.slice(0, 58) + "…" : clean;
+  }
+}
+
+/** Pretty-print JSON args for the expanded view. */
+function formatArgs(argsStr?: string): string {
+  if (!argsStr || argsStr === "{}" || argsStr === "null") return "";
+  try {
+    const obj = typeof argsStr === "string" ? JSON.parse(argsStr) : argsStr;
+    return JSON.stringify(obj, null, 2);
+  } catch {
+    return String(argsStr);
+  }
+}
+
+/** Collapsible tool card: shows tool name + preview, expands to show args & output. */
+function ToolCard({ event, completion }: { event: JobEvent; completion?: JobEvent }) {
+  const [open, setOpen] = useState(false);
+  const d = event.data as any;
+  const cd = completion?.data as any;
+
+  const toolName = d.tool && d.tool !== "None" && d.tool !== "?" ? d.tool : null;
+  if (!toolName) return null;
+
+  const isComplete = !!completion;
+  const durationMs = cd?.duration_ms;
+  const preview = argPreview(d.args);
+  const fullArgs = formatArgs(d.args);
+  const output = cd?.output_preview;
+
+  const hasDetails = !!(fullArgs || output);
+
+  return (
+    <div
+      style={{
+        borderRadius: 6,
+        fontSize: 13,
+        background: isComplete ? "#f0faf0" : "var(--hover-bg)",
+        border: open ? "1px solid var(--border)" : "1px solid transparent",
+        transition: "border 0.15s ease",
+      }}
+    >
+      {/* Header row — always visible */}
+      <div
+        onClick={hasDetails ? () => setOpen(!open) : undefined}
+        style={{
+          padding: "7px 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          cursor: hasDetails ? "pointer" : "default",
+          userSelect: "none",
+        }}
+      >
+        {hasDetails && (
+          <span style={{ fontSize: 10, color: "var(--text-secondary)", flexShrink: 0, width: 12, display: "inline-flex" }}>
+            {open ? <ChevronDown12Regular /> : <ChevronRight12Regular />}
+          </span>
+        )}
+        <span style={{ flexShrink: 0 }}>{isComplete ? "✅" : "🔧"}</span>
+        <strong style={{ flexShrink: 0 }}>{toolName}</strong>
+        {durationMs != null && (
+          <span style={{ color: "var(--text-secondary)", fontSize: 11, flexShrink: 0 }}>
+            {durationMs}ms
+          </span>
+        )}
+        {!open && preview && (
+          <span
+            style={{
+              color: "var(--text-secondary)",
+              fontSize: 11,
+              marginLeft: 4,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            {preview}
+          </span>
+        )}
+      </div>
+
+      {/* Expanded details */}
+      {open && hasDetails && (
+        <div style={{ padding: "0 12px 10px", paddingLeft: hasDetails ? 30 : 12 }}>
+          {fullArgs && (
+            <div style={{ marginBottom: output ? 8 : 0 }}>
+              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                Arguments
+              </div>
+              <pre
+                style={{
+                  margin: 0,
+                  padding: "6px 10px",
+                  background: "rgba(0,0,0,0.04)",
+                  borderRadius: 4,
+                  fontSize: 11,
+                  lineHeight: 1.5,
+                  overflowX: "auto",
+                  maxHeight: 200,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  fontFamily: "'Cascadia Code', 'Fira Code', monospace",
+                }}
+              >
+                {fullArgs}
+              </pre>
+            </div>
+          )}
+          {output && (
+            <div>
+              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                Output
+              </div>
+              <pre
+                style={{
+                  margin: 0,
+                  padding: "6px 10px",
+                  background: "rgba(0,0,0,0.04)",
+                  borderRadius: 4,
+                  fontSize: 11,
+                  lineHeight: 1.5,
+                  overflowX: "auto",
+                  maxHeight: 200,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  fontFamily: "'Cascadia Code', 'Fira Code', monospace",
+                }}
+              >
+                {output}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Collapsible warning/error row. Non-fatal errors are dimmed; click to expand the full message. */
+function CollapsibleWarning({ message, subtle }: { message: string; subtle?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const short = message.length > 80 ? message.slice(0, 78) + "…" : message;
+
+  return (
+    <div
+      style={{
+        padding: "6px 12px",
+        background: subtle ? "transparent" : "#fff0f0",
+        borderRadius: 6,
+        fontSize: subtle ? 12 : 13,
+        color: subtle ? "var(--text-secondary)" : "#d13438",
+        cursor: message.length > 80 ? "pointer" : "default",
+        border: subtle ? "1px dashed var(--border)" : "none",
+      }}
+      onClick={message.length > 80 ? () => setOpen(!open) : undefined}
+    >
+      <span style={{ marginRight: 6 }}>{subtle ? "⚡" : "⚠️"}</span>
+      {open ? message : short}
+    </div>
+  );
+}
+
+function EventCard({ event, completion }: { event: JobEvent; completion?: JobEvent }) {
   const t = event.type;
   const d = event.data as any;
 
-  if (t === "tool_started") {
-    const toolName = d.tool && d.tool !== "None" && d.tool !== "?" ? d.tool : null;
-    if (!toolName) return null;
-    return (
-      <div style={{ padding: "8px 12px", background: "var(--hover-bg)", borderRadius: 6, fontSize: 13 }}>
-        <span style={{ marginRight: 6 }}>🔧</span>
-        <strong>{toolName}</strong>
-      </div>
-    );
+  if (t === "tool_started" || (t === "tool_completed" && !completion)) {
+    return <ToolCard event={event} completion={t === "tool_started" ? completion : undefined} />;
   }
-  if (t === "tool_completed") {
-    const toolName = d.tool && d.tool !== "None" && d.tool !== "?" ? d.tool : null;
-    if (!toolName) return null; // suppress unnamed tool completions
-    return (
-      <div style={{ padding: "8px 12px", background: "#f0faf0", borderRadius: 6, fontSize: 13 }}>
-        <span style={{ marginRight: 6 }}>✅</span>
-        <strong>{toolName}</strong>
-        <span style={{ color: "var(--text-secondary)", marginLeft: 8 }}>
-          {d.duration_ms}ms
-        </span>
-      </div>
-    );
-  }
+  // tool_completed events that were already merged with a tool_started — skip
+  if (t === "tool_completed") return null;
+
   if (t === "subagent_started") {
     return (
       <div style={{ padding: "8px 12px", background: "#fff5e6", borderRadius: 6, fontSize: 13 }}>
@@ -90,10 +260,70 @@ function EventCard({ event }: { event: JobEvent }) {
     return null; // Don't show raw deltas as cards
   }
   if (t === "new_files") {
+    const files = (d.files as string[]) || [];
     return (
-      <div style={{ padding: "8px 12px", background: "#e6f4ff", borderRadius: 6, fontSize: 13 }}>
-        <span style={{ marginRight: 6 }}>📁</span>
-        New files: {(d.files as string[])?.map((f: string) => f.split("/").pop()).join(", ")}
+      <div
+        style={{
+          padding: "12px 16px",
+          background: "linear-gradient(135deg, #e6f4ff 0%, #f0f8ff 100%)",
+          borderRadius: 8,
+          border: "1px solid rgba(0, 120, 212, 0.2)",
+          fontSize: 13,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: files.length > 1 ? 8 : 0 }}>
+          <span style={{ fontSize: 16 }}>📦</span>
+          <strong style={{ fontSize: 13 }}>
+            {files.length === 1 ? "File created" : `${files.length} files created`}
+          </strong>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {files.map((f: string) => {
+            const name = f.split("/").pop() || f;
+            const ext = name.includes(".") ? name.split(".").pop()?.toLowerCase() : "";
+            const icon = ext === "pptx" ? "📊" : ext === "py" ? "🐍" : ext === "md" ? "📝" : ext === "sh" ? "⚙️" : "📄";
+            return (
+              <div
+                key={f}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "5px 10px",
+                  background: "rgba(255,255,255,0.7)",
+                  borderRadius: 6,
+                  border: "1px solid rgba(0,0,0,0.06)",
+                }}
+              >
+                <span style={{ flexShrink: 0 }}>{icon}</span>
+                <span style={{ flex: 1, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {name}
+                </span>
+                <button
+                  onClick={() => {
+                    const a = document.createElement("a");
+                    a.href = `/file/download?path=${encodeURIComponent(f)}`;
+                    a.download = name;
+                    a.click();
+                  }}
+                  style={{
+                    padding: "2px 8px",
+                    fontSize: 11,
+                    borderRadius: 4,
+                    border: "1px solid var(--border)",
+                    background: "white",
+                    color: "var(--brand-primary)",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    fontWeight: 500,
+                  }}
+                >
+                  Download
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -106,11 +336,15 @@ function EventCard({ event }: { event: JobEvent }) {
     );
   }
   if (t === "error" || t === "connection_error") {
+    const msg = d.message || "Unknown error";
+    // SDK-internal errors that don't stop the job — show as subtle collapsible warnings
+    const isNonFatal = t === "error" && (
+      msg.includes("has no attribute") ||
+      msg.includes("object is not") ||
+      msg.includes("NoneType")
+    );
     return (
-      <div style={{ padding: "8px 12px", background: "#fff0f0", borderRadius: 6, fontSize: 13, color: "#d13438" }}>
-        <span style={{ marginRight: 6 }}>⚠️</span>
-        {d.message}
-      </div>
+      <CollapsibleWarning message={msg} subtle={isNonFatal} />
     );
   }
   if (t === "waiting_for_input") {
@@ -223,6 +457,10 @@ export function AgentWorkspace() {
       .join("");
   }, [job?.events.length]);
 
+  // Ref for auto-scroll (initialized here so hooks are unconditional)
+  const feedRef = useRef<HTMLDivElement>(null);
+  const userScrolledUp = useRef(false);
+
   if (!job) {
     return (
       <div style={{ padding: 48, textAlign: "center" }}>
@@ -266,6 +504,55 @@ export function AgentWorkspace() {
       e.type !== "phase_changed" &&
       e.type !== "turn_started",
   );
+
+  // Build a map from tool_started events to their matching tool_completed events.
+  // We match by tool name, pairing the most recent unmatched start with its completion.
+  const completionMap = useMemo(() => {
+    const map = new Map<number, JobEvent>(); // tool_started event id → tool_completed event
+    const pending: { id: number; tool: string }[] = [];
+    for (const e of feedEvents) {
+      const d = e.data as any;
+      if (e.type === "tool_started" && d.tool) {
+        pending.push({ id: e.id, tool: String(d.tool) });
+      } else if (e.type === "tool_completed" && d.tool) {
+        // Find the last unmatched start for this tool
+        for (let i = pending.length - 1; i >= 0; i--) {
+          if (pending[i].tool === String(d.tool)) {
+            map.set(pending[i].id, e);
+            pending.splice(i, 1);
+            break;
+          }
+        }
+      }
+    }
+    return map;
+  }, [feedEvents.length]);
+
+  // Filter out tool_completed events that are already merged into a tool_started row.
+  const mergedCompletionIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const ce of completionMap.values()) ids.add(ce.id);
+    return ids;
+  }, [completionMap]);
+
+  const displayEvents = feedEvents.filter((e) => !mergedCompletionIds.has(e.id));
+
+  // Auto-scroll the activity feed to the bottom when new events arrive
+  useEffect(() => {
+    const el = feedRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      userScrolledUp.current = el.scrollHeight - el.scrollTop - el.clientHeight > 80;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const el = feedRef.current;
+    if (!el || userScrolledUp.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [displayEvents.length]);
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
@@ -582,6 +869,7 @@ export function AgentWorkspace() {
 
         {/* Activity feed */}
         <div
+          ref={feedRef}
           style={{ flex: 1, overflow: "auto", padding: "16px 24px" }}
         >
           {job.status === "queued" && (
@@ -603,8 +891,8 @@ export function AgentWorkspace() {
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {feedEvents.map((e) => (
-              <EventCard key={e.id} event={e} />
+            {displayEvents.map((e) => (
+              <EventCard key={e.id} event={e} completion={completionMap.get(e.id)} />
             ))}
           </div>
 
