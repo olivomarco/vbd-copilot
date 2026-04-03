@@ -34,6 +34,20 @@
       "created_at": "2026-04-02T06:59:20Z",
       "legacy_named": false,
       "status": "active"
+    },
+    "kobayashi": {
+      "persistent_name": "Kobayashi",
+      "universe": "The Usual Suspects",
+      "created_at": "2026-04-03T00:00:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "redfoot": {
+      "persistent_name": "Redfoot",
+      "universe": "The Usual Suspects",
+      "created_at": "2026-04-03T00:00:00Z",
+      "legacy_named": false,
+      "status": "active"
     }
   }
 }

@@ -18,6 +18,20 @@
         "hockney": "Tester"
       },
       "created_at": "2026-04-02T06:59:20Z"
+    },
+    "2026-04-03-expansion": {
+      "assignment_id": "2026-04-03-expansion",
+      "universe": "The Usual Suspects",
+      "agents": {
+        "keaton": "Lead",
+        "mcmanus": "Backend Dev",
+        "verbal": "Frontend Dev",
+        "fenster": "Prompt Engineer",
+        "hockney": "Tester",
+        "kobayashi": "CLI Dev",
+        "redfoot": "Web Dev"
+      },
+      "created_at": "2026-04-03T00:00:00Z"
     }
   }
 }
