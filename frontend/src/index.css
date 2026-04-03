@@ -121,6 +121,15 @@ code:not(pre code) {
   50% { opacity: 0.5; }
 }
 
+@keyframes pulseAttention {
+  0%, 100% { box-shadow: 0 0 4px 1px rgba(255, 185, 0, 0.4); opacity: 1; }
+  50% { box-shadow: 0 0 8px 4px rgba(255, 185, 0, 0.7); opacity: 0.8; }
+}
+
+.pulse-attention {
+  animation: pulseAttention 1.5s ease-in-out infinite;
+}
+
 .animate-in {
   animation: fadeInUp 0.35s ease-out both;
 }
