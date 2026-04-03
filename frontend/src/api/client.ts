@@ -78,6 +78,25 @@ export async function endSession(id: string) {
   return request<{ ok: boolean }>(`/sessions/${id}`, { method: "DELETE" });
 }
 
+export async function getSessionStatus(id: string): Promise<{
+  session_id: string;
+  status: string;
+  in_memory: boolean;
+  has_running_turn: boolean;
+  turn_count: number;
+  resumable: boolean;
+}> {
+  return request(`/sessions/${id}/status`);
+}
+
+export async function getSessionEvents(id: string): Promise<Array<{
+  type: string;
+  time: string;
+  data: Record<string, unknown>;
+}>> {
+  return request(`/sessions/${id}/events`);
+}
+
 // ── Outputs ────────────────────────────────────────
 
 export async function listOutputs(): Promise<OutputFile[]> {

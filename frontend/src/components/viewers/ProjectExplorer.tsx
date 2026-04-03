@@ -19,7 +19,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
-import { readFile, listOutputs } from "@/api/client";
+import { readFile, listOutputs, listGroupedOutputs } from "@/api/client";
 import type { OutputFile } from "@/api/types";
 
 interface TreeNode {
@@ -149,6 +149,7 @@ export function ProjectExplorer() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const basePath = params.get("path") || "";
+  const groupId = params.get("id") || "";
 
   const [allOutputs, setAllOutputs] = useState<OutputFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,31 +157,47 @@ export function ProjectExplorer() {
   const [fileContent, setFileContent] = useState("");
   const [fileLoading, setFileLoading] = useState(false);
 
-  // Detect the project root directory
+  // Detect the project root directory (fallback when no group id)
   const projectDir = useMemo(() => {
-    // Walk up from the given path to find the project/hackathon root
     const parts = basePath.replace(/\/$/, "").split("/");
-    // If it points to a file, go up one level
     if (parts[parts.length - 1]?.includes(".")) parts.pop();
     return parts.join("/");
   }, [basePath]);
 
-  const projectName = projectDir.split("/").pop() || "Project";
+  const [resolvedName, setResolvedName] = useState("");
+  const projectName = resolvedName || projectDir.split("/").pop() || "Project";
 
   useEffect(() => {
     setLoading(true);
-    listOutputs()
-      .then((outputs) => {
-        // Filter to files under this project directory
-        const filtered = outputs.filter((o) => o.path.startsWith(projectDir));
+
+    // If we have a group id, use its file list for precise scoping
+    const groupedPromise = groupId
+      ? listGroupedOutputs().then((groups) => groups.find((g) => g.id === groupId))
+      : Promise.resolve(undefined);
+
+    Promise.all([listOutputs(), groupedPromise])
+      .then(([outputs, group]) => {
+        let filtered: OutputFile[];
+        if (group) {
+          // Use the exact file list from the grouped output
+          const fileSet = new Set(group.files);
+          filtered = outputs.filter((o) => fileSet.has(o.path));
+          if (group.title) setResolvedName(group.title);
+        } else {
+          // Fallback: directory prefix match
+          filtered = outputs.filter((o) => o.path.startsWith(projectDir));
+        }
         setAllOutputs(filtered);
 
-        // Auto-select README.md if it exists
+        // Auto-select README.md if it exists, then primary_file, then first file
         const readme = filtered.find(
           (o) => o.name.toLowerCase() === "readme.md",
         );
+        const primary = filtered.find((o) => o.path === basePath);
         if (readme) {
           setSelectedFile(readme.path);
+        } else if (primary) {
+          setSelectedFile(primary.path);
         } else if (filtered.length > 0) {
           setSelectedFile(filtered[0].path);
         }
@@ -188,7 +205,7 @@ export function ProjectExplorer() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [projectDir]);
+  }, [projectDir, groupId, basePath]);
 
   // Escape to close
   useEffect(() => {

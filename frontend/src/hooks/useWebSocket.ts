@@ -1,12 +1,14 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useJobStore } from "@/stores/jobStore";
 import type { AgentPhase } from "@/stores/jobStore";
+import { getSessionStatus } from "@/api/client";
 
 const BASE_WS = import.meta.env.VITE_WS_URL ?? `ws://${window.location.hostname}:${window.location.port}`;
 
 const MAX_RECONNECT_ATTEMPTS = 12;
 const RECONNECT_DELAY_MS = 2000;
 const HEARTBEAT_INTERVAL_MS = 25000;
+const MAX_SERVER_CHECK_ATTEMPTS = 3;
 
 /**
  * Opens a WebSocket to /ws/{sessionId}, parses events, and updates
@@ -18,6 +20,7 @@ export function useWebSocket(sessionId: string | null) {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intentionalClose = useRef(false);
   const jobDone = useRef(false); // tracks if we received a "done"/"cancelled" event
+  const serverCheckAttempts = useRef(0);
   const updateJob = useJobStore((s) => s.updateJob);
   const pushEvent = useJobStore((s) => s.pushEvent);
   const setWs = useJobStore((s) => s.setWs);
@@ -212,6 +215,39 @@ export function useWebSocket(sessionId: string | null) {
       if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
         reconnectAttempts.current += 1;
         reconnectTimer.current = setTimeout(() => connect(sid), RECONNECT_DELAY_MS);
+      } else if (serverCheckAttempts.current < MAX_SERVER_CHECK_ATTEMPTS) {
+        // Don't give up yet — ask the server if the session is still alive
+        serverCheckAttempts.current += 1;
+        getSessionStatus(sid)
+          .then((srv) => {
+            if (srv.status === "active" && srv.in_memory) {
+              // Server says session is alive — reset and keep trying
+              reconnectAttempts.current = 0;
+              const delay = RECONNECT_DELAY_MS * serverCheckAttempts.current;
+              reconnectTimer.current = setTimeout(() => connect(sid), delay);
+            } else {
+              // Server confirms session is ended
+              updateJob(sid, {
+                status: "failed",
+                phase: "done",
+                completedAt: Date.now(),
+                progress: { ...job.progress, currentStep: "Session ended on server." },
+              });
+            }
+          })
+          .catch(() => {
+            // Status endpoint unreachable — give up
+            updateJob(sid, {
+              status: "failed",
+              phase: "done",
+              completedAt: Date.now(),
+              progress: { ...job.progress, currentStep: "Connection lost. Restart the server and try again." },
+            });
+            pushEvent(sid, {
+              type: "connection_error",
+              data: { message: "Connection lost. Restart the server and try again." },
+            });
+          });
       } else {
         const hasPendingInput = !!job.pendingInput;
         updateJob(sid, {
@@ -240,9 +276,27 @@ export function useWebSocket(sessionId: string | null) {
   useEffect(() => {
     if (!sessionId) return;
 
-    // Don't connect for already-completed jobs
+    // Don't connect for already-completed jobs — but check server first
     const job = useJobStore.getState().getJob(sessionId);
     if (job && (job.status === "failed" || job.status === "cancelled")) {
+      // Session may still be live on the server — verify before giving up
+      const sid = sessionId;
+      getSessionStatus(sid)
+        .then((srv) => {
+          if (srv.status === "active" && srv.in_memory) {
+            reconnectAttempts.current = 0;
+            serverCheckAttempts.current = 0;
+            updateJob(sid, {
+              status: "running",
+              phase: job.phase === "done" ? "researching" : job.phase,
+              completedAt: undefined,
+            });
+            intentionalClose.current = false;
+            jobDone.current = false;
+            connect(sid);
+          }
+        })
+        .catch(() => { /* server unreachable — stay in current state */ });
       return;
     }
 

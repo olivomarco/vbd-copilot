@@ -155,10 +155,12 @@ export function Launchpad() {
               padding: 0,
               border: "1px solid var(--border)",
               borderRadius: 12,
-              cursor: locked ? "default" : "pointer",
+              cursor: locked ? "not-allowed" : "pointer",
               transition: "all 0.2s ease",
               overflow: "hidden",
-              opacity: locked ? 0.55 : 1,
+              opacity: locked ? 0.45 : 1,
+              filter: locked ? "grayscale(100%)" : "none",
+              background: locked ? "var(--colorNeutralBackground3)" : undefined,
             }}
             onClick={() => {
               if (!locked) setBriefAgent(key);
@@ -217,18 +219,19 @@ export function Launchpad() {
                 <div
                   style={{
                     marginTop: 12,
-                    padding: "6px 10px",
-                    background: "rgba(0,0,0,0.04)",
+                    padding: "8px 12px",
+                    background: "rgba(0,0,0,0.06)",
                     borderRadius: 6,
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--text-secondary)",
                     display: "flex",
                     alignItems: "center",
                     gap: 6,
+                    fontWeight: 600,
                   }}
                 >
                   <LockClosed16Regular />
-                  Architect a Solution first
+                  Requires an architecture — use &ldquo;Architect a Solution&rdquo; first
                 </div>
               )}
             </div>

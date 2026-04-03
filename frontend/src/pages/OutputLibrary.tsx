@@ -21,6 +21,12 @@ import {
   FolderOpen20Regular,
   CheckboxChecked20Regular,
   DocumentPdf20Regular,
+  SlideText20Regular,
+  Play20Regular,
+  Trophy20Regular,
+  Rocket20Regular,
+  Apps20Regular,
+  Add20Regular,
 } from "@fluentui/react-icons";
 import { useOutputStore } from "@/stores/outputStore";
 import { ContentLevelBadge } from "@/components/common/ContentLevelBadge";
@@ -28,11 +34,21 @@ import { CategoryIcon } from "@/components/common/AgentIcon";
 import type { GroupedOutput, ContentLevel } from "@/api/types";
 
 const CATEGORIES = [
-  { value: "all", label: "All" },
-  { value: "slides", label: "Slides" },
-  { value: "demos", label: "Demos" },
-  { value: "hackathons", label: "Hackathons" },
-  { value: "ai-projects", label: "AI Projects" },
+  { value: "all", label: "All", icon: Apps20Regular, color: "#0078D4",
+    empty: "Your output library is empty",
+    emptyHint: "Head to the Launchpad and generate your first content — slides, demos, hackathons, or full AI projects." },
+  { value: "slides", label: "Slides", icon: SlideText20Regular, color: "#0078D4",
+    empty: "No slide decks yet",
+    emptyHint: "Generate a presentation from the Launchpad — pick a topic, level, and let the slide conductor handle the rest." },
+  { value: "demos", label: "Demos", icon: Play20Regular, color: "#7FBA00",
+    empty: "No demo guides yet",
+    emptyHint: "Create a step-by-step demo guide from the Launchpad — complete with scripts, talking points, and timing." },
+  { value: "hackathons", label: "Hackathons", icon: Trophy20Regular, color: "#FFB900",
+    empty: "No hackathon packages yet",
+    emptyHint: "Build a full hackathon-in-a-box from the Launchpad — challenges, coaching guides, scoring rubrics, and starter code." },
+  { value: "ai-projects", label: "AI Projects", icon: Rocket20Regular, color: "#F25022",
+    empty: "No AI projects yet",
+    emptyHint: "Kick off an AI project from the Launchpad — architecture docs, infrastructure code, source, tests, and CI/CD in one go." },
 ];
 
 function formatSize(bytes: number): string {
@@ -109,11 +125,11 @@ export function OutputLibrary() {
   const handlePreview = (o: GroupedOutput) => {
     if (o.category === "slides") {
       navigate(`/library/slides?path=${encodeURIComponent(o.primary_file)}`);
-    } else if (o.category === "demos") {
+    } else if (o.category === "demos" && o.file_count === 1) {
       navigate(`/library/markdown?path=${encodeURIComponent(o.primary_file)}`);
     } else {
-      // hackathons and ai-projects → project explorer
-      navigate(`/library/project?path=${encodeURIComponent(o.primary_file)}`);
+      // demos with multiple files, hackathons, and ai-projects → project explorer
+      navigate(`/library/project?path=${encodeURIComponent(o.primary_file)}&id=${encodeURIComponent(o.id)}`);
     }
   };
 
@@ -161,7 +177,7 @@ export function OutputLibrary() {
           size="small"
         >
           {CATEGORIES.map((c) => (
-            <Tab key={c.value} value={c.value}>
+            <Tab key={c.value} value={c.value} icon={<c.icon />}>
               {c.label}
             </Tab>
           ))}
@@ -219,22 +235,59 @@ export function OutputLibrary() {
       )}
 
       {/* Empty state */}
-      {!loading && outputs.length === 0 && (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "80px 0",
-            color: "var(--text-secondary)",
-          }}
-        >
-          <Text size={500} style={{ display: "block", marginBottom: 8 }}>
-            No outputs found
-          </Text>
-          <Text size={300}>
-            Generate your first content from the Launchpad
-          </Text>
-        </div>
-      )}
+      {!loading && outputs.length === 0 && (() => {
+        const cat = CATEGORIES.find((c) => c.value === categoryFilter) || CATEGORIES[0];
+        const IconComp = cat.icon;
+        return (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "80px 24px",
+              gap: 16,
+            }}
+          >
+            <div
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 24,
+                background: `${cat.color}10`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 8,
+              }}
+            >
+              <IconComp style={{ width: 36, height: 36, color: cat.color, opacity: 0.7 }} />
+            </div>
+            <Text size={500} weight="semibold" style={{ color: "var(--text-primary)" }}>
+              {cat.empty}
+            </Text>
+            <Text
+              size={300}
+              style={{
+                color: "var(--text-secondary)",
+                maxWidth: 420,
+                textAlign: "center",
+                lineHeight: 1.5,
+              }}
+            >
+              {cat.emptyHint}
+            </Text>
+            <Button
+              appearance="primary"
+              icon={<Add20Regular />}
+              style={{ marginTop: 8 }}
+              onClick={() => navigate("/")}
+            >
+              Go to Launchpad
+            </Button>
+          </div>
+        );
+      })()}
 
       {/* Grid view */}
       {!loading && viewMode === "grid" && outputs.length > 0 && (
@@ -413,12 +466,16 @@ export function OutputLibrary() {
                       title="Open folder"
                       onClick={(e) => {
                         e.stopPropagation();
-                        const dir = o.primary_file.substring(
-                          0,
-                          o.primary_file.lastIndexOf("/"),
-                        );
                         if (window.csaStudio) {
+                          const dir = o.primary_file.substring(
+                            0,
+                            o.primary_file.lastIndexOf("/"),
+                          );
                           window.csaStudio.openPath(dir);
+                        } else {
+                          navigate(
+                            `/library/project?path=${encodeURIComponent(o.primary_file)}&id=${encodeURIComponent(o.id)}`,
+                          );
                         }
                       }}
                     />

@@ -19,6 +19,7 @@ import {
 import { useJobStore, type Job, type AgentPhase, type JobEvent } from "@/stores/jobStore";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { AGENT_META } from "@/api/types";
+import { getSessionEvents } from "@/api/client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AgentIcon } from "@/components/common/AgentIcon";
@@ -400,6 +401,7 @@ export function AgentWorkspace() {
   const navigate = useNavigate();
   const jobId = params.get("id") || "";
   const job = useJobStore((s) => s.getJob(jobId));
+  const pushEvent = useJobStore((s) => s.pushEvent);
   const { sendMessage, sendUserResponse, cancel } = useWebSocket(jobId || null);
   const [editedPlan, setEditedPlan] = useState("");
   const [elapsed, setElapsed] = useState(0);
@@ -475,6 +477,28 @@ export function AgentWorkspace() {
     }, 1000);
     return () => clearInterval(interval);
   }, [job?.id, job?.status, job?.startedAt]);
+
+  // Hydrate events for terminal sessions that have few/no captured events
+  const hydratedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!job || hydratedRef.current === jobId) return;
+    const isTerminal =
+      job.status === "completed" || job.status === "failed" || job.status === "cancelled";
+    if (!isTerminal || job.events.length >= 5) return;
+
+    hydratedRef.current = jobId;
+    getSessionEvents(jobId)
+      .then((serverEvents) => {
+        const existingTimes = new Set(job.events.map((e) => e.time));
+        for (const se of serverEvents) {
+          const ts = new Date(se.time).getTime();
+          if (!existingTimes.has(ts)) {
+            pushEvent(jobId, { type: se.type, data: se.data });
+          }
+        }
+      })
+      .catch(() => { /* server unreachable — skip hydration */ });
+  }, [job?.status, job?.events.length, jobId, pushEvent]);
 
   // Collect accumulated delta text for the plan review
   const deltaText = useMemo(() => {
@@ -825,7 +849,7 @@ export function AgentWorkspace() {
               background: isPlanReview ? "#fffbf0" : "#f0f6ff",
             }}
           >
-            {deltaText && (
+            {deltaText.trim() && (
               <div
                 className="md-content"
                 style={{
@@ -847,7 +871,7 @@ export function AgentWorkspace() {
 
             <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 12 }}>
               <span style={{ fontSize: 18, lineHeight: 1.6 }}>{isPlanReview ? "📋" : "💬"}</span>
-              <div className="md-content" style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>
+              <div className="md-content" style={{ flex: 1, fontSize: 14, fontWeight: 600, maxHeight: 200, overflowY: "auto" }}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {job.pendingInput.question}
                 </ReactMarkdown>

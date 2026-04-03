@@ -310,6 +310,125 @@ async def get_turn_invocations(session_id: str, turn_number: int) -> JSONRespons
     return JSONResponse(content=invocations)
 
 
+@app.get("/sessions/{session_id}/status")
+async def get_session_status(session_id: str) -> JSONResponse:
+    """Lightweight status check for frontend reconnect polling."""
+    from server_adapter import _ws_map
+
+    store = _store()
+    full_id = store.resolve_prefix("sessions", session_id)
+    if not full_id:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    detail = store.get_session(full_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    in_memory = full_id in _session_map
+    has_ws = bool(_ws_map.get(full_id))
+
+    return JSONResponse(content={
+        "session_id": full_id,
+        "status": detail.get("status", "ended"),
+        "in_memory": in_memory,
+        "has_running_turn": in_memory and has_ws,
+        "turn_count": detail.get("turn_count", 0),
+        "resumable": bool(detail.get("resumable", 0)),
+    })
+
+
+@app.get("/sessions/{session_id}/events")
+async def get_session_events(session_id: str) -> JSONResponse:
+    """Historical events reconstructed from DB for the frontend activity feed."""
+    store = _store()
+    full_id = store.resolve_prefix("sessions", session_id)
+    if not full_id:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    detail = store.get_session(full_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    turns = store.get_turns(full_id)
+    events: list[dict[str, Any]] = []
+
+    for i, turn in enumerate(turns):
+        # turn_started
+        events.append({
+            "type": "turn_started",
+            "data": {
+                "turn_number": turn.get("turn_number", i + 1),
+                "agent": turn.get("agent", ""),
+                "user_prompt": turn.get("user_prompt", ""),
+            },
+            "time": turn.get("started_at", ""),
+        })
+
+        # invocations
+        invocations = store.get_invocations_for_turn(turn["id"])
+        for inv in invocations:
+            inv_type = inv.get("type", "")
+            inv_name = inv.get("name", "")
+
+            if inv_type == "tool_call":
+                events.append({
+                    "type": "tool_started",
+                    "data": {"tool": inv_name, "args": inv.get("input", "{}")},
+                    "time": inv.get("started_at", ""),
+                })
+                output_raw = inv.get("output") or ""
+                events.append({
+                    "type": "tool_completed",
+                    "data": {
+                        "tool": inv_name,
+                        "output_preview": output_raw[:500],
+                        "duration_ms": inv.get("duration_ms", 0),
+                    },
+                    "time": inv.get("ended_at") or inv.get("started_at", ""),
+                })
+            elif inv_type == "subagent":
+                events.append({
+                    "type": "subagent_started",
+                    "data": {"agent": inv_name},
+                    "time": inv.get("started_at", ""),
+                })
+                events.append({
+                    "type": "subagent_completed",
+                    "data": {
+                        "agent": inv_name,
+                        "duration_ms": inv.get("duration_ms", 0),
+                    },
+                    "time": inv.get("ended_at") or inv.get("started_at", ""),
+                })
+
+        # usage
+        input_tok = turn.get("input_tokens", 0)
+        output_tok = turn.get("output_tokens", 0)
+        if input_tok or output_tok:
+            events.append({
+                "type": "usage",
+                "data": {
+                    "turn_number": turn.get("turn_number", i + 1),
+                    "input_tokens": input_tok,
+                    "output_tokens": output_tok,
+                    "cache_read_tokens": turn.get("cache_read_tokens", 0),
+                    "cache_write_tokens": turn.get("cache_write_tokens", 0),
+                    "estimated_cost_usd": turn.get("estimated_cost_usd", 0.0),
+                },
+                "time": turn.get("ended_at") or turn.get("started_at", ""),
+            })
+
+    # done event for ended sessions
+    if detail.get("status") == "ended":
+        events.append({
+            "type": "done",
+            "data": {"session_id": full_id, "reason": "session_ended"},
+            "time": detail.get("ended_at") or detail.get("started_at", ""),
+        })
+
+    return JSONResponse(content=events)
+
+
 # ---------------------------------------------------------------------------
 # Usage
 # ---------------------------------------------------------------------------
@@ -403,7 +522,11 @@ async def list_outputs_grouped() -> JSONResponse:
     slides_dir = outputs_resolved / "slides"
     if slides_dir.is_dir():
         seen_stems: set[str] = set()
-        for p in sorted(slides_dir.iterdir()):
+        try:
+            slide_entries = sorted(slides_dir.iterdir())
+        except (PermissionError, OSError):
+            slide_entries = []
+        for p in slide_entries:
             if not p.is_file() or p.suffix.lower() != ".pptx":
                 continue
             if any(part in _SKIP_DIRS for part in p.parts):
@@ -452,7 +575,11 @@ async def list_outputs_grouped() -> JSONResponse:
     # ── Demos ─────────────────────────────────────────────────
     demos_dir = outputs_resolved / "demos"
     if demos_dir.is_dir():
-        for p in sorted(demos_dir.iterdir()):
+        try:
+            demo_entries = sorted(demos_dir.iterdir())
+        except (PermissionError, OSError):
+            demo_entries = []
+        for p in demo_entries:
             if not p.is_file() or not p.name.endswith("-demos.md"):
                 continue
             slug = p.name.replace("-demos.md", "")
@@ -488,7 +615,11 @@ async def list_outputs_grouped() -> JSONResponse:
     # ── Hackathons ────────────────────────────────────────────
     hack_dir = outputs_resolved / "hackathons"
     if hack_dir.is_dir():
-        for d in sorted(hack_dir.iterdir()):
+        try:
+            hack_entries = sorted(hack_dir.iterdir())
+        except (PermissionError, OSError):
+            hack_entries = []
+        for d in hack_entries:
             if not d.is_dir() or d.name.startswith("."):
                 continue
             file_list = []
@@ -521,7 +652,11 @@ async def list_outputs_grouped() -> JSONResponse:
     _ARCH_DOC_NAMES = {"solution-design.md", "architecture-diagram.md", "architecture.md"}
     proj_dir = outputs_resolved / "ai-projects"
     if proj_dir.is_dir():
-        for d in sorted(proj_dir.iterdir()):
+        try:
+            proj_entries = sorted(proj_dir.iterdir())
+        except (PermissionError, OSError):
+            proj_entries = []
+        for d in proj_entries:
             if not d.is_dir() or d.name.startswith("."):
                 continue
             file_list = []
@@ -950,9 +1085,10 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
 
     # Register per-session WS event handler (only if primary connection)
     ws_event_handler = None
+    ws_unsubscribe = None
     if is_primary:
         ws_event_handler = _make_ws_handler(session_id)
-        session.on(ws_event_handler)
+        ws_unsubscribe = session.on(ws_event_handler)
 
     current_turn_task: asyncio.Task[Any] | None = None
 
@@ -1073,11 +1209,9 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
         log.error("WebSocket error: %s", exc)
     finally:
         # Only unregister event handler if this was the primary connection
-        if ws_event_handler is not None:
+        if ws_unsubscribe is not None:
             with contextlib.suppress(Exception):
-                session._event_handlers = [
-                    h for h in session._event_handlers if h is not ws_event_handler
-                ]
+                ws_unsubscribe()
         remove_ws(session_id, websocket)
 
 
