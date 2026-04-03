@@ -183,8 +183,8 @@ export const useJobStore = create<JobStore>()(
         id: ++_eventCounter,
         time: Date.now(),
       };
-      // Keep only last 200 events to avoid localStorage bloat
-      const events = [...job.events, newEvent].slice(-200);
+      // Keep only last 2000 events to preserve full session history
+      const events = [...job.events, newEvent].slice(-2000);
       return {
         jobs: {
           ...s.jobs,

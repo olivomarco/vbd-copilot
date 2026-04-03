@@ -130,6 +130,64 @@ code:not(pre code) {
   animation: pulseAttention 1.5s ease-in-out infinite;
 }
 
+/* Stadium wave ("ola") effect — blue sweep across text */
+@keyframes stadiumWave {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.wave-text {
+  background: linear-gradient(
+    90deg,
+    var(--text-primary) 0%,
+    var(--text-primary) 35%,
+    #0078d4 45%,
+    #00a4ef 50%,
+    #0078d4 55%,
+    var(--text-primary) 65%,
+    var(--text-primary) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: stadiumWave 2.5s ease-in-out infinite;
+}
+
+/* Top status bar — running (blue wave) */
+@keyframes topBarWave {
+  0% { background-position: -100% center; }
+  100% { background-position: 200% center; }
+}
+
+.top-status-bar-running {
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 30%,
+    #0078d4 40%,
+    #00a4ef 50%,
+    #0078d4 60%,
+    transparent 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: topBarWave 2s ease-in-out infinite;
+}
+
+/* Top status bar — waiting (yellow pulse) */
+@keyframes topBarPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.top-status-bar-waiting {
+  height: 3px;
+  background: #FFB900;
+  animation: topBarPulse 1.5s ease-in-out infinite;
+}
+
 .animate-in {
   animation: fadeInUp 0.35s ease-out both;
 }

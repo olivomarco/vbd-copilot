@@ -121,15 +121,38 @@ export function useWebSocket(sessionId: string | null) {
           break;
         }
 
-        case "waiting_for_input":
+        case "waiting_for_input": {
+          const question = msg.question || "The agent has a question";
+          const choices = msg.choices || undefined;
+          // Deduplicate: if the last waiting_for_input event in the feed
+          // has the same question, skip pushing a new event (happens on WS reconnect).
+          const currentJob = useJobStore.getState().getJob(sid);
+          if (currentJob) {
+            const lastWaiting = [...currentJob.events].reverse().find(
+              (e) => e.type === "waiting_for_input",
+            );
+            const isDuplicate =
+              lastWaiting &&
+              (lastWaiting.data as any).question === question &&
+              // Only if there's no user_response after the last waiting event
+              !currentJob.events.some(
+                (e) => e.type === "user_response" && e.id > lastWaiting.id,
+              );
+            if (isDuplicate) {
+              // Still update the job status but don't push a duplicate event
+              updateJob(sid, {
+                status: "waiting",
+                pendingInput: { question, choices },
+              });
+              break;
+            }
+          }
           updateJob(sid, {
             status: "waiting",
-            pendingInput: {
-              question: msg.question || "The agent has a question",
-              choices: msg.choices || undefined,
-            },
+            pendingInput: { question, choices },
           });
           break;
+        }
 
         case "input_resolved":
           // Backend signals that the waiting_for_input prompt was resolved

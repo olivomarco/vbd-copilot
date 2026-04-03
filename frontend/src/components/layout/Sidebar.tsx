@@ -52,6 +52,7 @@ const NAV_ITEMS = [
 /** Sidebar job item — shows a compact row with a pulsing attention dot when input is needed. */
 function SidebarJobItem({ job, navigate }: { job: Job; navigate: (to: string) => void }) {
   const isWaiting = job.status === "waiting" && job.pendingInput;
+  const isRunning = job.status === "running" || job.status === "queued";
 
   return (
     <Tooltip
@@ -73,6 +74,7 @@ function SidebarJobItem({ job, navigate }: { job: Job; navigate: (to: string) =>
         }}
       >
         <span
+          className={isRunning ? "wave-text" : undefined}
           style={{
             overflow: "hidden",
             textOverflow: "ellipsis",
