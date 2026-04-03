@@ -22,6 +22,7 @@ import {
   ArrowDownload20Regular,
   Search20Regular,
   Play20Regular,
+  Rocket20Regular,
 } from "@fluentui/react-icons";
 import { useJobStore, type Job } from "@/stores/jobStore";
 import { AGENT_META } from "@/api/types";
@@ -424,18 +425,48 @@ export function MissionControl() {
       {allJobs.length === 0 && !showHistory && (
         <div
           style={{
-            textAlign: "center",
-            padding: "80px 0",
-            color: "var(--text-secondary)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "80px 24px",
+            gap: 16,
           }}
         >
-          <Text size={500} style={{ display: "block", marginBottom: 8 }}>
+          <div
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 24,
+              background: "rgba(0, 120, 212, 0.06)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 8,
+            }}
+          >
+            <Rocket20Regular style={{ width: 36, height: 36, color: "var(--brand-primary)", opacity: 0.7 }} />
+          </div>
+          <Text size={500} weight="semibold" style={{ color: "var(--text-primary)" }}>
             No active jobs
           </Text>
-          <Text size={300} style={{ display: "block", marginBottom: 20 }}>
-            Launch your first content generation from the Launchpad
+          <Text
+            size={300}
+            style={{
+              color: "var(--text-secondary)",
+              maxWidth: 420,
+              textAlign: "center",
+              lineHeight: 1.5,
+            }}
+          >
+            Launch your first content generation from the Launchpad — pick a topic, level, and let the agents handle the rest.
           </Text>
-          <Button appearance="primary" onClick={() => navigate("/")}>
+          <Button
+            appearance="primary"
+            icon={<Rocket20Regular />}
+            style={{ marginTop: 8 }}
+            onClick={() => navigate("/")}
+          >
             Go to Launchpad
           </Button>
         </div>
