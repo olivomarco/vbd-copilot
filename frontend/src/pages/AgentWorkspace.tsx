@@ -769,12 +769,6 @@ export function AgentWorkspace() {
             size={200}
             style={{ display: "block", color: "var(--text-secondary)", marginBottom: 4 }}
           >
-            ⏱ {formatElapsed(job.completedAt ? job.completedAt - job.startedAt : elapsed)}
-          </Text>
-          <Text
-            size={200}
-            style={{ display: "block", color: "var(--text-secondary)", marginBottom: 4 }}
-          >
             🔧 {job.progress.toolCalls} tool calls
           </Text>
           <Text
@@ -788,6 +782,12 @@ export function AgentWorkspace() {
             style={{ display: "block", color: "var(--text-secondary)" }}
           >
             📊 {((job.usage.inputTokens + job.usage.outputTokens) / 1000).toFixed(0)}k tokens
+          </Text>
+          <Text
+            size={200}
+            style={{ display: "block", color: "var(--text-secondary)", marginBottom: 4 }}
+          >
+            ⏱ {formatElapsed(job.completedAt ? job.completedAt - job.startedAt : elapsed)}
           </Text>
         </div>
       </div>
@@ -1117,11 +1117,11 @@ export function AgentWorkspace() {
               color: "var(--text-secondary)",
             }}
           >
-            <span>⏱ {formatElapsed(job.completedAt ? job.completedAt - job.startedAt : elapsed)}</span>
-            <span>│</span>
             <span>{job.progress.toolCalls} tool calls</span>
             <span>│</span>
             <span>{job.progress.subagentRuns} subagents</span>
+            <span>│</span>
+            <span>⏱ {formatElapsed(job.completedAt ? job.completedAt - job.startedAt : elapsed)}</span>
           </div>
         </div>
       </div>
