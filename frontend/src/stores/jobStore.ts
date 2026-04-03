@@ -165,7 +165,7 @@ export const useJobStore = create<JobStore>()(
         existing.status === "failed" ||
         existing.status === "cancelled";
       const isReactivation =
-        patch.status === "running" || patch.status === "queued";
+        patch.status === "running" || patch.status === "queued" || patch.status === "waiting";
       if (isTerminal && !isReactivation && patch.status !== undefined) {
         return s;
       }

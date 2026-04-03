@@ -31,6 +31,8 @@ _input_queues: dict[str, asyncio.Queue[str]] = {}  # session_id -> Queue
 _seen_ids: dict[str, set[str]] = {}             # session_id -> seen event ids
 _tool_starts: dict[str, dict[str, float]] = {}  # session_id -> {tool: epoch}
 _last_times: dict[str, float] = {}              # session_id -> last event epoch
+_pending_inputs: dict[str, dict[str, Any]] = {}  # session_id -> last waiting_for_input payload
+_event_handler_unsubs: dict[str, Any] = {}       # session_id -> unsubscribe callable
 
 # Legacy single-session aliases (used by terminal mode / backward compat)
 _active_ws: Any | None = None
@@ -120,9 +122,46 @@ def get_cancel_flag(session_id: str | None = None) -> bool:
     return _cancel_flag
 
 
+def set_pending_input(session_id: str, payload: dict[str, Any] | None) -> None:
+    """Track or clear the pending waiting_for_input state for a session."""
+    if payload is None:
+        _pending_inputs.pop(session_id, None)
+    else:
+        _pending_inputs[session_id] = payload
+
+
+def get_pending_input(session_id: str) -> dict[str, Any] | None:
+    """Return the pending waiting_for_input payload, or None."""
+    return _pending_inputs.get(session_id)
+
+
+def has_event_handler(session_id: str) -> bool:
+    """Check if a session already has a registered WS event handler."""
+    return session_id in _event_handler_unsubs
+
+
+def register_event_handler(session_id: str, session: Any) -> None:
+    """Register a WS event handler for a session (idempotent)."""
+    if session_id in _event_handler_unsubs:
+        return  # already registered
+    handler = _make_ws_handler(session_id)
+    unsub = session.on(handler)
+    _event_handler_unsubs[session_id] = unsub
+
+
+def unregister_event_handler(session_id: str) -> None:
+    """Unregister the WS event handler for a session if one exists."""
+    unsub = _event_handler_unsubs.pop(session_id, None)
+    if unsub is not None:
+        import contextlib
+        with contextlib.suppress(Exception):
+            unsub()
+
+
 def push_user_response(content: str, session_id: str | None = None) -> None:
     """Push a user response for the current waiting_for_input prompt."""
     if session_id:
+        _pending_inputs.pop(session_id, None)  # clear pending input on response
         q = _input_queues.setdefault(session_id, asyncio.Queue())
         q.put_nowait(content)
     else:
@@ -266,6 +305,8 @@ def _make_ws_handler(session_id: str):
             return
 
         if etype == SessionEventType.TOOL_EXECUTION_START:
+            # Agent is running tools — clear any pending input (user responded or backend timed out)
+            _pending_inputs.pop(session_id, None)
             tool = getattr(d, "tool_name", None) or getattr(d, "mcp_tool_name", None) or "?"
             args_raw = getattr(d, "arguments", None)
             args_str = json.dumps(args_raw, ensure_ascii=False) if args_raw else "{}"
@@ -288,6 +329,8 @@ def _make_ws_handler(session_id: str):
             return
 
         if etype == SessionEventType.SUBAGENT_STARTED:
+            # Agent is running subagents — clear any pending input
+            _pending_inputs.pop(session_id, None)
             name = getattr(d, "agent_name", "?") or "?"
             send({"type": "subagent_started", "agent": str(name)})
             phase = _detect_phase(agent=str(name))

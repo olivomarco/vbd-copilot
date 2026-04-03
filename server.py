@@ -148,15 +148,22 @@ async def create_session(body: CreateSessionRequest) -> JSONResponse:
 
     async def _user_input(request: Any, _inv: Any) -> Any:
         from copilot.types import UserInputResponse
-        from server_adapter import pop_user_response, _send
+        from server_adapter import pop_user_response, _send, set_pending_input
         question = request.get("question", "")
         choices = request.get("choices")
         sid = _sid_ref[0] if _sid_ref else None
-        _send({"type": "waiting_for_input", "question": question, "choices": choices}, sid)
+        payload = {"type": "waiting_for_input", "question": question, "choices": choices}
+        if sid:
+            set_pending_input(sid, payload)
+        _send(payload, sid)
         try:
             answer = await pop_user_response(timeout=300.0, session_id=sid)
         except asyncio.TimeoutError:
             answer = ""
+        finally:
+            if sid:
+                set_pending_input(sid, None)
+                _send({"type": "input_resolved"}, sid)
         return UserInputResponse(answer=answer, wasFreeform=True)
 
     try:
@@ -217,14 +224,19 @@ async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONRes
 
     async def _user_input(request: Any, _inv: Any) -> Any:
         from copilot.types import UserInputResponse
-        from server_adapter import _send, pop_user_response
+        from server_adapter import _send, pop_user_response, set_pending_input
         question = request.get("question", "")
         choices = request.get("choices")
-        _send({"type": "waiting_for_input", "question": question, "choices": choices}, full_id)
+        payload = {"type": "waiting_for_input", "question": question, "choices": choices}
+        set_pending_input(full_id, payload)
+        _send(payload, full_id)
         try:
             answer = await pop_user_response(timeout=300.0, session_id=full_id)
         except asyncio.TimeoutError:
             answer = ""
+        finally:
+            set_pending_input(full_id, None)
+            _send({"type": "input_resolved"}, full_id)
         return UserInputResponse(answer=answer, wasFreeform=True)
 
     try:
@@ -260,11 +272,13 @@ async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONRes
 
 @app.delete("/sessions/{session_id}")
 async def end_session(session_id: str) -> JSONResponse:
+    from server_adapter import unregister_event_handler
     if _event_store:
         full_id = _event_store.resolve_prefix("sessions", session_id) or session_id
         _event_store.end_session(full_id, resumable=False)
     session = _session_map.pop(session_id, None)
     if session:
+        unregister_event_handler(session_id)
         with contextlib.suppress(Exception):
             session._event_handlers.clear()
     return JSONResponse(content={"ok": True})
@@ -1020,16 +1034,17 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
         _ws_map,
         ws_reset,
         _send,
+        register_event_handler,
+        unregister_event_handler,
+        has_event_handler,
     )
     from agents import DEFAULT_TIMEOUT
     from router import route_to_agent
 
     await websocket.accept()
-    # Track whether this connection is the primary (first) for the session.
-    # Only the primary registers the event handler and processes messages.
-    is_primary = session_id not in _ws_map or len(_ws_map.get(session_id, set())) == 0
+    is_first_ws = session_id not in _ws_map or len(_ws_map.get(session_id, set())) == 0
     add_ws(session_id, websocket)
-    if is_primary:
+    if is_first_ws:
         ws_reset(session_id)
 
     # Look up or create session
@@ -1047,13 +1062,19 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
 
             async def _user_input(request: Any, _inv: Any) -> Any:
                 from copilot.types import UserInputResponse
+                from server_adapter import set_pending_input
                 question = request.get("question", "")
                 choices = request.get("choices")
-                _send({"type": "waiting_for_input", "question": question, "choices": choices}, session_id)
+                payload = {"type": "waiting_for_input", "question": question, "choices": choices}
+                set_pending_input(session_id, payload)
+                _send(payload, session_id)
                 try:
                     answer = await pop_user_response(timeout=300.0, session_id=session_id)
                 except asyncio.TimeoutError:
                     answer = ""
+                finally:
+                    set_pending_input(session_id, None)
+                    _send({"type": "input_resolved"}, session_id)
                 return UserInputResponse(answer=answer, wasFreeform=True)
 
             try:
@@ -1083,12 +1104,20 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
             set_active_ws(session_id, None)
             return
 
-    # Register per-session WS event handler (only if primary connection)
-    ws_event_handler = None
-    ws_unsubscribe = None
-    if is_primary:
-        ws_event_handler = _make_ws_handler(session_id)
-        ws_unsubscribe = session.on(ws_event_handler)
+    # Register per-session WS event handler (idempotent — safe on reconnect).
+    # In the CLI, session.on(handle_event) is called once and persists.
+    # Here we match that: one handler per session, registered on first WS connect,
+    # surviving across WS reconnections.
+    register_event_handler(session_id, session)
+
+    # Re-send pending waiting_for_input state to reconnecting clients
+    from server_adapter import get_pending_input
+    pending = get_pending_input(session_id)
+    if pending:
+        try:
+            await websocket.send_text(json.dumps(pending))
+        except Exception:
+            pass
 
     current_turn_task: asyncio.Task[Any] | None = None
 
@@ -1105,7 +1134,16 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
             turn_status = "cancelled"
         except TimeoutError:
             turn_status = "timeout"
-            _send({"type": "error", "message": "timeout"}, session_id)
+            # Match CLI behavior: timeout is non-fatal. The agent may still be
+            # running server-side. The user can keep chatting.
+            _send({
+                "type": "error",
+                "message": (
+                    f"Timeout after {DEFAULT_TIMEOUT // 60} min — the agent is "
+                    "still running on the server. You can keep chatting; "
+                    "it may deliver results on the next turn."
+                ),
+            }, session_id)
         except Exception as exc:
             turn_status = "error"
             _send({"type": "error", "message": str(exc)}, session_id)
@@ -1165,9 +1203,12 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                 except Exception:
                     agent_name = None
 
+                from agents import DEFAULT_MODEL as _dm
+
                 if agent_name:
                     if _event_store:
                         _event_store.update_session_agent(session_id, agent_name)
+                        _event_store.update_session_model(session_id, _dm)
 
                 # Strip @mention prefix
                 clean = content
@@ -1179,7 +1220,7 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                     turn_id = _collector.on_turn_start(
                         session_id,
                         agent=agent_name or "copilot",
-                        model="",
+                        model=_dm,
                         user_prompt=clean,
                     )
 
@@ -1208,11 +1249,13 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
     except Exception as exc:
         log.error("WebSocket error: %s", exc)
     finally:
-        # Only unregister event handler if this was the primary connection
-        if ws_unsubscribe is not None:
-            with contextlib.suppress(Exception):
-                ws_unsubscribe()
         remove_ws(session_id, websocket)
+        # Unregister the event handler only when ALL WebSockets for the session
+        # are gone. This matches CLI behavior where the handler persists for
+        # the session lifetime.
+        remaining = _ws_map.get(session_id)
+        if not remaining:
+            unregister_event_handler(session_id)
 
 
 # ---------------------------------------------------------------------------

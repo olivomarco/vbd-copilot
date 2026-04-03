@@ -68,6 +68,7 @@ export function useWebSocket(sessionId: string | null) {
           updateJob(sid, {
             status: "running",
             phase: "researching",
+            pendingInput: undefined,
             progress: {
               toolCalls: 0,
               subagentRuns: 0,
@@ -83,13 +84,19 @@ export function useWebSocket(sessionId: string | null) {
         case "tool_started": {
           const job = useJobStore.getState().getJob(sid);
           if (job) {
-            updateJob(sid, {
+            const patch: Record<string, unknown> = {
               progress: {
                 ...job.progress,
                 toolCalls: job.progress.toolCalls + 1,
                 currentStep: `Running ${msg.tool || "tool"}`,
               },
-            });
+            };
+            // Agent moved past waiting — clear pendingInput
+            if (job.status === "waiting" || job.pendingInput) {
+              patch.status = "running";
+              patch.pendingInput = undefined;
+            }
+            updateJob(sid, patch);
           }
           break;
         }
@@ -97,13 +104,19 @@ export function useWebSocket(sessionId: string | null) {
         case "subagent_started": {
           const job = useJobStore.getState().getJob(sid);
           if (job) {
-            updateJob(sid, {
+            const patch: Record<string, unknown> = {
               progress: {
                 ...job.progress,
                 subagentRuns: job.progress.subagentRuns + 1,
                 currentStep: `Subagent: ${msg.agent || "agent"}`,
               },
-            });
+            };
+            // Agent moved past waiting — clear pendingInput
+            if (job.status === "waiting" || job.pendingInput) {
+              patch.status = "running";
+              patch.pendingInput = undefined;
+            }
+            updateJob(sid, patch);
           }
           break;
         }
@@ -115,6 +128,15 @@ export function useWebSocket(sessionId: string | null) {
               question: msg.question || "The agent has a question",
               choices: msg.choices || undefined,
             },
+          });
+          break;
+
+        case "input_resolved":
+          // Backend signals that the waiting_for_input prompt was resolved
+          // (user responded via another client, or backend timed out)
+          updateJob(sid, {
+            status: "running",
+            pendingInput: undefined,
           });
           break;
 
@@ -155,6 +177,20 @@ export function useWebSocket(sessionId: string | null) {
             jobStatus = "completed";
           } else if (msg.status === "cancelled") {
             jobStatus = "cancelled";
+          } else if (msg.status === "timeout") {
+            // Match CLI behavior: timeout is non-fatal. The session is still
+            // alive on the server. Let the user keep chatting.
+            jobDone.current = false; // don't prevent reconnect
+            updateJob(sid, {
+              status: "running",
+              phase: "building",
+              pendingInput: undefined,
+              progress: {
+                ...(useJobStore.getState().getJob(sid)?.progress || { toolCalls: 0, subagentRuns: 0, currentStep: "" }),
+                currentStep: "Turn timed out — you can send a follow-up message",
+              },
+            });
+            break;
           } else {
             jobStatus = "failed";
           }
@@ -286,8 +322,11 @@ export function useWebSocket(sessionId: string | null) {
           if (srv.status === "active" && srv.in_memory) {
             reconnectAttempts.current = 0;
             serverCheckAttempts.current = 0;
+            // Preserve pending input state — if the server is still waiting,
+            // the reconnected WS will receive the waiting_for_input event again.
+            const hasPending = !!job.pendingInput;
             updateJob(sid, {
-              status: "running",
+              status: hasPending ? "waiting" : "running",
               phase: job.phase === "done" ? "researching" : job.phase,
               completedAt: undefined,
             });
@@ -367,7 +406,12 @@ export function useWebSocket(sessionId: string | null) {
   }, [sessionId, connect]);
 
   const sendMessage = useCallback(
-    (content: string) => safeSend(JSON.stringify({ type: "message", content })),
+    (content: string) => {
+      // Reset done flag so the WS can reconnect for follow-up turns.
+      // This matches the CLI where the user can type after any turn ends.
+      jobDone.current = false;
+      safeSend(JSON.stringify({ type: "message", content }));
+    },
     [safeSend],
   );
 

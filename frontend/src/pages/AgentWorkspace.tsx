@@ -385,6 +385,23 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
   }
   // user_response events that were merged into a waiting_for_input — skip
   if (t === "user_response") return null;
+  // input_resolved is handled by the store — no UI needed
+  if (t === "input_resolved") return null;
+  // Follow-up messages from the user
+  if (t === "user_followup") {
+    return (
+      <div style={{
+        padding: "8px 12px",
+        background: "rgba(0, 120, 212, 0.06)",
+        borderRadius: 6,
+        borderLeft: "3px solid var(--brand-primary)",
+        fontSize: 13,
+      }}>
+        <strong style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 2 }}>You</strong>
+        {String(d.content || "")}
+      </div>
+    );
+  }
   // Catch-all for unknown event types — show them so nothing is silently lost
   return (
     <div style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, color: "var(--text-secondary)" }}>
@@ -405,6 +422,7 @@ export function AgentWorkspace() {
   const { sendMessage, sendUserResponse, cancel } = useWebSocket(jobId || null);
   const [editedPlan, setEditedPlan] = useState("");
   const [elapsed, setElapsed] = useState(0);
+  const [followUp, setFollowUp] = useState("");
 
   // Assemble and send the initial prompt when the WS connects
   const promptSent = useRef(false);
@@ -554,7 +572,8 @@ export function AgentWorkspace() {
       e.type !== "reasoning_delta" &&
       e.type !== "usage" &&
       e.type !== "phase_changed" &&
-      e.type !== "turn_started",
+      e.type !== "turn_started" &&
+      e.type !== "input_resolved",
   );
 
   // Build a map from tool_started events to their matching tool_completed events.
@@ -1030,24 +1049,80 @@ export function AgentWorkspace() {
           )}
         </div>
 
-        {/* Bottom bar */}
+        {/* Bottom bar — follow-up input (matches CLI interactive loop) */}
         <div
           style={{
             padding: "10px 24px",
             borderTop: "1px solid var(--border)",
             background: "var(--card-bg)",
             display: "flex",
-            alignItems: "center",
-            gap: 16,
-            fontSize: 13,
-            color: "var(--text-secondary)",
+            flexDirection: "column",
+            gap: 8,
           }}
         >
-          <span>⏱ {formatElapsed(job.completedAt ? job.completedAt - job.startedAt : elapsed)}</span>
-          <span>│</span>
-          <span>{job.progress.toolCalls} tool calls</span>
-          <span>│</span>
-          <span>{job.progress.subagentRuns} subagents</span>
+          {/* Follow-up message input: visible when session is alive and not
+              actively running a turn, mirroring the CLI's prompt-after-turn. */}
+          {(job.status === "completed" || job.status === "failed") && (
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+              <Textarea
+                value={followUp}
+                onChange={(_, data) => setFollowUp(data.value)}
+                placeholder="Send a follow-up message..."
+                resize="vertical"
+                rows={1}
+                style={{ flex: 1 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && followUp.trim()) {
+                    e.preventDefault();
+                    // Reactivate the job — a new turn is starting
+                    useJobStore.getState().updateJob(jobId, {
+                      status: "running",
+                      phase: "researching",
+                      completedAt: undefined,
+                    });
+                    sendMessage(followUp.trim());
+                    pushEvent(jobId, { type: "user_followup", data: { content: followUp.trim() } });
+                    setFollowUp("");
+                  }
+                }}
+              />
+              <Button
+                appearance="primary"
+                icon={<Send20Regular />}
+                disabled={!followUp.trim()}
+                onClick={() => {
+                  if (!followUp.trim()) return;
+                  useJobStore.getState().updateJob(jobId, {
+                    status: "running",
+                    phase: "researching",
+                    completedAt: undefined,
+                  });
+                  sendMessage(followUp.trim());
+                  pushEvent(jobId, { type: "user_followup", data: { content: followUp.trim() } });
+                  setFollowUp("");
+                }}
+              >
+                Send
+              </Button>
+            </div>
+          )}
+
+          {/* Stats row */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 16,
+              fontSize: 13,
+              color: "var(--text-secondary)",
+            }}
+          >
+            <span>⏱ {formatElapsed(job.completedAt ? job.completedAt - job.startedAt : elapsed)}</span>
+            <span>│</span>
+            <span>{job.progress.toolCalls} tool calls</span>
+            <span>│</span>
+            <span>{job.progress.subagentRuns} subagents</span>
+          </div>
         </div>
       </div>
     </div>
