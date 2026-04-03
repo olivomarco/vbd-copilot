@@ -21,7 +21,12 @@
     "focusBorder": "#0078D4",
     "progressBar.background": "#0078D4",
     "notificationCenterHeader.background": "#0078D4",
-    "notificationCenterHeader.foreground": "#ffffff"
+    "notificationCenterHeader.foreground": "#ffffff",
+
+    // ── Differentiate git-modified vs problems in explorer ──
+    "gitDecoration.modifiedResourceForeground": "#50E6FF",
+    "list.warningForeground": "#FFB900",
+    "list.errorForeground": "#F7630C"
   },
 
   // ── Python ─────────────────────────────────────────────────────────────────
