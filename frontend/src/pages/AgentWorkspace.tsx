@@ -528,10 +528,10 @@ export function AgentWorkspace() {
   }, [job?.id, job?.status]);
 
   useEffect(() => {
-    if (job?.pendingInput?.question) {
+    if (job?.pendingInput?.[0]?.question) {
       setEditedPlan("");
     }
-  }, [job?.pendingInput?.question]);
+  }, [job?.pendingInput?.[0]?.question]);
 
   // Elapsed time ticker
   useEffect(() => {
@@ -901,9 +901,11 @@ export function AgentWorkspace() {
         </div>
 
         {/* Plan Review / Question Gate */}
-        {job.status === "waiting" && job.pendingInput && (() => {
+        {job.status === "waiting" && job.pendingInput?.[0] && (() => {
+          const currentInput = job.pendingInput![0];
+          const queueLength = job.pendingInput!.length;
           const isPlanReview = deltaText.length > 50;
-          const hasChoices = !!(job.pendingInput.choices && job.pendingInput.choices.length > 0);
+          const hasChoices = !!(currentInput.choices && currentInput.choices.length > 0);
           return (
           <Card
             style={{
@@ -938,14 +940,19 @@ export function AgentWorkspace() {
               <span style={{ fontSize: 18, lineHeight: 1.6, display: "inline-flex" }}>{isPlanReview ? <ClipboardTask20Regular /> : <Chat20Regular />}</span>
               <div className="md-content" style={{ flex: 1, fontSize: 14, fontWeight: 600, maxHeight: 200, overflowY: "auto" }}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {job.pendingInput.question}
+                  {currentInput.question}
                 </ReactMarkdown>
               </div>
+              {queueLength > 1 && (
+                <span style={{ fontSize: 11, color: "var(--text-secondary)", whiteSpace: "nowrap", marginTop: 4 }}>
+                  +{queueLength - 1} more
+                </span>
+              )}
             </div>
 
             {hasChoices && (
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-                {job.pendingInput.choices!.map((choice, i) => (
+                {currentInput.choices!.map((choice, i) => (
                   <Button
                     key={i}
                     appearance="outline"

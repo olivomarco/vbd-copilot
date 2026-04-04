@@ -57,6 +57,7 @@ export function Launchpad() {
   const [briefInitial, setBriefInitial] = useState<Partial<{ topic: string; contentLevel: ContentLevel; duration: string; notes: string }> | undefined>(undefined);
   const carouselRef = useRef<HTMLDivElement>(null);
   const [hasArchitectures, setHasArchitectures] = useState<boolean | null>(null); // null = loading
+  const [hasProjects, setHasProjects] = useState<boolean | null>(null); // null = loading
 
   const scrollCarousel = useCallback((direction: "left" | "right") => {
     const el = carouselRef.current;
@@ -67,13 +68,15 @@ export function Launchpad() {
 
   useEffect(() => {
     fetchOutputs();
-    // Check if any architecture-ready projects exist
+    // Check if any architecture-ready projects exist and if any projects are built
     listGroupedOutputs()
       .then((all) => {
         const archReady = all.some((g) => g.category === "ai-projects" && g.has_architecture);
         setHasArchitectures(archReady);
+        const projectsExist = all.some((g) => g.category === "ai-projects" && g.file_count > 0);
+        setHasProjects(projectsExist);
       })
-      .catch(() => setHasArchitectures(false));
+      .catch(() => { setHasArchitectures(false); setHasProjects(false); });
   }, []);
 
   const recentOutputs = outputs.slice(0, 6);
@@ -144,7 +147,8 @@ export function Launchpad() {
       >
         {AGENTS.map(([key, meta], i) => {
           const isImplementor = key === "ai-implementor";
-          const locked = isImplementor && hasArchitectures === false;
+          const isDemoConductor = key === "ai-demo-conductor";
+          const locked = (isImplementor && hasArchitectures === false) || (isDemoConductor && hasProjects === false);
 
           const card = (
           <Card
@@ -231,7 +235,9 @@ export function Launchpad() {
                   }}
                 >
                   <LockClosed16Regular />
-                  Requires an architecture — use &ldquo;Architect a Solution&rdquo; first
+                  {isDemoConductor
+                    ? <>Requires a built project — use &ldquo;Build an AI Project&rdquo; first</>
+                    : <>Requires an architecture — use &ldquo;Architect a Solution&rdquo; first</>}
                 </div>
               )}
             </div>
@@ -239,7 +245,7 @@ export function Launchpad() {
           );
 
           return locked ? (
-            <Tooltip key={key} content="Create an architecture with 'Architect a Solution' first" relationship="description" positioning="below">
+            <Tooltip key={key} content={isDemoConductor ? "Build an AI project with 'Build an AI Project' first" : "Create an architecture with 'Architect a Solution' first"} relationship="description" positioning="below">
               {card}
             </Tooltip>
           ) : card;

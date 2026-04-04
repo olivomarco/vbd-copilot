@@ -51,12 +51,12 @@ const NAV_ITEMS = [
 
 /** Sidebar job item — shows a compact row with a pulsing attention dot when input is needed. */
 function SidebarJobItem({ job, navigate }: { job: Job; navigate: (to: string) => void }) {
-  const isWaiting = job.status === "waiting" && job.pendingInput;
+  const isWaiting = job.status === "waiting" && !!job.pendingInput?.length;
   const isRunning = job.status === "running" || job.status === "queued";
 
   return (
     <Tooltip
-      content={isWaiting ? `Needs input: ${job.pendingInput!.question}` : job.brief.topic}
+      content={isWaiting ? `Needs input: ${job.pendingInput![0].question}` : job.brief.topic}
       relationship="description"
       positioning="after"
     >

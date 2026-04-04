@@ -165,7 +165,7 @@ function JobCard({ job }: { job: Job }) {
       </div>
 
       {/* Waiting indicator */}
-      {job.status === "waiting" && job.pendingInput && (
+      {job.status === "waiting" && job.pendingInput?.[0] && (
         <div
           style={{
             marginTop: 10,
@@ -178,7 +178,7 @@ function JobCard({ job }: { job: Job }) {
             justifyContent: "space-between",
           }}
         >
-          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Warning20Regular /> {job.pendingInput.question.slice(0, 60)}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Warning20Regular /> {job.pendingInput[0].question.slice(0, 60)}{job.pendingInput.length > 1 ? ` (+${job.pendingInput.length - 1})` : ""}</span>
           <Button appearance="primary" size="small" onClick={() => navigate(`/workspace?id=${job.id}`)}>
             Review
           </Button>

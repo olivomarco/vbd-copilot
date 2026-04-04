@@ -15,6 +15,7 @@ import {
   Building20Regular,
   Checkmark12Regular,
   RocketRegular,
+  FolderOpen20Regular,
 } from "@fluentui/react-icons";
 import {
   AGENT_META,
@@ -34,6 +35,7 @@ const LONG_TOPIC_AGENTS: Set<AgentType> = new Set([
   "ai-brainstorming",
   "ai-solution-architect",
   "ai-implementor",
+  "ai-demo-conductor",
 ]);
 
 interface BriefFormProps {
@@ -70,6 +72,12 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
   const [archLoading, setArchLoading] = useState(false);
   const [selectedArch, setSelectedArch] = useState<GroupedOutput | null>(null);
 
+  // Project picker state (for ai-demo-conductor)
+  const needsProject = agent === "ai-demo-conductor";
+  const [projects, setProjects] = useState<GroupedOutput[]>([]);
+  const [projLoading, setProjLoading] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<GroupedOutput | null>(null);
+
   useEffect(() => {
     if (!needsArchitecture) return;
     setArchLoading(true);
@@ -87,6 +95,17 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
       .catch(() => {})
       .finally(() => setArchLoading(false));
   }, [needsArchitecture]);
+
+  useEffect(() => {
+    if (!needsProject) return;
+    setProjLoading(true);
+    listGroupedOutputs()
+      .then((all) => setProjects(
+        all.filter((g) => g.category === "ai-projects" && g.file_count > 0)
+      ))
+      .catch(() => {})
+      .finally(() => setProjLoading(false));
+  }, [needsProject]);
 
   const handleSubmit = useCallback(async () => {
     if (!topic.trim()) return;
@@ -106,6 +125,12 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
           : undefined,
         architectureDocs: selectedArch?.architecture_docs?.length
           ? selectedArch.architecture_docs
+          : undefined,
+        projectPath: selectedProject?.primary_file
+          ? selectedProject.primary_file
+          : undefined,
+        projectDocs: selectedProject?.files?.length
+          ? selectedProject.files
           : undefined,
       };
 
@@ -404,6 +429,115 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
             </div>
           )}
 
+          {/* Project picker — only for ai-demo-conductor */}
+          {needsProject && (
+            <div>
+              <Text
+                weight="semibold"
+                size={300}
+                style={{ display: "block", marginBottom: 6 }}
+              >
+                Project *
+              </Text>
+              <Text
+                size={200}
+                style={{ display: "block", marginBottom: 10, color: "var(--text-secondary)" }}
+              >
+                Select an existing built project to create demos from
+              </Text>
+
+              {projLoading && (
+                <div style={{ padding: 16, textAlign: "center" }}>
+                  <Spinner size="small" label="Loading projects…" />
+                </div>
+              )}
+
+              {!projLoading && projects.length === 0 && (
+                <div
+                  style={{
+                    padding: "16px",
+                    background: "#fff5e6",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255, 185, 0, 0.3)",
+                    fontSize: 13,
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  <span style={{ marginRight: 6 }}>⚠️</span>
+                  No projects found. Use <strong>Build an AI Project</strong> first to
+                  create one, then come back here.
+                </div>
+              )}
+
+              {!projLoading && projects.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {projects.map((proj) => {
+                    const isSelected = selectedProject?.id === proj.id;
+                    return (
+                      <div
+                        key={proj.id}
+                        onClick={() => setSelectedProject(isSelected ? null : proj)}
+                        style={{
+                          padding: "10px 14px",
+                          borderRadius: 8,
+                          border: isSelected
+                            ? "2px solid var(--brand-primary)"
+                            : "1px solid var(--border)",
+                          background: isSelected
+                            ? "rgba(0, 120, 212, 0.06)"
+                            : "var(--card-bg)",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <FolderOpen20Regular style={{ color: "#F25022", flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <Text
+                              weight="semibold"
+                              size={300}
+                              style={{
+                                display: "block",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {proj.title}
+                            </Text>
+                            <Text
+                              size={200}
+                              style={{ color: "var(--text-secondary)", display: "block" }}
+                            >
+                              {proj.file_count} files
+                            </Text>
+                          </div>
+                          {isSelected && (
+                            <span
+                              style={{
+                                width: 20,
+                                height: 20,
+                                borderRadius: "50%",
+                                background: "var(--brand-primary)",
+                                color: "white",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                              }}
+                            >
+                              <Checkmark12Regular />
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Audience — only for presentation-style agents */}
           {meta.showAudience && (
           <div>
@@ -462,7 +596,7 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
             appearance="primary"
             size="large"
             onClick={handleSubmit}
-            disabled={!topic.trim() || submitting || (needsArchitecture && !selectedArch)}
+            disabled={!topic.trim() || submitting || (needsArchitecture && !selectedArch) || (needsProject && !selectedProject)}
             style={{
               width: "100%",
               height: 44,

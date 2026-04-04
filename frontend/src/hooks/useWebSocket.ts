@@ -45,7 +45,7 @@ export function useWebSocket(sessionId: string | null) {
       // Preserve a waiting review gate if the socket reconnects mid-approval.
       const job = useJobStore.getState().getJob(sid);
       if (job && job.status !== "completed" && job.status !== "failed" && job.status !== "cancelled") {
-        updateJob(sid, { status: job.pendingInput ? "waiting" : "running" });
+        updateJob(sid, { status: job.pendingInput?.length ? "waiting" : "running" });
       }
     };
 
@@ -69,7 +69,7 @@ export function useWebSocket(sessionId: string | null) {
           updateJob(sid, {
             status: "running",
             phase: "researching",
-            pendingInput: undefined,
+            pendingInput: [],
             progress: {
               toolCalls: 0,
               subagentRuns: 0,
@@ -93,9 +93,9 @@ export function useWebSocket(sessionId: string | null) {
               },
             };
             // Agent moved past waiting — clear pendingInput
-            if (job.status === "waiting" || job.pendingInput) {
+            if (job.status === "waiting" || job.pendingInput?.length) {
               patch.status = "running";
-              patch.pendingInput = undefined;
+              patch.pendingInput = [];
             }
             updateJob(sid, patch);
           }
@@ -113,9 +113,9 @@ export function useWebSocket(sessionId: string | null) {
               },
             };
             // Agent moved past waiting — clear pendingInput
-            if (job.status === "waiting" || job.pendingInput) {
+            if (job.status === "waiting" || job.pendingInput?.length) {
               patch.status = "running";
-              patch.pendingInput = undefined;
+              patch.pendingInput = [];
             }
             updateJob(sid, patch);
           }
@@ -141,28 +141,29 @@ export function useWebSocket(sessionId: string | null) {
               );
             if (isDuplicate) {
               // Still update the job status but don't push a duplicate event
-              updateJob(sid, {
-                status: "waiting",
-                pendingInput: { question, choices },
-              });
+              updateJob(sid, { status: "waiting" });
               break;
             }
           }
+          const prevQueue = currentJob?.pendingInput || [];
           updateJob(sid, {
             status: "waiting",
-            pendingInput: { question, choices },
+            pendingInput: [...prevQueue, { question, choices }],
           });
           break;
         }
 
-        case "input_resolved":
+        case "input_resolved": {
           // Backend signals that the waiting_for_input prompt was resolved
           // (user responded via another client, or backend timed out)
+          const curJob = useJobStore.getState().getJob(sid);
+          const remaining = (curJob?.pendingInput || []).slice(1);
           updateJob(sid, {
-            status: "running",
-            pendingInput: undefined,
+            status: remaining.length > 0 ? "waiting" : "running",
+            pendingInput: remaining.length > 0 ? remaining : undefined,
           });
           break;
+        }
 
         case "usage": {
           const job = useJobStore.getState().getJob(sid);
@@ -208,7 +209,7 @@ export function useWebSocket(sessionId: string | null) {
             updateJob(sid, {
               status: "running",
               phase: "building",
-              pendingInput: undefined,
+              pendingInput: [],
               progress: {
                 ...(useJobStore.getState().getJob(sid)?.progress || { toolCalls: 0, subagentRuns: 0, currentStep: "" }),
                 currentStep: "Turn timed out — you can send a follow-up message",
@@ -222,7 +223,7 @@ export function useWebSocket(sessionId: string | null) {
             status: jobStatus,
             phase: "done",
             completedAt: Date.now(),
-            pendingInput: undefined,
+            pendingInput: [],
           });
           break;
         }
@@ -309,7 +310,7 @@ export function useWebSocket(sessionId: string | null) {
             });
           });
       } else {
-        const hasPendingInput = !!job.pendingInput;
+        const hasPendingInput = !!job.pendingInput?.length;
         updateJob(sid, {
           status: hasPendingInput ? "waiting" : "failed",
           phase: hasPendingInput ? "reviewing" : "done",
@@ -348,7 +349,7 @@ export function useWebSocket(sessionId: string | null) {
             serverCheckAttempts.current = 0;
             // Preserve pending input state — if the server is still waiting,
             // the reconnected WS will receive the waiting_for_input event again.
-            const hasPending = !!job.pendingInput;
+            const hasPending = !!job.pendingInput?.length;
             updateJob(sid, {
               status: hasPending ? "waiting" : "running",
               phase: job.phase === "done" ? "researching" : job.phase,
@@ -445,7 +446,13 @@ export function useWebSocket(sessionId: string | null) {
       safeSend(JSON.stringify({ type: "user_response", content }));
       // Push the response as an event so it appears in the activity feed
       pushEvent(sessionId, { type: "user_response", data: { content } });
-      updateJob(sessionId, { status: "running", pendingInput: undefined });
+      // Remove the answered question (first in queue) — keep remaining
+      const currentJob = useJobStore.getState().getJob(sessionId);
+      const rest = (currentJob?.pendingInput || []).slice(1);
+      updateJob(sessionId, {
+        status: rest.length > 0 ? "waiting" : "running",
+        pendingInput: rest.length > 0 ? rest : undefined,
+      });
     },
     [sessionId, safeSend],
   );

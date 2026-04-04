@@ -78,6 +78,10 @@ export interface JobBrief {
   architecturePath?: string;
   /** Paths to architecture design documents to feed to the agent. */
   architectureDocs?: string[];
+  /** Path to an existing built project (used by ai-demo-conductor). */
+  projectPath?: string;
+  /** Paths to project files to feed to the agent. */
+  projectDocs?: string[];
 }
 
 export interface JobEvent {
@@ -105,7 +109,7 @@ export interface Job {
   pendingInput?: {
     question: string;
     choices?: string[];
-  };
+  }[];
   outputFiles: string[];
   usage: {
     inputTokens: number;

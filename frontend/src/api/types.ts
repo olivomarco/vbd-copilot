@@ -158,17 +158,6 @@ export const AGENT_META: Record<
     showAudience: false,
     defaultLevel: "L300",
   },
-  "ai-demo-conductor": {
-    label: "Create Demo Presentations",
-    icon: "🎬",
-    color: "#00B294",
-    description: "AI-powered demo + slides",
-    showContentLevel: true,
-    showDuration: true,
-    showAudience: false,
-    defaultLevel: "L300",
-    beta: true,
-  },
   "hackathon-conductor": {
     label: "Design a Hackathon",
     icon: "🏆",
@@ -218,6 +207,19 @@ export const AGENT_META: Record<
     beta: true,
     topicLabel: "Project Focus",
     topicPlaceholder: "e.g. Document intelligence pipeline for invoice processing",
+  },
+  "ai-demo-conductor": {
+    label: "Create Project Demos",
+    icon: "🎬",
+    color: "#00B294",
+    description: "Demo guides + companion scripts from a built project",
+    showContentLevel: false,
+    showDuration: false,
+    showAudience: false,
+    defaultLevel: "L300",
+    beta: true,
+    topicLabel: "Demo Focus",
+    topicPlaceholder: "e.g. End-to-end document processing workflow demo",
   },
 };
 
