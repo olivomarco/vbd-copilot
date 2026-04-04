@@ -13,12 +13,10 @@
 | Name | Role | Charter | Status |
 |------|------|---------|--------|
 | Keaton | Lead | .squad/agents/keaton/charter.md | 🏗️ Active |
-| McManus | Backend Dev | .squad/agents/mcmanus/charter.md | 🔧 Active |
-| Verbal | Frontend Dev | .squad/agents/verbal/charter.md | ⚛️ Active |
+| McManus | Backend & CLI Dev | .squad/agents/mcmanus/charter.md | 🔧 Active |
+| Redfoot | Full-Stack Frontend Dev | .squad/agents/redfoot/charter.md | ⚛️ Active |
 | Fenster | Prompt Engineer | .squad/agents/fenster/charter.md | 📝 Active |
 | Hockney | Tester | .squad/agents/hockney/charter.md | 🧪 Active |
-| Kobayashi | CLI Dev | .squad/agents/kobayashi/charter.md | 🔧 Active |
-| Redfoot | Web Dev | .squad/agents/redfoot/charter.md | ⚛️ Active |
 | Scribe | Session Logger | .squad/agents/scribe/charter.md | 📋 Active |
 | Ralph | Work Monitor | .squad/agents/ralph/charter.md | 🔄 Active |
 

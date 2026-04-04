@@ -8,9 +8,8 @@ How to decide who handles what.
 |-----------|----------|----------|
 | Python backend | McManus | app.py, router.py, tools.py, store.py, server.py, SDK integration, FastAPI endpoints |
 | Agent loading system | McManus | agents/ package, loader.py, models.py, registry.py |
-| CLI commands & terminal UX | Kobayashi | commands/ directory, CLI argument parsing, Rich terminal output, shell integration, SDK CLI interfaces |
-| Frontend / Electron | Verbal | Electron shell, desktop app integration, IPC, window management |
-| Web UI / React components | Redfoot | frontend/src/components/, frontend/src/pages/, Vite config, browser-side logic, web styling |
+| CLI commands & terminal UX | McManus | commands/ directory, CLI argument parsing, Rich terminal output, shell integration, SDK CLI interfaces |
+| Frontend / Electron / Web UI | Redfoot | frontend/ directory, Electron shell, React components, Vite config, browser-side logic, web styling, IPC |
 | Agent definitions | Fenster | agent_defs/*.agent.md, YAML frontmatter, prompt design, workflow orchestration |
 | Skills & QA scripts | Fenster | skills/<name>/SKILL.md, QA check scripts, content humanizer |
 | Architecture decisions | Keaton | System design, refactoring proposals, routing logic, scope trade-offs |
