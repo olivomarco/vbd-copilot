@@ -1,7 +1,6 @@
 """Tests for tools.py - custom tool implementations."""
 
 import json
-import os
 import pytest
 from unittest.mock import MagicMock
 
@@ -136,7 +135,6 @@ class TestBingSearchHelpers:
         """Verify the URL built for Bing HTML search."""
         captured_urls = []
         import urllib.request
-        original_urlopen = urllib.request.urlopen
         class FakeResponse:
             headers = MagicMock()
             headers.get_content_charset = MagicMock(return_value="utf-8")
@@ -150,7 +148,7 @@ class TestBingSearchHelpers:
             captured_urls.append(req.full_url if hasattr(req, 'full_url') else str(req))
             return FakeResponse()
         monkeypatch.setattr(urllib.request, "urlopen", capture_urlopen)
-        results = _bing_html_search("azure aks", 3)
+        _bing_html_search("azure aks", 3)
         assert len(captured_urls) == 1
         assert "bing.com" in captured_urls[0]
         assert "azure" in captured_urls[0]

@@ -24,8 +24,16 @@ dependencies = [
 [project.scripts]
 csa-copilot = "app:main_entry"
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+]
+
 [tool.setuptools]
-py-modules = ["app", "router", "tools", "ui", "pricing", "store", "collector", "queries"]
+py-modules = ["app", "router", "tools", "ui", "pricing", "store", "collector", "queries", "server", "server_adapter"]
 packages = ["agents", "commands"]
 
 [tool.pytest.ini_options]

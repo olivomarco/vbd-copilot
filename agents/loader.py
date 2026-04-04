@@ -55,8 +55,15 @@ class FileSystemAgentSource:
 def load_agent(path: Path) -> AgentConfig:
     """Parse a single ``*.agent.md`` agent definition file."""
     text = path.read_text()
-    _, fm_block, prompt = text.split("---", 2)
+    try:
+        _, fm_block, prompt = text.split("---", 2)
+    except ValueError:
+        raise ValueError(
+            f"Agent definition {path} is missing YAML frontmatter delimiters (---)"
+        )
     raw = yaml.safe_load(fm_block)
+    if not isinstance(raw, dict):
+        raise ValueError(f"Agent definition {path} has invalid YAML frontmatter")
     prompt = prompt.strip()
 
     return AgentConfig(

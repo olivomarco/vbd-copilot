@@ -1,7 +1,6 @@
 """Tests for agents/loader.py - agent definition loading."""
 
 import pytest
-from pathlib import Path
 
 from agents.loader import load_agent, FileSystemAgentSource
 

@@ -57,7 +57,7 @@ Skills live in `skills/<skill-name>/` directories. Each skill has a `SKILL.md` a
 2. All AI project artifacts go under `outputs/ai-projects/<project-slug>/` - never in the repo root
 3. All hackathon artifacts go under `outputs/hackathons/<event-slug>/` - never in the repo root
 4. **Test coverage must be at least 80%** - run `pytest --cov` and verify the `fail_under = 80` threshold passes before merging
-4. When you write text, always ensure that is sounds human through the skill that you have for that
+5. When you write text, always ensure that is sounds human through the skill that you have for that
 
 ## Landmines
 

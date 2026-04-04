@@ -1,7 +1,6 @@
 """Tests for agents/registry.py - AgentCatalog."""
 
 import pytest
-from pathlib import Path
 
 from agents.models import AgentConfig
 from agents.registry import AgentCatalog, DEFAULT_MODEL, DEFAULT_TIMEOUT

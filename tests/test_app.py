@@ -1,7 +1,6 @@
 """Tests for app.py - output file detection helper."""
 
 import time
-from pathlib import Path
 
 from app import _find_new_outputs, _INTERESTING_SUFFIXES, _SKIP_DIRS
 

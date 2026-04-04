@@ -6,6 +6,7 @@ import {
   Building24Regular,
   Rocket24Regular,
   Document24Regular,
+  Presenter24Regular,
 } from "@fluentui/react-icons";
 import type { AgentType } from "@/api/types";
 import type { ComponentType } from "react";
@@ -15,6 +16,7 @@ type FluentIcon = ComponentType<{ style?: React.CSSProperties; className?: strin
 const ICON_MAP: Record<AgentType, FluentIcon> = {
   "slide-conductor": SlideText24Regular,
   "demo-conductor": Play24Regular,
+  "ai-demo-conductor": Presenter24Regular,
   "hackathon-conductor": Trophy24Regular,
   "ai-brainstorming": Lightbulb24Regular,
   "ai-solution-architect": Building24Regular,
@@ -24,6 +26,7 @@ const ICON_MAP: Record<AgentType, FluentIcon> = {
 export const COLOR_MAP: Record<AgentType, string> = {
   "slide-conductor": "#0078D4",
   "demo-conductor": "#7FBA00",
+  "ai-demo-conductor": "#00B294",
   "hackathon-conductor": "#FFB900",
   "ai-brainstorming": "#00A4EF",
   "ai-solution-architect": "#8661C5",

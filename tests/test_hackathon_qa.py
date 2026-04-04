@@ -3,7 +3,6 @@
 import importlib.util
 import json
 import os
-import pytest
 from pathlib import Path
 
 # Load hackathon_qa_checks from the skill directory (hyphenated dir name

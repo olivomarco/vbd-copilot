@@ -15,6 +15,22 @@ import {
   Send20Regular,
   ChevronDown12Regular,
   ChevronRight12Regular,
+  Wrench20Regular,
+  Flash20Regular,
+  Warning20Regular,
+  Bot20Regular,
+  SlideText20Regular,
+  Code20Regular,
+  Document20Regular,
+  Settings20Regular,
+  DocumentText20Regular,
+  FolderOpen20Regular,
+  CheckmarkCircle20Regular,
+  Pause20Regular,
+  DataBarVertical20Regular,
+  Timer20Regular,
+  ClipboardTask20Regular,
+  Chat20Regular,
 } from "@fluentui/react-icons";
 import { useJobStore, type Job, type AgentPhase, type JobEvent } from "@/stores/jobStore";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -79,11 +95,42 @@ function formatArgs(argsStr?: string): string {
   }
 }
 
+interface EventDataMap {
+  tool_started: { tool?: string; args?: string };
+  tool_completed: { tool?: string; duration_ms?: number; output_preview?: string };
+  subagent_started: { agent?: string };
+  subagent_completed: { agent?: string };
+  delta: { content?: string };
+  new_files: { files?: string[] };
+  done: { status?: string };
+  error: { message?: string };
+  waiting_for_input: { question?: string; choices?: string[] };
+  user_response: { content?: string };
+  phase_changed: { phase?: string };
+  user_followup: { content?: string };
+  input_resolved: Record<string, never>;
+  connection_error: { message?: string };
+}
+
+function eventData<T extends keyof EventDataMap>(event: JobEvent, _type: T): EventDataMap[T] {
+  return event.data as EventDataMap[T];
+}
+
+function fileIcon(ext: string | undefined) {
+  switch (ext) {
+    case "pptx": return <SlideText20Regular />;
+    case "py": return <Code20Regular />;
+    case "md": return <Document20Regular />;
+    case "sh": return <Settings20Regular />;
+    default: return <DocumentText20Regular />;
+  }
+}
+
 /** Collapsible tool card: shows tool name + preview, expands to show args & output. */
 function ToolCard({ event, completion }: { event: JobEvent; completion?: JobEvent }) {
   const [open, setOpen] = useState(false);
-  const d = event.data as any;
-  const cd = completion?.data as any;
+  const d = eventData(event, "tool_started");
+  const cd = completion ? eventData(completion, "tool_completed") : undefined;
 
   const toolName = d.tool && d.tool !== "None" && d.tool !== "?" ? d.tool : null;
   if (!toolName) return null;
@@ -123,7 +170,7 @@ function ToolCard({ event, completion }: { event: JobEvent; completion?: JobEven
             {open ? <ChevronDown12Regular /> : <ChevronRight12Regular />}
           </span>
         )}
-        <span style={{ flexShrink: 0 }}>{isComplete ? "✅" : "🔧"}</span>
+        <span style={{ flexShrink: 0, display: "inline-flex" }}>{isComplete ? <Checkmark20Regular /> : <Wrench20Regular />}</span>
         <strong style={{ flexShrink: 0 }}>{toolName}</strong>
         {durationMs != null && (
           <span style={{ color: "var(--text-secondary)", fontSize: 11, flexShrink: 0 }}>
@@ -223,7 +270,7 @@ function CollapsibleWarning({ message, subtle }: { message: string; subtle?: boo
       }}
       onClick={message.length > 80 ? () => setOpen(!open) : undefined}
     >
-      <span style={{ marginRight: 6 }}>{subtle ? "⚡" : "⚠️"}</span>
+      <span style={{ marginRight: 6, display: "inline-flex" }}>{subtle ? <Flash20Regular /> : <Warning20Regular />}</span>
       {open ? message : short}
     </div>
   );
@@ -242,7 +289,7 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
   if (t === "subagent_started") {
     return (
       <div style={{ padding: "8px 12px", background: "#fff5e6", borderRadius: 6, fontSize: 13 }}>
-        <span style={{ marginRight: 6 }}>🤖</span>
+        <span style={{ marginRight: 6, display: "inline-flex" }}><Bot20Regular /></span>
         Subagent: <strong>{d.agent}</strong>
       </div>
     );
@@ -250,7 +297,7 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
   if (t === "subagent_completed") {
     return (
       <div style={{ padding: "8px 12px", background: "#f0faf0", borderRadius: 6, fontSize: 13 }}>
-        <span style={{ marginRight: 6 }}>✅</span>
+        <span style={{ marginRight: 6, display: "inline-flex" }}><Checkmark20Regular /></span>
         Subagent <strong>{d.agent}</strong> completed
       </div>
     );
@@ -271,7 +318,7 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: files.length > 1 ? 8 : 0 }}>
-          <span style={{ fontSize: 16 }}>📦</span>
+          <span style={{ fontSize: 16, display: "inline-flex" }}><FolderOpen20Regular /></span>
           <strong style={{ fontSize: 13 }}>
             {files.length === 1 ? "File created" : `${files.length} files created`}
           </strong>
@@ -280,7 +327,6 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
           {files.map((f: string) => {
             const name = f.split("/").pop() || f;
             const ext = name.includes(".") ? name.split(".").pop()?.toLowerCase() : "";
-            const icon = ext === "pptx" ? "📊" : ext === "py" ? "🐍" : ext === "md" ? "📝" : ext === "sh" ? "⚙️" : "📄";
             return (
               <div
                 key={f}
@@ -294,7 +340,7 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
                   border: "1px solid rgba(0,0,0,0.06)",
                 }}
               >
-                <span style={{ flexShrink: 0 }}>{icon}</span>
+                <span style={{ flexShrink: 0, display: "inline-flex" }}>{fileIcon(ext)}</span>
                 <span style={{ flex: 1, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {name}
                 </span>
@@ -329,7 +375,7 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
   if (t === "done") {
     return (
       <div style={{ padding: "10px 14px", background: "#e6ffe6", borderRadius: 8, fontSize: 14, fontWeight: 600 }}>
-        <span style={{ marginRight: 6 }}>🎉</span>
+        <span style={{ marginRight: 6, display: "inline-flex" }}><CheckmarkCircle20Regular /></span>
         Job completed!
       </div>
     );
@@ -348,7 +394,7 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
   }
   if (t === "waiting_for_input") {
     const answered = !!userAnswer;
-    const answerText = (userAnswer?.data as any)?.content;
+    const answerText = userAnswer ? eventData(userAnswer, "user_response").content : undefined;
     return (
       <div style={{
         padding: "8px 12px",
@@ -358,7 +404,7 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
         opacity: answered ? 0.85 : 1,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-          <span>{answered ? "✅" : "⏸️"}</span>
+          <span style={{ display: "inline-flex" }}>{answered ? <Checkmark20Regular /> : <Pause20Regular />}</span>
           <strong>{answered ? "Question answered" : "Waiting for input"}</strong>
         </div>
         <div className="md-content" style={{ fontSize: 13 }}>
@@ -523,7 +569,7 @@ export function AgentWorkspace() {
     if (!job) return "";
     return job.events
       .filter((e) => e.type === "delta")
-      .map((e) => (e.data as any).content || "")
+      .map((e) => eventData(e, "delta").content || "")
       .join("");
   }, [job?.events.length]);
 
@@ -543,7 +589,7 @@ export function AgentWorkspace() {
     );
   }
 
-  const meta = AGENT_META[job.agent] || { icon: "🔧", label: job.agent, color: "#0078D4" };
+  const meta = AGENT_META[job.agent] || { icon: "", label: job.agent, color: "#0078D4" };
   const currentPhaseIdx = phaseIndex(job.phase);
 
   // Determine which phase the job actually reached before failing.
@@ -767,27 +813,27 @@ export function AgentWorkspace() {
         <div style={{ marginTop: "auto", paddingTop: 16, borderTop: "1px solid var(--border)" }}>
           <Text
             size={200}
-            style={{ display: "block", color: "var(--text-secondary)", marginBottom: 4 }}
+            style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-secondary)", marginBottom: 4 }}
           >
-            🔧 {job.progress.toolCalls} tool calls
+            <Wrench20Regular style={{ width: 14, height: 14 }} /> {job.progress.toolCalls} tool calls
           </Text>
           <Text
             size={200}
-            style={{ display: "block", color: "var(--text-secondary)", marginBottom: 4 }}
+            style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-secondary)", marginBottom: 4 }}
           >
-            🤖 {job.progress.subagentRuns} subagents
+            <Bot20Regular style={{ width: 14, height: 14 }} /> {job.progress.subagentRuns} subagents
           </Text>
           <Text
             size={200}
-            style={{ display: "block", color: "var(--text-secondary)" }}
+            style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-secondary)" }}
           >
-            📊 {((job.usage.inputTokens + job.usage.outputTokens) / 1000).toFixed(0)}k tokens
+            <DataBarVertical20Regular style={{ width: 14, height: 14 }} /> {((job.usage.inputTokens + job.usage.outputTokens) / 1000).toFixed(0)}k tokens
           </Text>
           <Text
             size={200}
-            style={{ display: "block", color: "var(--text-secondary)", marginBottom: 4 }}
+            style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-secondary)", marginBottom: 4 }}
           >
-            ⏱ {formatElapsed(job.completedAt ? job.completedAt - job.startedAt : elapsed)}
+            <Timer20Regular style={{ width: 14, height: 14 }} /> {formatElapsed(job.completedAt ? job.completedAt - job.startedAt : elapsed)}
           </Text>
         </div>
       </div>
@@ -889,7 +935,7 @@ export function AgentWorkspace() {
             )}
 
             <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 12 }}>
-              <span style={{ fontSize: 18, lineHeight: 1.6 }}>{isPlanReview ? "📋" : "💬"}</span>
+              <span style={{ fontSize: 18, lineHeight: 1.6, display: "inline-flex" }}>{isPlanReview ? <ClipboardTask20Regular /> : <Chat20Regular />}</span>
               <div className="md-content" style={{ flex: 1, fontSize: 14, fontWeight: 600, maxHeight: 200, overflowY: "auto" }}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {job.pendingInput.question}

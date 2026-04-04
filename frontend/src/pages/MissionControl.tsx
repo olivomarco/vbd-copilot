@@ -23,6 +23,12 @@ import {
   Search20Regular,
   Play20Regular,
   Rocket20Regular,
+  Warning20Regular,
+  SlideText20Regular,
+  Code20Regular,
+  Document20Regular,
+  Settings20Regular,
+  DocumentText20Regular,
 } from "@fluentui/react-icons";
 import { useJobStore, type Job } from "@/stores/jobStore";
 import { AGENT_META } from "@/api/types";
@@ -46,9 +52,19 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
+function fileIcon(ext: string | undefined) {
+  switch (ext) {
+    case "pptx": return <SlideText20Regular />;
+    case "py": return <Code20Regular />;
+    case "md": return <Document20Regular />;
+    case "sh": return <Settings20Regular />;
+    default: return <DocumentText20Regular />;
+  }
+}
+
 function JobCard({ job }: { job: Job }) {
   const navigate = useNavigate();
-  const meta = AGENT_META[job.agent] || { icon: "🔧", label: job.agent, color: "#666" };
+  const meta = AGENT_META[job.agent] || { icon: "", label: job.agent, color: "#666" };
 
   return (
     <Card
@@ -162,7 +178,7 @@ function JobCard({ job }: { job: Job }) {
             justifyContent: "space-between",
           }}
         >
-          <span>⚠️ {job.pendingInput.question.slice(0, 60)}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Warning20Regular /> {job.pendingInput.question.slice(0, 60)}</span>
           <Button appearance="primary" size="small" onClick={() => navigate(`/workspace?id=${job.id}`)}>
             Review
           </Button>
@@ -203,7 +219,6 @@ function JobCard({ job }: { job: Job }) {
             {job.outputFiles.map((f) => {
               const name = f.split("/").pop() || f;
               const ext = name.includes(".") ? name.split(".").pop()?.toLowerCase() : "";
-              const icon = ext === "pptx" ? "📊" : ext === "py" ? "🐍" : ext === "md" ? "📝" : ext === "sh" ? "⚙️" : "📄";
               return (
                 <div
                   key={f}
@@ -214,7 +229,7 @@ function JobCard({ job }: { job: Job }) {
                     fontSize: 12,
                   }}
                 >
-                  <span>{icon}</span>
+                  <span style={{ display: "inline-flex" }}>{fileIcon(ext)}</span>
                   <span
                     style={{
                       flex: 1,

@@ -1,14 +1,16 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Shell } from "./components/layout/Shell";
-import { Launchpad } from "./pages/Launchpad";
-import { OutputLibrary } from "./pages/OutputLibrary";
-import { SlideViewer } from "./components/viewers/SlideViewer";
-import { MarkdownViewer } from "./components/viewers/MarkdownViewer";
-import { ProjectExplorer } from "./components/viewers/ProjectExplorer";
-import { Settings } from "./pages/Settings";
-import { AgentWorkspace } from "./pages/AgentWorkspace";
-import { MissionControl } from "./pages/MissionControl";
 import { useJobStore } from "./stores/jobStore";
+
+const Launchpad = lazy(() => import("./pages/Launchpad").then(m => ({ default: m.Launchpad })));
+const OutputLibrary = lazy(() => import("./pages/OutputLibrary").then(m => ({ default: m.OutputLibrary })));
+const SlideViewer = lazy(() => import("./components/viewers/SlideViewer").then(m => ({ default: m.SlideViewer })));
+const MarkdownViewer = lazy(() => import("./components/viewers/MarkdownViewer").then(m => ({ default: m.MarkdownViewer })));
+const ProjectExplorer = lazy(() => import("./components/viewers/ProjectExplorer").then(m => ({ default: m.ProjectExplorer })));
+const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.Settings })));
+const AgentWorkspace = lazy(() => import("./pages/AgentWorkspace").then(m => ({ default: m.AgentWorkspace })));
+const MissionControl = lazy(() => import("./pages/MissionControl").then(m => ({ default: m.MissionControl })));
 
 // Run ONCE at module load: clean up stale jobs from previous browser sessions.
 // Only marks a job as lost if no other tab is actively updating it.
@@ -45,17 +47,19 @@ const _cleanupDone = (() => {
 export function App() {
   return (
     <Shell>
-      <Routes>
-        <Route path="/" element={<Launchpad />} />
-        <Route path="/mission" element={<MissionControl />} />
-        <Route path="/workspace" element={<AgentWorkspace />} />
-        <Route path="/library" element={<OutputLibrary />} />
-        <Route path="/library/slides" element={<SlideViewer />} />
-        <Route path="/library/markdown" element={<MarkdownViewer />} />
-        <Route path="/library/project" element={<ProjectExplorer />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={<div style={{ display: "flex", justifyContent: "center", padding: 80 }}>Loading...</div>}>
+        <Routes>
+          <Route path="/" element={<Launchpad />} />
+          <Route path="/mission" element={<MissionControl />} />
+          <Route path="/workspace" element={<AgentWorkspace />} />
+          <Route path="/library" element={<OutputLibrary />} />
+          <Route path="/library/slides" element={<SlideViewer />} />
+          <Route path="/library/markdown" element={<MarkdownViewer />} />
+          <Route path="/library/project" element={<ProjectExplorer />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </Shell>
   );
 }

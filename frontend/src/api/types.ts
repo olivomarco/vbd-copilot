@@ -115,6 +115,7 @@ export interface UsageStats {
 export type AgentType =
   | "slide-conductor"
   | "demo-conductor"
+  | "ai-demo-conductor"
   | "hackathon-conductor"
   | "ai-brainstorming"
   | "ai-solution-architect"
@@ -156,6 +157,17 @@ export const AGENT_META: Record<
     showDuration: true,
     showAudience: false,
     defaultLevel: "L300",
+  },
+  "ai-demo-conductor": {
+    label: "Create Demo Presentations",
+    icon: "🎬",
+    color: "#00B294",
+    description: "AI-powered demo + slides",
+    showContentLevel: true,
+    showDuration: true,
+    showAudience: false,
+    defaultLevel: "L300",
+    beta: true,
   },
   "hackathon-conductor": {
     label: "Design a Hackathon",

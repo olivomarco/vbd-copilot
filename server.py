@@ -202,7 +202,7 @@ class ResumeSessionRequest(BaseModel):
 
 @app.post("/sessions/{session_id}/resume")
 async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONResponse:
-    from agents import ALL_AGENT_CONFIGS, ALL_SKILL_DIRS, DEFAULT_MODEL
+    from agents import ALL_AGENT_CONFIGS, ALL_SKILL_DIRS
     from tools import ALL_CUSTOM_TOOLS
 
     if _copilot_client is None:
@@ -1030,13 +1030,11 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
         pop_user_response,
         set_active_ws,
         set_cancel_flag,
-        _make_ws_handler,
         _ws_map,
         ws_reset,
         _send,
         register_event_handler,
         unregister_event_handler,
-        has_event_handler,
     )
     from agents import DEFAULT_TIMEOUT
     from router import route_to_agent

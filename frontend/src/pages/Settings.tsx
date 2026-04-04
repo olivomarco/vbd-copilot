@@ -123,7 +123,7 @@ export function Settings() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <Text size={300}>Copilot SDK</Text>
             <Badge appearance="tint" color="informative" size="small">
-              v0.1.29
+              v{health?.version ?? "—"}
             </Badge>
           </div>
         </div>

@@ -20,7 +20,6 @@ import asyncio
 import contextlib
 import os
 import socket
-import sys
 import time
 from pathlib import Path
 

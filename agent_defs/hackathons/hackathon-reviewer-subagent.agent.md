@@ -67,7 +67,7 @@ Read all prose for AI writing patterns:
 - Content that sounds like a press release rather than a hands-on lab
 
 Run the humanizer scorer if the content is substantial:
-  python skills/content-humanizer/humanizer_scorer.py /path/to/file.md
+  python skills/content-humanizer/scripts/humanizer_scorer.py /path/to/file.md
 
 ### Step 6: Success Criteria Verification
 

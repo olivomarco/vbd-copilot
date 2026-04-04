@@ -3,7 +3,8 @@ import { useJobStore } from "@/stores/jobStore";
 import type { AgentPhase } from "@/stores/jobStore";
 import { getSessionStatus } from "@/api/client";
 
-const BASE_WS = import.meta.env.VITE_WS_URL ?? `ws://${window.location.hostname}:${window.location.port}`;
+const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
+const BASE_WS = import.meta.env.VITE_WS_URL ?? `${WS_PROTOCOL}//${window.location.hostname}:${window.location.port}`;
 
 const MAX_RECONNECT_ATTEMPTS = 12;
 const RECONNECT_DELAY_MS = 2000;

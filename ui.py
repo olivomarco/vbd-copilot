@@ -1045,9 +1045,12 @@ class CopilotUI:
             if not self.debug_mode:
                 return
             parts = [f"in={in_t}", f"out={out_t}"]
-            if cr_t: parts.append(f"cr={cr_t}")
-            if cw_t: parts.append(f"cw={cw_t}")
-            if model: parts.append(f"[{model}]")
+            if cr_t:
+                parts.append(f"cr={cr_t}")
+            if cw_t:
+                parts.append(f"cw={cw_t}")
+            if model:
+                parts.append(f"[{model}]")
             self._sidebar(f"[dim]tokens: {' | '.join(parts)}[/dim]")
             return
 

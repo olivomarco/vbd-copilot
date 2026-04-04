@@ -1,7 +1,6 @@
 """Tests for store.py - SQLite event store."""
 
 import pytest
-from pathlib import Path
 from store import EventStore
 
 

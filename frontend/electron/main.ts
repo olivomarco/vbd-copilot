@@ -177,14 +177,24 @@ function buildMenu() {
 // ── IPC handlers ─────────────────────────────────────────────────────────
 
 function setupIpc() {
+  const userHome = app.getPath("home");
+
   // Open a file/folder in the system file manager
   ipcMain.handle("shell:openPath", async (_event, filePath: string) => {
-    return shell.openPath(filePath);
+    const normalized = path.resolve(filePath);
+    if (!normalized.startsWith(userHome)) {
+      throw new Error("Access denied: path outside allowed directories");
+    }
+    return shell.openPath(normalized);
   });
 
   // Open a folder in VS Code
   ipcMain.handle("shell:openInVSCode", async (_event, folderPath: string) => {
-    return shell.openExternal(`vscode://file/${folderPath}`);
+    const normalized = path.resolve(folderPath);
+    if (!normalized.startsWith(userHome)) {
+      throw new Error("Access denied: path outside allowed directories");
+    }
+    return shell.openExternal(`vscode://file/${normalized}`);
   });
 
   // Show a system notification

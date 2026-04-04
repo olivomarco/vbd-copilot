@@ -224,7 +224,8 @@ def _send(payload: dict[str, Any], session_id: str | None = None) -> None:
 
 _RESEARCH_TOOLS = {"bing_search", "web_fetch"}
 _QA_TOOLS = {"run_pptx_qa_checks", "run_demo_qa_checks", "run_hackathon_qa_checks",
-             "run_architecture_qa_checks", "run_infra_qa_checks"}
+             "run_architecture_qa_checks", "run_infra_qa_checks",
+             "run_pipeline_qa_checks", "run_docs_qa_checks"}
 
 
 def _detect_phase(tool: str = "", agent: str = "") -> str | None:
@@ -283,7 +284,8 @@ def _make_ws_handler(session_id: str):
         d = event.data
         seen = _seen_ids.get(session_id, _seen_event_ids)
         tool_starts = _tool_starts.get(session_id, _pending_tool_starts)
-        send = lambda p: _send(p, session_id)
+        def send(p):
+            return _send(p, session_id)
 
         if etype in (
             SessionEventType.ASSISTANT_MESSAGE_DELTA,

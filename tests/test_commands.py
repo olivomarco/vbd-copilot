@@ -5,7 +5,6 @@ from io import StringIO
 
 from rich.console import Console
 
-import queries as q
 from commands.sessions import handle_sessions
 from commands.usage import handle_usage
 from store import EventStore
@@ -85,7 +84,7 @@ class TestHandleSessions:
 
     def test_end_session(self, store, console):
         _populate(store)
-        result = handle_sessions("end session-002", store, console,
+        handle_sessions("end session-002", store, console,
                                  current_session_id="session-002")
         # If the ended session is the current one, returns a signal
         # Otherwise returns None
