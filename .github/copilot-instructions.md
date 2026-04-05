@@ -70,3 +70,4 @@ Skills live in `skills/<skill-name>/` directories. Each skill has a `SKILL.md` a
 - Agent definitions are organized in subfolders (`slides/`, `demos/`, `ai-project/`, `hackathons/`) - the loader scans recursively
 - Challenge files in `outputs/hackathons/` use `challenge-{NN}` numbering - do not renumber or skip
 - Azure service skills in `skills/azure-*` are from the `microsoft/azure-skills` repo - do not modify them directly
+- before running python commands, source the `venv` with `source .venv/bin/activate` to ensure dependencies are available

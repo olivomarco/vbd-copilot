@@ -107,6 +107,13 @@ export async function listGroupedOutputs(): Promise<GroupedOutput[]> {
   return request<GroupedOutput[]>("/outputs/grouped");
 }
 
+export async function deleteGroupedOutput(id: string): Promise<{ ok: boolean; deleted: string[] }> {
+  return request<{ ok: boolean; deleted: string[] }>(
+    `/outputs/grouped?id=${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+  );
+}
+
 export async function readFile(path: string): Promise<{ path: string; content: string }> {
   return request<{ path: string; content: string }>(
     `/file?path=${encodeURIComponent(path)}`,

@@ -27,10 +27,13 @@ import {
   Rocket20Regular,
   Apps20Regular,
   Add20Regular,
+  Delete20Regular,
+  Warning20Regular,
 } from "@fluentui/react-icons";
 import { useOutputStore } from "@/stores/outputStore";
 import { ContentLevelBadge } from "@/components/common/ContentLevelBadge";
 import { CategoryIcon } from "@/components/common/AgentIcon";
+import { deleteGroupedOutput } from "@/api/client";
 import type { GroupedOutput, ContentLevel } from "@/api/types";
 
 const CATEGORIES = [
@@ -94,6 +97,22 @@ export function OutputLibrary() {
 
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<GroupedOutput | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteGroupedOutput(deleteTarget.id);
+      setDeleteTarget(null);
+      await fetchOutputs();
+    } catch (e: any) {
+      alert(`Delete failed: ${e.message}`);
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleteTarget, fetchOutputs]);
 
   useEffect(() => {
     fetchOutputs();
@@ -226,6 +245,65 @@ export function OutputLibrary() {
           />
         </div>
       </div>
+
+      {/* Delete confirmation banner */}
+      {deleteTarget && (
+        <div
+          className="animate-in"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            padding: "14px 20px",
+            marginBottom: 20,
+            background: "linear-gradient(135deg, #FFF4E5 0%, #FFF0DB 100%)",
+            border: "1px solid #FFB90060",
+            borderLeft: "4px solid #F25022",
+            borderRadius: 10,
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              background: "#F2502218",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <Warning20Regular style={{ color: "#F25022" }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <Text weight="semibold" size={300} style={{ display: "block", color: "#9B4400" }}>
+              Delete "{deleteTarget.title}"?
+            </Text>
+            <Text size={200} style={{ color: "#9B4400CC" }}>
+              This will permanently remove {deleteTarget.file_count} file{deleteTarget.file_count !== 1 ? "s" : ""} ({formatSize(deleteTarget.size)}). This action cannot be undone.
+            </Text>
+          </div>
+          <Button
+            appearance="subtle"
+            size="small"
+            onClick={() => setDeleteTarget(null)}
+            disabled={deleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            appearance="primary"
+            size="small"
+            icon={<Delete20Regular />}
+            onClick={handleDelete}
+            disabled={deleting}
+            style={{ background: "#F25022", borderColor: "#F25022" }}
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </Button>
+        </div>
+      )}
 
       {/* Loading */}
       {loading && (
@@ -479,6 +557,18 @@ export function OutputLibrary() {
                         }
                       }}
                     />
+                    <div style={{ flex: 1 }} />
+                    <Button
+                      appearance="subtle"
+                      icon={<Delete20Regular />}
+                      size="small"
+                      title="Delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(o);
+                      }}
+                      style={{ color: "var(--text-secondary)" }}
+                    />
                   </div>
                 </div>
               </Card>
@@ -580,6 +670,17 @@ export function OutputLibrary() {
                       a.click();
                     }
                   }}
+                />
+                <Button
+                  appearance="subtle"
+                  icon={<Delete20Regular />}
+                  size="small"
+                  title="Delete"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteTarget(o);
+                  }}
+                  style={{ color: "var(--text-secondary)" }}
                 />
               </div>
             );

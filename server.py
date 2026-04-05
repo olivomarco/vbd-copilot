@@ -82,14 +82,24 @@ def _safe_outputs_path(raw: str) -> Path:
 
     Raises HTTPException 400 if the path escapes the outputs directory.
     """
-    try:
-        resolved = Path(raw).resolve()
-    except Exception:
+    if not raw or not raw.strip():
         raise HTTPException(status_code=400, detail="Invalid path")
+    if "\x00" in raw:
+        raise HTTPException(status_code=400, detail="Invalid path")
+
     outputs_resolved = _outputs_dir.resolve()
+
     try:
-        resolved.relative_to(outputs_resolved)
-    except ValueError:
+        raw_path = Path(raw)
+        # Always resolve relative to the outputs directory, never CWD.
+        if raw_path.is_absolute():
+            resolved = raw_path.resolve()
+        else:
+            resolved = (outputs_resolved / raw_path).resolve()
+    except (ValueError, OSError):
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    if not resolved.is_relative_to(outputs_resolved):
         raise HTTPException(status_code=400, detail="Path outside outputs directory")
     return resolved
 
@@ -731,7 +741,79 @@ async def delete_output(path: str) -> JSONResponse:
         shutil.rmtree(str(resolved))
     else:
         raise HTTPException(status_code=404, detail="Not found")
-    return JSONResponse(content={"ok": True, "deleted": str(resolved)})
+    # Return only the relative path — never expose absolute server paths.
+    rel = str(resolved.relative_to(_outputs_dir.resolve()))
+    return JSONResponse(content={"ok": True, "deleted": rel})
+
+
+@app.delete("/outputs/grouped")
+async def delete_grouped_output(id: str) -> JSONResponse:
+    """Delete all files belonging to a grouped output.
+
+    The *id* follows the pattern ``category/slug`` (e.g. ``slides/my-deck``,
+    ``hackathons/azure-ai``, ``ai-projects/contoso``).  For directory-based
+    groups (hackathons, ai-projects) we remove the entire subfolder.  For
+    slides and demos we remove the individual companion files.
+    """
+    import shutil
+
+    parts = id.strip("/").split("/", 1)
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise HTTPException(status_code=400, detail="Invalid group id")
+
+    category, slug = parts
+    outputs_resolved = _outputs_dir.resolve()
+    deleted: list[str] = []
+
+    if category in ("hackathons", "ai-projects"):
+        # Directory-based groups — remove the whole subfolder
+        target = outputs_resolved / category / slug
+        resolved = target.resolve()
+        try:
+            resolved.relative_to(outputs_resolved)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Path outside outputs directory")
+        if resolved.is_dir():
+            shutil.rmtree(str(resolved))
+            deleted.append(str(resolved))
+        else:
+            raise HTTPException(status_code=404, detail="Directory not found")
+
+    elif category == "slides":
+        # Slide groups: pptx + optional pdf + optional generate_*.py
+        slides_dir = outputs_resolved / "slides"
+        for p in slides_dir.iterdir():
+            if p.is_file() and (
+                p.stem == slug
+                or p.stem == f"{slug}"
+                or p.name == f"generate_{slug.replace('-', '_')}_pptx.py"
+            ):
+                resolved = p.resolve()
+                try:
+                    resolved.relative_to(outputs_resolved)
+                except ValueError:
+                    continue
+                resolved.unlink()
+                deleted.append(str(resolved))
+
+    elif category == "demos":
+        # Demo groups: {slug}-demos.md + optional companion directory
+        demos_dir = outputs_resolved / "demos"
+        md_file = demos_dir / f"{slug}-demos.md"
+        if md_file.is_file():
+            md_file.unlink()
+            deleted.append(str(md_file))
+        companion = demos_dir / slug
+        if companion.is_dir():
+            shutil.rmtree(str(companion))
+            deleted.append(str(companion))
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Demo files not found")
+
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown category: {category}")
+
+    return JSONResponse(content={"ok": True, "deleted": deleted})
 
 
 @app.get("/file")
@@ -743,7 +825,9 @@ async def read_file(path: str) -> JSONResponse:
         content = resolved.read_text(encoding="utf-8", errors="replace")
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
-    return JSONResponse(content={"path": str(resolved), "content": content})
+    # Return only the relative path — never expose absolute server paths.
+    rel = str(resolved.relative_to(_outputs_dir.resolve()))
+    return JSONResponse(content={"path": rel, "content": content})
 
 
 # ---------------------------------------------------------------------------
@@ -797,7 +881,10 @@ async def create_zip(body: ZipRequest):
                         zf.write(str(child), arcname)
 
     buf.seek(0)
-    zip_name = (body.name or "csa-copilot-export") + ".zip"
+    # Sanitise user-supplied name to prevent header injection.
+    import re as _re_zip
+    safe_name = _re_zip.sub(r'[^\w\-.]', '_', body.name or "csa-copilot-export")
+    zip_name = safe_name + ".zip"
     return StreamingResponse(
         buf,
         media_type="application/zip",
@@ -855,7 +942,8 @@ async def get_output_metadata(path: str) -> JSONResponse:
         for suffix in ["-complete.md", "-plan.md"]:
             plan = plans_dir / (stem + suffix)
             if plan.is_file():
-                meta["planFile"] = str(plan)
+                # Return only the relative path — never expose absolute server paths.
+                meta["planFile"] = f"plans/{plan.name}"
                 break
 
     return JSONResponse(content=meta)
