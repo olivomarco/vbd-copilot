@@ -17,9 +17,12 @@ import {
   PanelLeftExpand24Regular,
   PlayCircle24Regular,
   PlayCircle24Filled,
+  Checkmark12Regular,
+  Dismiss12Regular,
 } from "@fluentui/react-icons";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useJobStore, type Job } from "@/stores/jobStore";
+import { AGENT_META, type AgentType } from "@/api/types";
 import { AgentIcon } from "@/components/common/AgentIcon";
 
 const NAV_ITEMS = [
@@ -108,9 +111,24 @@ export function Sidebar() {
   const collapsed = useSettingsStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar);
   const allJobs = Object.values(useJobStore((s) => s.jobs));
+  const removeJob = useJobStore((s) => s.removeJob);
   const activeJobs = allJobs.filter(
     (j) => j.status === "running" || j.status === "queued" || j.status === "waiting",
   );
+
+  // Recently completed jobs (last 30 min, with output files)
+  const RECENT_THRESHOLD = 30 * 60 * 1000; // 30 minutes
+  const now = Date.now();
+  const recentlyCompleted = allJobs
+    .filter(
+      (j) =>
+        j.status === "completed" &&
+        j.completedAt &&
+        now - j.completedAt < RECENT_THRESHOLD &&
+        j.outputFiles.length > 0,
+    )
+    .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0))
+    .slice(0, 5);
 
   return (
     <nav
@@ -209,6 +227,169 @@ export function Sidebar() {
           );
         })}
       </div>
+
+      {/* Recently Completed — persistent notification banners */}
+      {!collapsed && recentlyCompleted.length > 0 && (
+        <div style={{ padding: "0 8px", marginBottom: 4 }}>
+          <Divider style={{ margin: "4px 4px 8px" }} />
+          <Text
+            size={100}
+            style={{
+              display: "block",
+              padding: "0 12px 6px",
+              color: "#107C10",
+              textTransform: "uppercase",
+              fontWeight: 700,
+              fontSize: 10,
+              letterSpacing: "0.04em",
+            }}
+          >
+            Ready
+          </Text>
+          {recentlyCompleted.map((job) => {
+            const primaryFile = job.outputFiles[0] || "";
+            const isPptx = primaryFile.endsWith(".pptx");
+            const isMd = primaryFile.endsWith(".md");
+            const libraryPath = isPptx
+              ? `/library/slides?path=${encodeURIComponent(primaryFile)}`
+              : isMd
+                ? `/library/markdown?path=${encodeURIComponent(primaryFile)}`
+                : "/library";
+            const agentMeta = AGENT_META[job.agent as AgentType];
+            const elapsed = job.completedAt
+              ? Math.round((job.completedAt - job.startedAt) / 60000)
+              : 0;
+
+            return (
+              <div
+                key={job.id}
+                style={{
+                  position: "relative",
+                  margin: "0 4px 6px",
+                  padding: "10px 12px",
+                  background: "linear-gradient(135deg, #f0fff0 0%, #e8f5e8 100%)",
+                  border: "1px solid #7FBA0060",
+                  borderLeft: "3px solid #7FBA00",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+                onClick={() => {
+                  removeJob(job.id);
+                  navigate(libraryPath);
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "linear-gradient(135deg, #e8f5e8 0%, #d4ebd4 100%)";
+                  (e.currentTarget as HTMLElement).style.borderColor = "#7FBA00";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "linear-gradient(135deg, #f0fff0 0%, #e8f5e8 100%)";
+                  (e.currentTarget as HTMLElement).style.borderColor = "#7FBA0060";
+                }}
+              >
+                {/* Dismiss button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeJob(job.id);
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    right: 4,
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 2,
+                    borderRadius: 4,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "var(--text-secondary)",
+                    opacity: 0.6,
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = "0.6"; }}
+                >
+                  <Dismiss12Regular />
+                </button>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: "50%",
+                      background: "#7FBA00",
+                      color: "white",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Checkmark12Regular />
+                  </span>
+                  <Text
+                    weight="semibold"
+                    size={200}
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      color: "#107C10",
+                    }}
+                  >
+                    {job.brief.topic.slice(0, 28)}{job.brief.topic.length > 28 ? "…" : ""}
+                  </Text>
+                </div>
+                <Text
+                  size={100}
+                  style={{
+                    display: "block",
+                    color: "var(--text-secondary)",
+                    fontSize: 10,
+                  }}
+                >
+                  {agentMeta?.label || job.agent} · {job.outputFiles.length} file{job.outputFiles.length !== 1 ? "s" : ""}{elapsed > 0 ? ` · ${elapsed}m` : ""}
+                </Text>
+                <Text
+                  size={100}
+                  weight="semibold"
+                  style={{
+                    display: "block",
+                    marginTop: 4,
+                    color: "#0078D4",
+                    fontSize: 10,
+                  }}
+                >
+                  View in Library →
+                </Text>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Collapsed mode: completed badge */}
+      {collapsed && recentlyCompleted.length > 0 && (
+        <div style={{ padding: "0 8px 4px", textAlign: "center" }}>
+          <Tooltip
+            content={`${recentlyCompleted.length} completed — click to view`}
+            relationship="description"
+            positioning="after"
+          >
+            <Badge
+              size="small"
+              color="success"
+              style={{ cursor: "pointer" }}
+              onClick={() => navigate("/library")}
+            >
+              {recentlyCompleted.length} ✓
+            </Badge>
+          </Tooltip>
+        </div>
+      )}
 
       {/* Active Jobs */}
       {!collapsed && activeJobs.length > 0 && (

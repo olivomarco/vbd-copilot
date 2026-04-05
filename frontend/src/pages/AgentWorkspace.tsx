@@ -516,6 +516,14 @@ export function AgentWorkspace() {
         archRef = ` Use the existing architecture at ${b.architecturePath} as the foundation.`;
       }
       prompt = `@${job.agent} Build a full project for "${b.topic}".${archRef}`;
+    } else if (job.agent === "ai-demo-conductor") {
+      let projRef = "";
+      if (b.projectDocs?.length) {
+        projRef = ` The project files are: ${b.projectDocs.join(", ")}.`;
+      } else if (b.projectPath) {
+        projRef = ` The project is at ${b.projectPath}.`;
+      }
+      prompt = `@${job.agent} Create demos for "${b.topic}".${projRef}`;
     } else {
       prompt = `@${job.agent} Create ${levelPart}${durationPart}content about "${b.topic}"`;
     }
@@ -888,149 +896,25 @@ export function AgentWorkspace() {
               {job.status}
             </span>
           </div>
-          {(job.status === "running" || job.status === "queued") && (
+          {(job.status === "running" || job.status === "queued" || job.status === "waiting") && (
             <Button
               appearance="subtle"
               icon={<Dismiss20Regular />}
-              onClick={cancel}
+              onClick={() => {
+                cancel();
+                useJobStore.getState().updateJob(jobId, {
+                  status: "cancelled",
+                  phase: "done",
+                  completedAt: Date.now(),
+                  pendingInput: [],
+                });
+              }}
               style={{ color: "#d13438" }}
             >
               Cancel
             </Button>
           )}
         </div>
-
-        {/* Plan Review / Question Gate */}
-        {job.status === "waiting" && job.pendingInput?.[0] && (() => {
-          const currentInput = job.pendingInput![0];
-          const queueLength = job.pendingInput!.length;
-          const isPlanReview = deltaText.length > 50;
-          const hasChoices = !!(currentInput.choices && currentInput.choices.length > 0);
-          return (
-          <Card
-            style={{
-              margin: "16px 24px",
-              border: `2px solid ${isPlanReview ? "#FFB900" : "#0078D4"}`,
-              borderRadius: 10,
-              padding: "20px 24px",
-              background: isPlanReview ? "#fffbf0" : "#f0f6ff",
-            }}
-          >
-            {deltaText.trim() && (
-              <div
-                className="md-content"
-                style={{
-                  padding: "12px 16px",
-                  background: "var(--card-bg)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 8,
-                  maxHeight: 300,
-                  overflow: "auto",
-                  marginBottom: 14,
-                  fontSize: 13,
-                }}
-              >
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {deltaText}
-                </ReactMarkdown>
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 12 }}>
-              <span style={{ fontSize: 18, lineHeight: 1.6, display: "inline-flex" }}>{isPlanReview ? <ClipboardTask20Regular /> : <Chat20Regular />}</span>
-              <div className="md-content" style={{ flex: 1, fontSize: 14, fontWeight: 600, maxHeight: 200, overflowY: "auto" }}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {currentInput.question}
-                </ReactMarkdown>
-              </div>
-              {queueLength > 1 && (
-                <span style={{ fontSize: 11, color: "var(--text-secondary)", whiteSpace: "nowrap", marginTop: 4 }}>
-                  +{queueLength - 1} more
-                </span>
-              )}
-            </div>
-
-            {hasChoices && (
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-                {currentInput.choices!.map((choice, i) => (
-                  <Button
-                    key={i}
-                    appearance="outline"
-                    onClick={() => sendUserResponse(choice)}
-                    style={{ fontSize: 13 }}
-                  >
-                    {choice}
-                  </Button>
-                ))}
-              </div>
-            )}
-
-            <Textarea
-              id="plan-edit"
-              value={editedPlan}
-              onChange={(_, data) => setEditedPlan(data.value)}
-              placeholder={isPlanReview
-                ? "Optional: add clarifications or edits before approving"
-                : "Type your answer..."
-              }
-              resize="vertical"
-              rows={isPlanReview ? 3 : 2}
-              style={{ marginBottom: 14 }}
-            />
-
-            <div style={{ display: "flex", gap: 10 }}>
-              {isPlanReview ? (
-                <>
-                  <Button
-                    appearance="primary"
-                    icon={<Checkmark20Regular />}
-                    onClick={() => sendUserResponse(editedPlan.trim() || "Looks good, proceed with building.")}
-                  >
-                    Approve
-                  </Button>
-                  <Button
-                    appearance="outline"
-                    onClick={() => {
-                      const text = editedPlan.trim() || "Approved with modifications";
-                      sendUserResponse(text);
-                    }}
-                  >
-                    Edit & Approve
-                  </Button>
-                  <Button
-                    appearance="subtle"
-                    onClick={() => sendUserResponse("Reject this plan. Cancel the job.")}
-                    style={{ color: "#d13438" }}
-                  >
-                    Reject
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    appearance="primary"
-                    icon={<Send20Regular />}
-                    disabled={!editedPlan.trim() && !hasChoices}
-                    onClick={() => {
-                      if (editedPlan.trim()) {
-                        sendUserResponse(editedPlan.trim());
-                      }
-                    }}
-                  >
-                    Reply
-                  </Button>
-                  <Button
-                    appearance="subtle"
-                    onClick={() => sendUserResponse("Skip this question and decide for me.")}
-                  >
-                    Skip
-                  </Button>
-                </>
-              )}
-            </div>
-          </Card>
-          );
-        })()}
 
         {/* Activity feed */}
         <div
@@ -1102,7 +986,7 @@ export function AgentWorkspace() {
           )}
         </div>
 
-        {/* Bottom bar — follow-up input (matches CLI interactive loop) */}
+        {/* Bottom bar — question input / follow-up input */}
         <div
           style={{
             padding: "10px 24px",
@@ -1113,6 +997,137 @@ export function AgentWorkspace() {
             gap: 8,
           }}
         >
+          {/* Plan Review / Question Gate — pinned at bottom so it's always visible */}
+          {job.status === "waiting" && job.pendingInput?.[0] && (() => {
+            const currentInput = job.pendingInput![0];
+            const queueLength = job.pendingInput!.length;
+            const isPlanReview = deltaText.length > 50;
+            const hasChoices = !!(currentInput.choices && currentInput.choices.length > 0);
+            return (
+            <Card
+              style={{
+                border: `2px solid ${isPlanReview ? "#FFB900" : "#0078D4"}`,
+                borderRadius: 10,
+                padding: "16px 20px",
+                background: isPlanReview ? "#fffbf0" : "#f0f6ff",
+              }}
+            >
+              {deltaText.trim() && (
+                <div
+                  className="md-content"
+                  style={{
+                    padding: "10px 14px",
+                    background: "var(--card-bg)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    maxHeight: 200,
+                    overflow: "auto",
+                    marginBottom: 12,
+                    fontSize: 13,
+                  }}
+                >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {deltaText}
+                  </ReactMarkdown>
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
+                <span style={{ fontSize: 18, lineHeight: 1.6, display: "inline-flex" }}>{isPlanReview ? <ClipboardTask20Regular /> : <Chat20Regular />}</span>
+                <div className="md-content" style={{ flex: 1, fontSize: 14, fontWeight: 600, maxHeight: 150, overflowY: "auto" }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {currentInput.question}
+                  </ReactMarkdown>
+                </div>
+                {queueLength > 1 && (
+                  <span style={{ fontSize: 11, color: "var(--text-secondary)", whiteSpace: "nowrap", marginTop: 4 }}>
+                    +{queueLength - 1} more
+                  </span>
+                )}
+              </div>
+
+              {hasChoices && (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                  {currentInput.choices!.map((choice, i) => (
+                    <Button
+                      key={i}
+                      appearance="outline"
+                      onClick={() => sendUserResponse(choice)}
+                      style={{ fontSize: 13 }}
+                    >
+                      {choice}
+                    </Button>
+                  ))}
+                </div>
+              )}
+
+              <Textarea
+                id="plan-edit"
+                value={editedPlan}
+                onChange={(_, data) => setEditedPlan(data.value)}
+                placeholder={isPlanReview
+                  ? "Optional: add clarifications or edits before approving"
+                  : "Type your answer..."
+                }
+                resize="vertical"
+                rows={isPlanReview ? 3 : 2}
+                style={{ marginBottom: 12 }}
+              />
+
+              <div style={{ display: "flex", gap: 10 }}>
+                {isPlanReview ? (
+                  <>
+                    <Button
+                      appearance="primary"
+                      icon={<Checkmark20Regular />}
+                      onClick={() => sendUserResponse(editedPlan.trim() || "Looks good, proceed with building.")}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      appearance="outline"
+                      onClick={() => {
+                        const text = editedPlan.trim() || "Approved with modifications";
+                        sendUserResponse(text);
+                      }}
+                    >
+                      Edit & Approve
+                    </Button>
+                    <Button
+                      appearance="subtle"
+                      onClick={() => sendUserResponse("Reject this plan. Cancel the job.")}
+                      style={{ color: "#d13438" }}
+                    >
+                      Reject
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      appearance="primary"
+                      icon={<Send20Regular />}
+                      disabled={!editedPlan.trim() && !hasChoices}
+                      onClick={() => {
+                        if (editedPlan.trim()) {
+                          sendUserResponse(editedPlan.trim());
+                        }
+                      }}
+                    >
+                      Reply
+                    </Button>
+                    <Button
+                      appearance="subtle"
+                      onClick={() => sendUserResponse("Skip this question and decide for me.")}
+                    >
+                      Skip
+                    </Button>
+                  </>
+                )}
+              </div>
+            </Card>
+            );
+          })()}
+
           {/* Follow-up message input: visible when session is alive and not
               actively running a turn, mirroring the CLI's prompt-after-turn. */}
           {(job.status === "completed" || job.status === "failed") && (

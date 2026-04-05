@@ -76,6 +76,10 @@ All outputs go under `outputs/ai-projects/<project-slug>/demos/`:
 
 ### Phase 0: Project Discovery
 
+**If the user's prompt already specifies a project path** (e.g. "The project is at outputs/ai-projects/contoso-rag-chatbot" or lists project files), use that path directly as `<slug>` — do NOT ask the user which project to use. Skip to 0A and read from the provided path.
+
+**If no project path is provided**, list `outputs/ai-projects/` to discover projects, then ask the user with ask_user which project to target.
+
 0A. Read the project's architecture and infra to understand what was built:
     - `outputs/ai-projects/<slug>/docs/solution-design.md` (architecture, components, data flows)
     - `outputs/ai-projects/<slug>/infra/main.bicep` and all modules (network topology, security posture)

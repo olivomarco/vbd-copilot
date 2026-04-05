@@ -60,6 +60,57 @@ export function useWebSocket(sessionId: string | null) {
       const t = msg.type as string;
 
       if (t !== "pong" && t !== "heartbeat") {
+        // Deduplicate waiting_for_input events BEFORE pushing to the feed.
+        // Handles two cases:
+        //   A) WS reconnect replays a pending ask_user the user hasn't answered yet
+        //   B) Server re-asks a question the user already answered (stale replay)
+        if (t === "waiting_for_input") {
+          const q = msg.question || "The agent has a question";
+          const currentJob = useJobStore.getState().getJob(sid);
+          if (currentJob) {
+            // Find the last waiting_for_input with the same question text
+            const lastWaiting = [...currentJob.events].reverse().find(
+              (e) => e.type === "waiting_for_input" && (e.data as any).question === q,
+            );
+
+            if (lastWaiting) {
+              const hasAnswerAfter = currentJob.events.some(
+                (e) => e.type === "user_response" && e.id > lastWaiting.id,
+              );
+
+              if (!hasAnswerAfter) {
+                // Case A: unanswered duplicate — restore pendingInput, skip feed event
+                const alreadyQueued = (currentJob.pendingInput || []).some(
+                  (p) => p.question === q,
+                );
+                updateJob(sid, {
+                  status: "waiting",
+                  ...(!alreadyQueued && {
+                    pendingInput: [
+                      ...(currentJob.pendingInput || []),
+                      { question: q, choices: msg.choices || undefined },
+                    ],
+                  }),
+                });
+                return;
+              }
+
+              // Case B: already answered — find the answer and auto-reply
+              const answerEvent = currentJob.events.find(
+                (e) => e.type === "user_response" && e.id > lastWaiting.id,
+              );
+              if (answerEvent) {
+                const previousAnswer = (answerEvent.data as any).content;
+                if (previousAnswer && ws.readyState === WebSocket.OPEN) {
+                  // Auto-reply silently with the same answer
+                  ws.send(JSON.stringify({ type: "user_response", content: previousAnswer }));
+                  return; // don't push to feed, don't show input card
+                }
+              }
+            }
+          }
+        }
+
         // Push raw event to the activity feed
         pushEvent(sid, { type: t, data: msg });
       }
@@ -123,28 +174,11 @@ export function useWebSocket(sessionId: string | null) {
         }
 
         case "waiting_for_input": {
+          // Dedup is handled above (before pushEvent). If we reach here,
+          // this is a genuinely new question — add to pendingInput queue.
           const question = msg.question || "The agent has a question";
           const choices = msg.choices || undefined;
-          // Deduplicate: if the last waiting_for_input event in the feed
-          // has the same question, skip pushing a new event (happens on WS reconnect).
           const currentJob = useJobStore.getState().getJob(sid);
-          if (currentJob) {
-            const lastWaiting = [...currentJob.events].reverse().find(
-              (e) => e.type === "waiting_for_input",
-            );
-            const isDuplicate =
-              lastWaiting &&
-              (lastWaiting.data as any).question === question &&
-              // Only if there's no user_response after the last waiting event
-              !currentJob.events.some(
-                (e) => e.type === "user_response" && e.id > lastWaiting.id,
-              );
-            if (isDuplicate) {
-              // Still update the job status but don't push a duplicate event
-              updateJob(sid, { status: "waiting" });
-              break;
-            }
-          }
           const prevQueue = currentJob?.pendingInput || [];
           updateJob(sid, {
             status: "waiting",
