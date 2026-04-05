@@ -58,7 +58,7 @@ The `sql` tool is **CLI-only**. It does not exist on VS Code, JetBrains, or GitH
 **Example 1: CLI parallel spawn**
 ```typescript
 // Coordinator detects task tool available → CLI mode
-task({ agent_type: "general-purpose", mode: "background", model: "claude-sonnet-4.5", ... })
+task({ agent_type: "general-purpose", mode: "background", model: "claude-sonnet-4.6", ... })
 task({ agent_type: "general-purpose", mode: "background", model: "claude-haiku-4.5", ... })
 // Later: read_agent for both
 ```
