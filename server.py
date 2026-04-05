@@ -1197,11 +1197,19 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
     register_event_handler(session_id, session)
 
     # Re-send pending waiting_for_input state to reconnecting clients
-    from server_adapter import get_pending_input
+    from server_adapter import get_pending_input, get_last_done
     pending = get_pending_input(session_id)
     if pending:
         try:
             await websocket.send_text(json.dumps(pending))
+        except Exception:
+            pass
+
+    # Re-send done status to reconnecting clients who missed it
+    last_done = get_last_done(session_id)
+    if last_done:
+        try:
+            await websocket.send_text(json.dumps(last_done))
         except Exception:
             pass
 
@@ -1242,6 +1250,10 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                 }, session_id)
 
             _send({"type": "done", "status": turn_status}, session_id)
+
+            # Persist done status so reconnecting clients can pick it up
+            from server_adapter import set_last_done
+            set_last_done(session_id, {"type": "done", "status": turn_status})
 
             if _collector and turn_id:
                 _collector.on_turn_end(
@@ -1311,6 +1323,9 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                     )
 
                 _send({"type": "turn_started", "agent": agent_name}, session_id)
+                # Clear stale done status from previous turn so it isn't replayed
+                from server_adapter import clear_last_done
+                clear_last_done(session_id)
                 current_turn_task = asyncio.create_task(_run_turn(clean, agent_name, turn_id))
 
             elif msg_type == "cancel":

@@ -48,6 +48,34 @@ export function useWebSocket(sessionId: string | null) {
       if (job && job.status !== "completed" && job.status !== "failed" && job.status !== "cancelled") {
         updateJob(sid, { status: job.pendingInput?.length ? "waiting" : "running" });
       }
+
+      // Safety net: poll the server status endpoint shortly after reconnect.
+      // If the turn already completed while we were disconnected and the server
+      // cleaned up before we reconnected, the WS will never receive a "done"
+      // event. The status API tells us the session ended and we can finalize.
+      setTimeout(() => {
+        const currentJob = useJobStore.getState().getJob(sid);
+        if (!currentJob || currentJob.status === "completed" || currentJob.status === "failed" || currentJob.status === "cancelled") return;
+        getSessionStatus(sid)
+          .then((srv) => {
+            // Re-check — a "done" WS event may have arrived in the meantime
+            const freshJob = useJobStore.getState().getJob(sid);
+            if (!freshJob || freshJob.status === "completed" || freshJob.status === "failed" || freshJob.status === "cancelled") return;
+
+            if (srv.status === "ended" || (!srv.in_memory && !srv.has_running_turn)) {
+              jobDone.current = true;
+              clearInputNotification();
+              notifyJobCompleted(freshJob.title || "Your content is ready");
+              updateJob(sid, {
+                status: "completed",
+                phase: "done",
+                completedAt: Date.now(),
+                pendingInput: [],
+              });
+            }
+          })
+          .catch(() => { /* server unreachable — WS will handle it */ });
+      }, 3000);
     };
 
     ws.onmessage = (ev) => {
@@ -128,19 +156,13 @@ export function useWebSocket(sessionId: string | null) {
         case "tool_started": {
           const job = useJobStore.getState().getJob(sid);
           if (job) {
-            const patch: Record<string, unknown> = {
+            updateJob(sid, {
               progress: {
                 ...job.progress,
                 toolCalls: job.progress.toolCalls + 1,
                 currentStep: `Running ${msg.tool || "tool"}`,
               },
-            };
-            // Agent moved past waiting — clear pendingInput
-            if (job.status === "waiting" || job.pendingInput?.length) {
-              patch.status = "running";
-              patch.pendingInput = [];
-            }
-            updateJob(sid, patch);
+            });
           }
           break;
         }
@@ -148,19 +170,13 @@ export function useWebSocket(sessionId: string | null) {
         case "subagent_started": {
           const job = useJobStore.getState().getJob(sid);
           if (job) {
-            const patch: Record<string, unknown> = {
+            updateJob(sid, {
               progress: {
                 ...job.progress,
                 subagentRuns: job.progress.subagentRuns + 1,
                 currentStep: `Subagent: ${msg.agent || "agent"}`,
               },
-            };
-            // Agent moved past waiting — clear pendingInput
-            if (job.status === "waiting" || job.pendingInput?.length) {
-              patch.status = "running";
-              patch.pendingInput = [];
-            }
-            updateJob(sid, patch);
+            });
           }
           break;
         }

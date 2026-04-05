@@ -32,6 +32,7 @@ _seen_ids: dict[str, set[str]] = {}             # session_id -> seen event ids
 _tool_starts: dict[str, dict[str, float]] = {}  # session_id -> {tool: epoch}
 _last_times: dict[str, float] = {}              # session_id -> last event epoch
 _pending_inputs: dict[str, dict[str, Any]] = {}  # session_id -> last waiting_for_input payload
+_last_done: dict[str, dict[str, Any]] = {}        # session_id -> last done payload (for reconnect replay)
 _event_handler_unsubs: dict[str, Any] = {}       # session_id -> unsubscribe callable
 
 # Legacy single-session aliases (used by terminal mode / backward compat)
@@ -133,6 +134,21 @@ def set_pending_input(session_id: str, payload: dict[str, Any] | None) -> None:
 def get_pending_input(session_id: str) -> dict[str, Any] | None:
     """Return the pending waiting_for_input payload, or None."""
     return _pending_inputs.get(session_id)
+
+
+def set_last_done(session_id: str, payload: dict[str, Any]) -> None:
+    """Store the last done event for a session so reconnecting clients receive it."""
+    _last_done[session_id] = payload
+
+
+def get_last_done(session_id: str) -> dict[str, Any] | None:
+    """Return the stored done payload, or None."""
+    return _last_done.get(session_id)
+
+
+def clear_last_done(session_id: str) -> None:
+    """Clear the stored done status (e.g. when a new turn starts)."""
+    _last_done.pop(session_id, None)
 
 
 def has_event_handler(session_id: str) -> bool:
