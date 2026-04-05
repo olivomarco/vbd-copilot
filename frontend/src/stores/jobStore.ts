@@ -126,12 +126,15 @@ export interface Job {
 
 interface JobStore {
   jobs: Record<string, Job>;
+  /** IDs of jobs whose "Ready" notification has been dismissed. */
+  dismissedNotifications: Set<string>;
 
   addJob: (job: Job) => void;
   removeJob: (id: string) => void;
   updateJob: (id: string, patch: Partial<Job>) => void;
   pushEvent: (id: string, event: Omit<JobEvent, "id" | "time">) => void;
   setWs: (id: string, ws: WebSocket | null) => void;
+  dismissNotification: (id: string) => void;
 
   /** Computed helpers */
   activeJobs: () => Job[];
@@ -146,6 +149,7 @@ export const useJobStore = create<JobStore>()(
   persist(
     (set, get) => ({
   jobs: {},
+  dismissedNotifications: new Set<string>(),
 
   addJob: (job) => {
     set((s) => ({ jobs: { ...s.jobs, [job.id]: job } }));
@@ -158,6 +162,10 @@ export const useJobStore = create<JobStore>()(
       return { jobs: rest };
     });
     broadcastJobRemove(id);
+  },
+
+  dismissNotification: (id) => {
+    set((s) => ({ dismissedNotifications: new Set([...s.dismissedNotifications, id]) }));
   },
 
   updateJob: (id, patch) => {
@@ -231,6 +239,12 @@ export const useJobStore = create<JobStore>()(
             { ...v, _ws: undefined },
           ]),
         ),
+        dismissedNotifications: [...state.dismissedNotifications],
+      }),
+      merge: (persisted: any, current: any) => ({
+        ...current,
+        ...persisted,
+        dismissedNotifications: new Set(persisted?.dismissedNotifications || []),
       }),
     },
   ),

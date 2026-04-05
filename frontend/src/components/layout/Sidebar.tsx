@@ -111,12 +111,13 @@ export function Sidebar() {
   const collapsed = useSettingsStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar);
   const allJobs = Object.values(useJobStore((s) => s.jobs));
-  const removeJob = useJobStore((s) => s.removeJob);
+  const dismissNotification = useJobStore((s) => s.dismissNotification);
+  const dismissedNotifications = useJobStore((s) => s.dismissedNotifications);
   const activeJobs = allJobs.filter(
     (j) => j.status === "running" || j.status === "queued" || j.status === "waiting",
   );
 
-  // Recently completed jobs (last 30 min, with output files)
+  // Recently completed jobs (last 30 min, with output files, not dismissed)
   const RECENT_THRESHOLD = 30 * 60 * 1000; // 30 minutes
   const now = Date.now();
   const recentlyCompleted = allJobs
@@ -125,7 +126,8 @@ export function Sidebar() {
         j.status === "completed" &&
         j.completedAt &&
         now - j.completedAt < RECENT_THRESHOLD &&
-        j.outputFiles.length > 0,
+        j.outputFiles.length > 0 &&
+        !dismissedNotifications.has(j.id),
     )
     .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0))
     .slice(0, 5);
@@ -275,7 +277,7 @@ export function Sidebar() {
                   transition: "all 0.15s ease",
                 }}
                 onClick={() => {
-                  removeJob(job.id);
+                  dismissNotification(job.id);
                   navigate(libraryPath);
                 }}
                 onMouseEnter={(e) => {
@@ -291,7 +293,7 @@ export function Sidebar() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    removeJob(job.id);
+                    dismissNotification(job.id);
                   }}
                   style={{
                     position: "absolute",
