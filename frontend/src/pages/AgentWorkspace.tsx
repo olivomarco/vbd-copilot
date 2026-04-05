@@ -39,6 +39,7 @@ import { getSessionEvents } from "@/api/client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AgentIcon } from "@/components/common/AgentIcon";
+import { clearInputNotification } from "@/utils/notifications";
 
 const PHASES: { key: AgentPhase; label: string }[] = [
   { key: "researching", label: "Research" },
@@ -469,6 +470,24 @@ export function AgentWorkspace() {
   const [editedPlan, setEditedPlan] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [followUp, setFollowUp] = useState("");
+  // Guard: disable response buttons immediately after a send to prevent double-clicks
+  const [respondedToCurrentQ, setRespondedToCurrentQ] = useState(false);
+
+  // Reset the responded flag whenever a new question arrives
+  useEffect(() => {
+    if (job?.pendingInput?.[0]?.question) {
+      setRespondedToCurrentQ(false);
+    }
+  }, [job?.pendingInput?.[0]?.question]);
+
+  const guardedSendResponse = useCallback(
+    (content: string, origin: "explicit" | "choice" | "skip" = "explicit") => {
+      if (respondedToCurrentQ) return;
+      setRespondedToCurrentQ(true);
+      sendUserResponse(content, origin);
+    },
+    [respondedToCurrentQ, sendUserResponse],
+  );
 
   // Assemble and send the initial prompt when the WS connects
   const promptSent = useRef(false);
@@ -902,6 +921,7 @@ export function AgentWorkspace() {
               icon={<Dismiss20Regular />}
               onClick={() => {
                 cancel();
+                clearInputNotification();
                 useJobStore.getState().updateJob(jobId, {
                   status: "cancelled",
                   phase: "done",
@@ -1052,7 +1072,8 @@ export function AgentWorkspace() {
                     <Button
                       key={i}
                       appearance="outline"
-                      onClick={() => sendUserResponse(choice)}
+                      disabled={respondedToCurrentQ}
+                      onClick={() => guardedSendResponse(choice, "choice")}
                       style={{ fontSize: 13 }}
                     >
                       {choice}
@@ -1080,22 +1101,22 @@ export function AgentWorkspace() {
                     <Button
                       appearance="primary"
                       icon={<Checkmark20Regular />}
-                      onClick={() => sendUserResponse(editedPlan.trim() || "Looks good, proceed with building.")}
+                      disabled={respondedToCurrentQ}
+                      onClick={() => guardedSendResponse(editedPlan.trim() || "Looks good, proceed with building.")}
                     >
                       Approve
                     </Button>
                     <Button
                       appearance="outline"
-                      onClick={() => {
-                        const text = editedPlan.trim() || "Approved with modifications";
-                        sendUserResponse(text);
-                      }}
+                      disabled={respondedToCurrentQ || !editedPlan.trim()}
+                      onClick={() => guardedSendResponse(editedPlan.trim())}
                     >
                       Edit & Approve
                     </Button>
                     <Button
                       appearance="subtle"
-                      onClick={() => sendUserResponse("Reject this plan. Cancel the job.")}
+                      disabled={respondedToCurrentQ}
+                      onClick={() => guardedSendResponse("Reject this plan. Cancel the job.")}
                       style={{ color: "#d13438" }}
                     >
                       Reject
@@ -1106,10 +1127,10 @@ export function AgentWorkspace() {
                     <Button
                       appearance="primary"
                       icon={<Send20Regular />}
-                      disabled={!editedPlan.trim() && !hasChoices}
+                      disabled={respondedToCurrentQ || (!editedPlan.trim() && !hasChoices)}
                       onClick={() => {
                         if (editedPlan.trim()) {
-                          sendUserResponse(editedPlan.trim());
+                          guardedSendResponse(editedPlan.trim());
                         }
                       }}
                     >
@@ -1117,7 +1138,8 @@ export function AgentWorkspace() {
                     </Button>
                     <Button
                       appearance="subtle"
-                      onClick={() => sendUserResponse("Skip this question and decide for me.")}
+                      disabled={respondedToCurrentQ}
+                      onClick={() => guardedSendResponse("Skip this question and decide for me.", "skip")}
                     >
                       Skip
                     </Button>

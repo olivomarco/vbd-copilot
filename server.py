@@ -1319,7 +1319,10 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                     current_turn_task.cancel()
 
             elif msg_type == "user_response":
-                content = str(msg.get("content", ""))
+                content = str(msg.get("content", "")).strip()
+                if not content:
+                    _send({"type": "error", "message": "Empty response ignored — please type a reply."}, session_id)
+                    continue
                 push_user_response(content, session_id)
 
             elif msg_type == "ping":

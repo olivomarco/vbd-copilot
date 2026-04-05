@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { useJobStore } from "@/stores/jobStore";
 import type { AgentPhase } from "@/stores/jobStore";
 import { getSessionStatus } from "@/api/client";
+import { notifyInputRequired, clearInputNotification, notifyJobCompleted } from "@/utils/notifications";
 
 const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
 const BASE_WS = import.meta.env.VITE_WS_URL ?? `${WS_PROTOCOL}//${window.location.hostname}:${window.location.port}`;
@@ -95,18 +96,9 @@ export function useWebSocket(sessionId: string | null) {
                 return;
               }
 
-              // Case B: already answered — find the answer and auto-reply
-              const answerEvent = currentJob.events.find(
-                (e) => e.type === "user_response" && e.id > lastWaiting.id,
-              );
-              if (answerEvent) {
-                const previousAnswer = (answerEvent.data as any).content;
-                if (previousAnswer && ws.readyState === WebSocket.OPEN) {
-                  // Auto-reply silently with the same answer
-                  ws.send(JSON.stringify({ type: "user_response", content: previousAnswer }));
-                  return; // don't push to feed, don't show input card
-                }
-              }
+              // Case B: already answered — ignore stale replay.
+              // Never auto-send answers from the client; responses must be explicit user action.
+              return;
             }
           }
         }
@@ -184,6 +176,7 @@ export function useWebSocket(sessionId: string | null) {
             status: "waiting",
             pendingInput: [...prevQueue, { question, choices }],
           });
+          void notifyInputRequired();
           break;
         }
 
@@ -196,6 +189,7 @@ export function useWebSocket(sessionId: string | null) {
             status: remaining.length > 0 ? "waiting" : "running",
             pendingInput: remaining.length > 0 ? remaining : undefined,
           });
+          if (remaining.length === 0) clearInputNotification();
           break;
         }
 
@@ -231,6 +225,12 @@ export function useWebSocket(sessionId: string | null) {
 
         case "done": {
           jobDone.current = true;
+          clearInputNotification();
+          // Notify user if they're in a different window/tab
+          const doneJob = useJobStore.getState().getJob(sid);
+          if (msg.status === "success" && doneJob) {
+            notifyJobCompleted(doneJob.title || "Your content is ready");
+          }
           let jobStatus: "completed" | "failed" | "cancelled";
           if (msg.status === "success") {
             jobStatus = "completed";
@@ -264,6 +264,7 @@ export function useWebSocket(sessionId: string | null) {
 
         case "cancelled":
           jobDone.current = true;
+          clearInputNotification();
           updateJob(sid, {
             status: "cancelled",
             phase: "done",
@@ -474,22 +475,45 @@ export function useWebSocket(sessionId: string | null) {
     [safeSend],
   );
 
+  // Guard: track the question text we last responded to so we never
+  // double-send for the same prompt (e.g. accidental rapid clicks).
+  const lastAnsweredQuestion = useRef<string | null>(null);
+
   const sendUserResponse = useCallback(
-    (content: string) => {
+    (content: string, origin: "explicit" | "choice" | "skip" = "explicit") => {
       if (!sessionId) return;
-      safeSend(JSON.stringify({ type: "user_response", content }));
-      // Push the response as an event so it appears in the activity feed
-      pushEvent(sessionId, { type: "user_response", data: { content } });
-      // Remove the answered question (first in queue) — keep remaining
+      const normalized = content.trim();
+      if (!normalized) return;
+
+      // Prevent duplicate sends for the exact same pending question
       const currentJob = useJobStore.getState().getJob(sessionId);
+      const currentQuestion = currentJob?.pendingInput?.[0]?.question ?? null;
+      if (currentQuestion && currentQuestion === lastAnsweredQuestion.current) return;
+      lastAnsweredQuestion.current = currentQuestion;
+
+      safeSend(JSON.stringify({ type: "user_response", content: normalized }));
+      // Push the response as an event so it appears in the activity feed
+      pushEvent(sessionId, { type: "user_response", data: { content: normalized, origin } });
+      // Remove the answered question (first in queue) — keep remaining
       const rest = (currentJob?.pendingInput || []).slice(1);
       updateJob(sessionId, {
         status: rest.length > 0 ? "waiting" : "running",
         pendingInput: rest.length > 0 ? rest : undefined,
       });
+      if (rest.length === 0) clearInputNotification();
     },
     [sessionId, safeSend],
   );
+
+  // Reset the duplicate guard whenever a new question arrives
+  const currentPendingQuestion = useJobStore(
+    (s) => s.getJob(sessionId ?? "")?.pendingInput?.[0]?.question ?? null,
+  );
+  useEffect(() => {
+    if (currentPendingQuestion) {
+      lastAnsweredQuestion.current = null;
+    }
+  }, [currentPendingQuestion]);
 
   const cancel = useCallback(
     () => safeSend(JSON.stringify({ type: "cancel" })),
