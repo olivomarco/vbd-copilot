@@ -2,6 +2,9 @@
 
 > AI-powered engagement platform for Cloud Solution Architects — from meeting prep to production-ready Azure delivery
 
+> [!WARNING]
+> **CLI vs Web UI.** CSA-Copilot ships two interfaces. The **[CLI](#quickstart--cli-recommended)** is the **stable, battle-tested path** — all workflows (slides, demos, AI projects, hackathons) have been developed and validated there. The **[Desktop / Web UI](#quickstart--desktop-app-experimental-)** is **experimental** — it works for most flows but may have rough edges, missing features, or unexpected behaviour. Start with the CLI if you want the most reliable experience.
+
 ![CSA-Copilot](assets/screenshots/csa-copilot-web1.png)
 
 <details>
@@ -145,7 +148,29 @@ Every output goes through multiple quality layers before delivery. See [docs/QUA
 - A **GitHub Copilot** subscription (Individual, Business, or Enterprise) with CLI access
 - The [**GitHub CLI** (`gh`)](https://cli.github.com/) installed and authenticated (`gh auth login`)
 
-### Quickstart — Desktop App (recommended)
+### Quickstart — CLI (recommended)
+
+![CSA-Copilot CLI](assets/screenshots/csa-copilot-cli.png)
+
+The CLI is the **stable, fully-tested interface**. Every workflow — slides, demos, AI projects, hackathons — has been developed and validated here.
+
+```bash
+git clone https://github.com/olivomarco/vbd-copilot.git
+cd vbd-copilot
+
+docker build -t csa-copilot .
+docker run -it --rm \
+  -e GITHUB_TOKEN=$(gh auth token) \
+  -v "$(pwd)/outputs:/app/outputs" \
+  csa-copilot
+```
+
+More CLI install methods (Codespaces, native, Copilot plugin): [docs/INSTALLATION.md — CLI options](docs/INSTALLATION.md#option-c--cli-via-docker)
+
+### Quickstart — Desktop App (experimental 🧪)
+
+> [!CAUTION]
+> The desktop UI is **experimental**. It works for most flows but may have rough edges, incomplete features, or unexpected behaviour. If something breaks, fall back to the [CLI](#quickstart--cli-recommended).
 
 ```bash
 git clone https://github.com/olivomarco/vbd-copilot.git
@@ -161,21 +186,20 @@ npm run electron:dev                         # Terminal 2
 
 The desktop app gives you form-based briefs, concurrent agent runs, inline output previews (PPTX carousel, Markdown renderer, code explorer), and a full output library — all in one window.
 
-### Quickstart — CLI (alternative)
+Full desktop setup (Electron, browser-only, standalone build): [docs/INSTALLATION.md — Desktop App](docs/INSTALLATION.md#option-a--desktop-app-experimental-)
 
-![CSA-Copilot CLI](assets/screenshots/csa-copilot-cli.png)
+---
 
-```bash
-docker build -t csa-copilot .
-docker run -it --rm \
-  -e GITHUB_TOKEN=$(gh auth token) \
-  -v "$(pwd)/outputs:/app/outputs" \
-  csa-copilot
-```
+### All Installation Options
 
-Same agents, same workflows — just text instead of a GUI.
-
-Full installation options (Copilot plugin, Codespaces, native, browser-only): [docs/INSTALLATION.md](docs/INSTALLATION.md)
+| Option | Interface | Stability | Setup effort | Details |
+|--------|-----------|-----------|-------------|--------|
+| **Docker** | CLI | ✅ Stable | Low | [docs/INSTALLATION.md § Docker](docs/INSTALLATION.md#option-c--cli-via-docker) |
+| **Codespaces** | CLI | ✅ Stable | Zero | [docs/INSTALLATION.md § Codespaces](docs/INSTALLATION.md#option-d--cli-via-github-codespaces-zero-install) |
+| **Native Python** | CLI | ✅ Stable | Medium | [docs/INSTALLATION.md § Native](docs/INSTALLATION.md#option-e--cli-native-install) |
+| **Copilot Plugin** | CLI (inside Copilot) | ✅ Stable | Low | [docs/INSTALLATION.md § Plugin](docs/INSTALLATION.md#option-b--install-as-a-github-copilot-plugin) |
+| **Desktop (Electron)** | GUI | 🧪 Experimental | Medium | [docs/INSTALLATION.md § Desktop](docs/INSTALLATION.md#option-a--desktop-app-experimental-) |
+| **Browser** | GUI | 🧪 Experimental | Medium | [docs/INSTALLATION.md § Browser](docs/INSTALLATION.md#run-in-the-browser-no-electron) |
 
 Full command reference and usage examples: [docs/USAGE.md](docs/USAGE.md)
 

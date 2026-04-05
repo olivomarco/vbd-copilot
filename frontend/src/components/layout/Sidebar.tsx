@@ -19,7 +19,9 @@ import {
   PlayCircle24Filled,
   Checkmark12Regular,
   Dismiss12Regular,
+  BookQuestionMark24Regular,
 } from "@fluentui/react-icons";
+import { useTutorialStore } from "@/stores/tutorialStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useJobStore, type Job } from "@/stores/jobStore";
 import { AGENT_META, type AgentType } from "@/api/types";
@@ -31,24 +33,28 @@ const NAV_ITEMS = [
     label: "Launchpad",
     Icon: Home24Regular,
     IconFilled: Home24Filled,
+    tutorialId: "nav-launchpad",
   },
   {
     path: "/mission",
     label: "Mission Control",
     Icon: PlayCircle24Regular,
     IconFilled: PlayCircle24Filled,
+    tutorialId: "nav-mission",
   },
   {
     path: "/library",
     label: "Library",
     Icon: Library24Regular,
     IconFilled: Library24Filled,
+    tutorialId: "nav-library",
   },
   {
     path: "/settings",
     label: "Settings",
     Icon: Settings24Regular,
     IconFilled: Settings24Filled,
+    tutorialId: "nav-settings",
   },
 ];
 
@@ -191,8 +197,8 @@ export function Sidebar() {
       <Divider style={{ margin: "0 12px 8px" }} />
 
       {/* Nav items */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, padding: "0 8px" }}>
-        {NAV_ITEMS.map(({ path, label, Icon, IconFilled }) => {
+      <div data-tutorial="sidebar-nav" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, padding: "0 8px" }}>
+        {NAV_ITEMS.map(({ path, label, Icon, IconFilled, tutorialId }) => {
           const active =
             path === "/"
               ? location.pathname === "/"
@@ -202,6 +208,7 @@ export function Sidebar() {
           const button = (
             <Button
               key={path}
+              data-tutorial={tutorialId}
               appearance={active ? "subtle" : "transparent"}
               icon={<CurrentIcon />}
               onClick={() => navigate(path)}
@@ -429,8 +436,26 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* Collapse toggle */}
-      <div style={{ padding: "8px", borderTop: "1px solid var(--border)" }}>
+      {/* Tutorial + Collapse toggle */}
+      <div style={{ padding: "8px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 2 }}>
+        <Tooltip
+          content={collapsed ? "Tutorial" : ""}
+          relationship="label"
+          positioning="after"
+        >
+          <Button
+            appearance="transparent"
+            icon={<BookQuestionMark24Regular />}
+            onClick={() => useTutorialStore.getState().start()}
+            style={{
+              width: "100%",
+              justifyContent: collapsed ? "center" : "flex-start",
+              minHeight: 36,
+            }}
+          >
+            {!collapsed && "Tutorial"}
+          </Button>
+        </Tooltip>
         <Tooltip
           content={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           relationship="label"

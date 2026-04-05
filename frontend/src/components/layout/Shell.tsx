@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import { Sidebar } from "./Sidebar";
+import { GuidedTutorial } from "@/components/common/GuidedTutorial";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useJobStore } from "@/stores/jobStore";
+import { useTutorialStore } from "@/stores/tutorialStore";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -14,6 +17,18 @@ export function Shell({ children }: { children: ReactNode }) {
   );
   const hasWaiting = allJobs.some((j) => j.status === "waiting");
   const showBar = hasRunning || hasWaiting;
+
+  // Auto-start tutorial on first visit
+  const hasSeenTutorial = useTutorialStore((s) => s.hasSeenTutorial);
+  const tutorialActive = useTutorialStore((s) => s.active);
+  const startTutorial = useTutorialStore((s) => s.start);
+  useEffect(() => {
+    if (!hasSeenTutorial && !tutorialActive) {
+      // Small delay to let page render so data-tutorial targets exist
+      const timer = setTimeout(() => startTutorial(), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [hasSeenTutorial, tutorialActive, startTutorial]);
 
   return (
     <div
@@ -51,6 +66,7 @@ export function Shell({ children }: { children: ReactNode }) {
           {children}
         </div>
       </main>
+      <GuidedTutorial />
     </div>
   );
 }

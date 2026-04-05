@@ -200,3 +200,32 @@ code:not(pre code) {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* ── Tutorial Overlay ──────────────────────────────────────────────── */
+
+.tutorial-overlay {
+  animation: tutorialFadeIn 0.25s ease-out;
+}
+
+@keyframes tutorialFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tutorial-card {
+  animation: tutorialCardIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes tutorialCardIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.tutorial-spotlight-ring {
+  animation: tutorialRingPulse 2s ease-in-out infinite;
+}
+
+@keyframes tutorialRingPulse {
+  0%, 100% { box-shadow: 0 0 12px 2px rgba(0, 120, 212, 0.25); }
+  50% { box-shadow: 0 0 24px 6px rgba(0, 120, 212, 0.45); }
+}

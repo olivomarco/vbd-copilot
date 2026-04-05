@@ -3,12 +3,15 @@ import { Text, Card, Button, Badge, Tooltip } from "@fluentui/react-components";
 import { ArrowRight16Regular, ChevronLeft20Regular, ChevronRight20Regular, LockClosed16Regular } from "@fluentui/react-icons";
 import { AGENT_META, type AgentType, type ContentLevel } from "@/api/types";
 import { useOutputStore } from "@/stores/outputStore";
-import { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { BriefForm } from "@/components/brief/BriefForm";
 import { listGroupedOutputs } from "@/api/client";
 import { AgentIcon } from "@/components/common/AgentIcon";
 
 const AGENTS = Object.entries(AGENT_META) as [AgentType, (typeof AGENT_META)[AgentType]][];
+
+const CONTENT_AGENTS: AgentType[] = ["slide-conductor", "demo-conductor", "hackathon-conductor"];
+const PIPELINE_AGENTS: AgentType[] = ["ai-brainstorming", "ai-solution-architect", "ai-implementor", "ai-demo-conductor"];
 
 interface Template {
   title: string;
@@ -85,6 +88,7 @@ export function Launchpad() {
     <div style={{ padding: "40px 48px", maxWidth: 1200, margin: "0 auto" }}>
       {/* Hero */}
       <div
+        data-tutorial="launchpad-hero"
         className="animate-in"
         style={{
           display: "flex",
@@ -127,130 +131,224 @@ export function Launchpad() {
         </div>
       </div>
 
-      {/* Agent Cards Grid */}
+      {/* ── Content Tools Section ── */}
       <Text
         as="h2"
         size={500}
         weight="semibold"
         style={{ display: "block", marginBottom: 16, letterSpacing: "-0.01em" }}
       >
-        What do you want to create?
+        Content Tools
       </Text>
 
       <div
+        data-tutorial="content-tools"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+          gridTemplateColumns: "repeat(3, 1fr)",
           gap: 16,
+          marginBottom: 40,
+        }}
+      >
+        {CONTENT_AGENTS.map((key, i) => {
+          const meta = AGENT_META[key];
+          return (
+            <Card
+              key={key}
+              className="animate-in"
+              style={{
+                animationDelay: `${i * 60}ms`,
+                padding: 0,
+                border: "1px solid var(--border)",
+                borderRadius: 12,
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                overflow: "hidden",
+              }}
+              onClick={() => setBriefAgent(key)}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
+                (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)";
+                (e.currentTarget as HTMLElement).style.borderColor = meta.color;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                (e.currentTarget as HTMLElement).style.boxShadow = "none";
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+              }}
+            >
+              <div style={{ height: 4, background: meta.color }} />
+              <div style={{ padding: "28px 28px 32px" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18 }}>
+                  <AgentIcon agent={key} size="large" />
+                  {meta.beta && (
+                    <Badge size="small" appearance="tint" color="warning" style={{ fontWeight: 700, fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase" }}>Beta</Badge>
+                  )}
+                </div>
+                <Text weight="semibold" size={500} style={{ display: "block", marginBottom: 8, letterSpacing: "-0.01em" }}>
+                  {meta.label}
+                </Text>
+                <Text size={300} style={{ color: "var(--text-secondary)", display: "block", lineHeight: 1.5 }}>
+                  {meta.description}
+                </Text>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* ── AI Project Workflow Section ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+        <Text
+          as="h2"
+          size={500}
+          weight="semibold"
+          style={{ letterSpacing: "-0.01em" }}
+        >
+          AI Project Workflow
+        </Text>
+        <Badge size="small" appearance="tint" color="warning" style={{ fontWeight: 700, fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase" }}>Beta</Badge>
+      </div>
+
+      <Text
+        size={200}
+        style={{ display: "block", color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.5 }}
+      >
+        Each step builds on the previous — brainstorm ideas, then architect, build, and demo your solution.
+      </Text>
+
+      <div
+        data-tutorial="ai-workflow"
+        style={{
+          display: "flex",
+          alignItems: "stretch",
           marginBottom: 48,
         }}
       >
-        {AGENTS.map(([key, meta], i) => {
-          const isImplementor = key === "ai-implementor";
-          const isDemoConductor = key === "ai-demo-conductor";
-          const locked = (isImplementor && hasArchitectures === false) || (isDemoConductor && hasProjects === false);
+          {PIPELINE_AGENTS.map((key, i) => {
+            const meta = AGENT_META[key];
+            const isImplementor = key === "ai-implementor";
+            const isDemoConductor = key === "ai-demo-conductor";
+            const locked = (isImplementor && hasArchitectures === false) || (isDemoConductor && hasProjects === false);
+            const stepNum = i + 1;
 
-          const card = (
-          <Card
-            key={key}
-            className="animate-in"
-            style={{
-              animationDelay: `${i * 60}ms`,
-              padding: 0,
-              border: "1px solid var(--border)",
-              borderRadius: 12,
-              cursor: locked ? "not-allowed" : "pointer",
-              transition: "all 0.2s ease",
-              overflow: "hidden",
-              opacity: locked ? 0.45 : 1,
-              filter: locked ? "grayscale(100%)" : "none",
-              background: locked ? "var(--colorNeutralBackground3)" : undefined,
-            }}
-            onClick={() => {
-              if (!locked) setBriefAgent(key);
-            }}
-            onMouseEnter={(e) => {
-              if (locked) return;
-              (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
-              (e.currentTarget as HTMLElement).style.boxShadow =
-                "0 8px 24px rgba(0,0,0,0.08)";
-              (e.currentTarget as HTMLElement).style.borderColor = meta.color;
-            }}
-            onMouseLeave={(e) => {
-              if (locked) return;
-              (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-              (e.currentTarget as HTMLElement).style.boxShadow = "none";
-              (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-            }}
-          >
-            {/* Color accent bar */}
-            <div style={{ height: 4, background: meta.color }} />
+            const cardEl = (
+              <Card
+                className="animate-in"
+                style={{
+                  animationDelay: `${i * 60}ms`,
+                  padding: 0,
+                  border: "1px solid var(--border)",
+                  borderRadius: 12,
+                  cursor: locked ? "not-allowed" : "pointer",
+                  transition: "all 0.2s ease",
+                  overflow: "hidden",
+                  opacity: locked ? 0.45 : 1,
+                  filter: locked ? "grayscale(100%)" : "none",
+                  background: locked ? "var(--colorNeutralBackground3)" : "var(--card-bg)",
+                  flex: 1,
+                  minWidth: 0,
+                }}
+                onClick={() => { if (!locked) setBriefAgent(key); }}
+                onMouseEnter={(e) => {
+                  if (locked) return;
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)";
+                  (e.currentTarget as HTMLElement).style.borderColor = meta.color;
+                }}
+                onMouseLeave={(e) => {
+                  if (locked) return;
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "none";
+                  (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+                }}
+              >
+                <div style={{ height: 4, background: meta.color }} />
+                <div style={{ padding: "24px 20px 28px" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+                    <AgentIcon agent={key} size="large" />
+                    <div
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: "50%",
+                        background: locked ? "#edebe9" : meta.color,
+                        color: locked ? "#a19f9d" : "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {stepNum}
+                    </div>
+                  </div>
+                  <Text weight="semibold" size={400} style={{ display: "block", marginBottom: 6, letterSpacing: "-0.01em" }}>
+                    {meta.label}
+                  </Text>
+                  <Text size={200} style={{ color: "var(--text-secondary)", display: "block", lineHeight: 1.5 }}>
+                    {meta.description}
+                  </Text>
 
-            <div style={{ padding: "28px 28px 32px" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18 }}>
-                <AgentIcon agent={key} size="large" />
-                {meta.beta && (
-                  <Badge
-                    size="small"
-                    appearance="tint"
-                    color="warning"
+                  {locked && (
+                    <div
+                      style={{
+                        marginTop: 10,
+                        padding: "6px 10px",
+                        background: "rgba(0,0,0,0.06)",
+                        borderRadius: 6,
+                        fontSize: 11,
+                        color: "var(--text-secondary)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontWeight: 600,
+                      }}
+                    >
+                      <LockClosed16Regular />
+                      {isDemoConductor
+                        ? <>Requires a built project</>
+                        : <>Requires an architecture</>}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            );
+
+            const wrappedCard = locked ? (
+              <Tooltip key={key} content={isDemoConductor ? "Build an AI project with 'Build an AI Project' first" : "Create an architecture with 'Architect a Solution' first"} relationship="description" positioning="below">
+                <div style={{ flex: 1, minWidth: 0, display: "flex" }}>{cardEl}</div>
+              </Tooltip>
+            ) : (
+              <div key={key} style={{ flex: 1, minWidth: 0, display: "flex" }}>{cardEl}</div>
+            );
+
+            return (
+              <React.Fragment key={key}>
+                {wrappedCard}
+                {i < PIPELINE_AGENTS.length - 1 && (
+                  <div
                     style={{
-                      fontWeight: 700,
-                      fontSize: 10,
-                      letterSpacing: "0.05em",
-                      textTransform: "uppercase",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 28,
+                      flexShrink: 0,
+                      color: "var(--text-secondary)",
+                      opacity: 0.4,
                     }}
                   >
-                    Beta
-                  </Badge>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 8h8M8.5 5l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
                 )}
-              </div>
-              <Text
-                weight="semibold"
-                size={500}
-                style={{ display: "block", marginBottom: 8, letterSpacing: "-0.01em" }}
-              >
-                {meta.label}
-              </Text>
-              <Text
-                size={300}
-                style={{ color: "var(--text-secondary)", display: "block", lineHeight: 1.5 }}
-              >
-                {meta.description}
-              </Text>
-
-              {locked && (
-                <div
-                  style={{
-                    marginTop: 12,
-                    padding: "8px 12px",
-                    background: "rgba(0,0,0,0.06)",
-                    borderRadius: 6,
-                    fontSize: 12,
-                    color: "var(--text-secondary)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    fontWeight: 600,
-                  }}
-                >
-                  <LockClosed16Regular />
-                  {isDemoConductor
-                    ? <>Requires a built project — use &ldquo;Build an AI Project&rdquo; first</>
-                    : <>Requires an architecture — use &ldquo;Architect a Solution&rdquo; first</>}
-                </div>
-              )}
-            </div>
-          </Card>
-          );
-
-          return locked ? (
-            <Tooltip key={key} content={isDemoConductor ? "Build an AI project with 'Build an AI Project' first" : "Create an architecture with 'Architect a Solution' first"} relationship="description" positioning="below">
-              {card}
-            </Tooltip>
-          ) : card;
-        })}
-      </div>
+              </React.Fragment>
+            );
+          })}
+        </div>
 
       {/* Quick Start Templates */}
       <div

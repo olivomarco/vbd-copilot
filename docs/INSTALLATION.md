@@ -31,7 +31,10 @@ This stores your GitHub OAuth token in your OS credential store (macOS Keychain,
 
 ---
 
-## Option A — Desktop App (recommended)
+## Option A — Desktop App (experimental 🧪)
+
+> [!CAUTION]
+> The desktop UI is **experimental**. It works for most flows but may have rough edges, incomplete features, or unexpected behaviour. If something breaks, fall back to the [CLI options below](#option-c--cli-via-docker).
 
 The desktop app gives you a graphical interface with form-based briefs, concurrent agent runs, inline output previews, and a full output library — all in a single window. It runs as an Electron shell around the existing Python backend.
 
@@ -97,14 +100,11 @@ The Electron process spawns the Python backend on a random port, connects over W
 If you prefer a browser tab over a desktop window:
 
 ```bash
-# Terminal 1 — Python backend
-python app.py --server --port 18080
-
-# Terminal 2 — Vite dev server (proxies API calls to port 18080)
+# Start Vite dev server (auto-starts the Python backend on port 18080)
 cd frontend && npm run dev
 ```
 
-Then open `http://localhost:5173`.
+Then open `http://localhost:5173`. The Vite dev server proxies API calls to the Python backend automatically — no need to start it separately.
 
 ### Build the standalone Electron app
 
