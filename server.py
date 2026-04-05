@@ -533,7 +533,7 @@ async def list_outputs() -> JSONResponse:
 async def list_outputs_grouped() -> JSONResponse:
     """Return outputs grouped as logical deliverables.
 
-    - slides: each .pptx is a deliverable (with companion .pdf, generate_*.py)
+    - slides: each .pptx is a deliverable (with companion .pdf)
     - demos: each *-demos.md + its companion folder is a deliverable
     - hackathons: each subfolder is a deliverable
     - ai-projects: each subfolder is a deliverable
@@ -560,14 +560,11 @@ async def list_outputs_grouped() -> JSONResponse:
                 continue
             seen_stems.add(stem)
 
-            # Companion files
+            # Companion files (exclude generate_*.py — internal build artifacts)
             companions = [str(p)]
             pdf = slides_dir / f"{stem}.pdf"
             if pdf.is_file():
                 companions.append(str(pdf))
-            gen = slides_dir / f"generate_{stem.replace('-', '_')}_pptx.py"
-            if gen.is_file():
-                companions.append(str(gen))
 
             # Parse metadata from filename
             level_m = _re.search(r"[_-](l[1-4]00)[_-]", stem, _re.IGNORECASE)
@@ -836,10 +833,13 @@ async def read_file(path: str) -> JSONResponse:
 
 @app.get("/file/download")
 async def download_file(path: str):
+    import fnmatch
     from fastapi.responses import FileResponse
     resolved = _safe_outputs_path(path)
     if not resolved.is_file():
         raise HTTPException(status_code=404, detail="File not found")
+    if fnmatch.fnmatch(resolved.name, "generate_*.py"):
+        raise HTTPException(status_code=403, detail="Generator scripts are not downloadable")
     return FileResponse(
         path=str(resolved),
         filename=resolved.name,
@@ -869,14 +869,17 @@ async def create_zip(body: ZipRequest):
     for p in body.paths:
         resolved_paths.append(_safe_outputs_path(p))
 
+    import fnmatch as _fnmatch_zip
+
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for rp in resolved_paths:
             if rp.is_file():
-                zf.write(str(rp), rp.name)
+                if not _fnmatch_zip.fnmatch(rp.name, "generate_*.py"):
+                    zf.write(str(rp), rp.name)
             elif rp.is_dir():
                 for child in rp.rglob("*"):
-                    if child.is_file():
+                    if child.is_file() and not _fnmatch_zip.fnmatch(child.name, "generate_*.py"):
                         arcname = str(child.relative_to(rp.parent))
                         zf.write(str(child), arcname)
 

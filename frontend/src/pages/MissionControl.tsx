@@ -37,7 +37,7 @@ import { BriefForm } from "@/components/brief/BriefForm";
 import type { AgentType } from "@/api/types";
 import type { SessionInfo, Turn } from "@/api/types";
 import { AgentIcon } from "@/components/common/AgentIcon";
-import { listSessions, getSessionTurns, resumeSession as apiResumeSession } from "@/api/client";
+import { listSessions, getSessionTurns, resumeSession as apiResumeSession, getSessionStatus } from "@/api/client";
 
 function formatElapsed(job: Job): string {
   const ms = (job.completedAt || Date.now()) - job.startedAt;
@@ -205,7 +205,7 @@ function JobCard({ job }: { job: Job }) {
       )}
 
       {/* Output artifacts for completed jobs */}
-      {job.status === "completed" && job.outputFiles.length > 0 && (
+      {job.status === "completed" && job.outputFiles.filter((f) => !/\/generate_.*\.py$/.test(f)).length > 0 && (
         <div
           style={{
             marginTop: 10,
@@ -216,7 +216,7 @@ function JobCard({ job }: { job: Job }) {
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {job.outputFiles.map((f) => {
+            {job.outputFiles.filter((f) => !/\/generate_.*\.py$/.test(f)).map((f) => {
               const name = f.split("/").pop() || f;
               const ext = name.includes(".") ? name.split(".").pop()?.toLowerCase() : "";
               return (
@@ -296,6 +296,41 @@ export function MissionControl() {
 
   // Sort by most recent first
   completed.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+
+  // Poll the server for running/waiting jobs when the user is on this page
+  // (no WS is connected from MissionControl, so job state can go stale).
+  const updateJob = useJobStore((s) => s.updateJob);
+  useEffect(() => {
+    const liveJobs = [...running, ...waiting];
+    if (liveJobs.length === 0) return;
+
+    const poll = () => {
+      for (const job of liveJobs) {
+        getSessionStatus(job.id)
+          .then((srv) => {
+            const fresh = useJobStore.getState().getJob(job.id);
+            if (!fresh || fresh.status === "completed" || fresh.status === "failed" || fresh.status === "cancelled") return;
+            if (srv.status === "ended" || (!srv.in_memory && !srv.has_running_turn)) {
+              updateJob(job.id, {
+                status: "completed",
+                phase: "done",
+                completedAt: Date.now(),
+                pendingInput: [],
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    };
+
+    // First poll shortly after mount, then every 10s
+    const immediate = setTimeout(poll, 2000);
+    const interval = setInterval(poll, 10000);
+    return () => {
+      clearTimeout(immediate);
+      clearInterval(interval);
+    };
+  }, [running.length, waiting.length]);
 
   // Lazy-load history when section is expanded
   useEffect(() => {

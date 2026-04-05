@@ -307,7 +307,10 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
     return null; // Don't show raw deltas as cards
   }
   if (t === "new_files") {
-    const files = (d.files as string[]) || [];
+    const files = ((d.files as string[]) || []).filter(
+      (f) => !/\/generate_.*\.py$/.test(f)
+    );
+    if (files.length === 0) return null;
     return (
       <div
         style={{
@@ -986,7 +989,9 @@ export function AgentWorkspace() {
                 >
                   View in Library
                 </Button>
-                {job.outputFiles.map((f) => (
+                {job.outputFiles
+                  .filter((f) => !/\/generate_.*\.py$/.test(f))
+                  .map((f) => (
                   <Button
                     key={f}
                     appearance="outline"

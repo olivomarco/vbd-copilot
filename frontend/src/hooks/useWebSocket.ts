@@ -136,11 +136,14 @@ export function useWebSocket(sessionId: string | null) {
       }
 
       switch (t) {
-        case "turn_started":
+        case "turn_started": {
+          const currentJob = useJobStore.getState().getJob(sid);
+          const hasPendingQuestions = !!(currentJob?.pendingInput?.length);
           updateJob(sid, {
-            status: "running",
+            status: hasPendingQuestions ? "waiting" : "running",
             phase: "researching",
-            pendingInput: [],
+            // Only clear pendingInput if there are no unanswered questions
+            ...(hasPendingQuestions ? {} : { pendingInput: [] }),
             progress: {
               toolCalls: 0,
               subagentRuns: 0,
@@ -148,6 +151,7 @@ export function useWebSocket(sessionId: string | null) {
             },
           });
           break;
+        }
 
         case "phase_changed":
           updateJob(sid, { phase: msg.phase as AgentPhase });
