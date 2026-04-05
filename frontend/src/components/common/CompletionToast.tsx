@@ -1,0 +1,290 @@
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Text, Button } from "@fluentui/react-components";
+import {
+  Dismiss16Regular,
+  ArrowDownload20Regular,
+  Open20Regular,
+  CheckmarkCircle20Filled,
+} from "@fluentui/react-icons";
+import { useJobStore, type Job } from "@/stores/jobStore";
+import { AGENT_META, type AgentType } from "@/api/types";
+import { AgentIcon } from "@/components/common/AgentIcon";
+import { playNotificationSound } from "@/utils/notifications";
+
+const AUTO_DISMISS_MS = 15_000;
+
+interface ToastEntry {
+  job: Job;
+  /** monotonic id for React key */
+  key: number;
+}
+
+let _toastCounter = 0;
+
+export function CompletionToast() {
+  const navigate = useNavigate();
+  const [toasts, setToasts] = useState<ToastEntry[]>([]);
+  const seenRef = useRef(new Set<string>());
+  const dismissNotification = useJobStore((s) => s.dismissNotification);
+
+  // Watch all jobs — surface newly completed ones as toasts
+  const jobs = useJobStore((s) => s.jobs);
+  const dismissedNotifications = useJobStore((s) => s.dismissedNotifications);
+
+  useEffect(() => {
+    for (const job of Object.values(jobs)) {
+      if (
+        job.status === "completed" &&
+        job.outputFiles.length > 0 &&
+        job.completedAt &&
+        Date.now() - job.completedAt < 5_000 && // only flash for just-completed
+        !seenRef.current.has(job.id) &&
+        !dismissedNotifications.has(job.id)
+      ) {
+        seenRef.current.add(job.id);
+        const key = ++_toastCounter;
+        setToasts((prev) => [...prev, { job, key }]);
+        playNotificationSound();
+
+        // Auto-dismiss after timeout
+        setTimeout(() => {
+          setToasts((prev) => prev.filter((t) => t.key !== key));
+        }, AUTO_DISMISS_MS);
+      }
+    }
+  }, [jobs, dismissedNotifications]);
+
+  const dismiss = (key: number, jobId: string) => {
+    setToasts((prev) => prev.filter((t) => t.key !== key));
+    dismissNotification(jobId);
+  };
+
+  const openInLibrary = (job: Job, key: number) => {
+    const primaryFile = job.outputFiles[0] || "";
+    const isPptx = primaryFile.endsWith(".pptx");
+    const isMd = primaryFile.endsWith(".md");
+    const path = isPptx
+      ? `/library/slides?path=${encodeURIComponent(primaryFile)}`
+      : isMd
+        ? `/library/markdown?path=${encodeURIComponent(primaryFile)}`
+        : "/library";
+    dismiss(key, job.id);
+    navigate(path);
+  };
+
+  if (toasts.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 16,
+        right: 16,
+        zIndex: 10000,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        pointerEvents: "none",
+        maxWidth: 400,
+      }}
+    >
+      {toasts.map(({ job, key }) => {
+        const meta = AGENT_META[job.agent as AgentType];
+        const fileCount = job.outputFiles.length;
+        const primaryFile = job.outputFiles[0] || "";
+        const fileName = primaryFile.split("/").pop() || "";
+        const elapsed = job.completedAt
+          ? Math.round((job.completedAt - job.startedAt) / 1000)
+          : 0;
+        const elapsedStr =
+          elapsed >= 60
+            ? `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`
+            : `${elapsed}s`;
+
+        return (
+          <div
+            key={key}
+            style={{
+              pointerEvents: "auto",
+              background: "white",
+              borderRadius: 12,
+              boxShadow:
+                "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)",
+              border: "1px solid #7FBA0060",
+              overflow: "hidden",
+              animation: "toast-slide-in 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
+          >
+            {/* Green accent bar at top */}
+            <div
+              style={{
+                height: 3,
+                background:
+                  "linear-gradient(90deg, #7FBA00, #107C10)",
+              }}
+            />
+
+            <div style={{ padding: "14px 16px" }}>
+              {/* Header row */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  marginBottom: 10,
+                }}
+              >
+                <span
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    background: "#f0fff0",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <CheckmarkCircle20Filled
+                    style={{ color: "#7FBA00", fontSize: 20 }}
+                  />
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Text
+                    weight="semibold"
+                    size={300}
+                    style={{
+                      display: "block",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      color: "#107C10",
+                    }}
+                  >
+                    Content ready
+                  </Text>
+                  <Text
+                    size={200}
+                    style={{
+                      display: "block",
+                      color: "var(--text-secondary)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {job.brief.topic}
+                  </Text>
+                </div>
+                <button
+                  onClick={() => dismiss(key, job.id)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 4,
+                    borderRadius: 4,
+                    display: "flex",
+                    alignItems: "center",
+                    color: "var(--text-secondary)",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Dismiss16Regular />
+                </button>
+              </div>
+
+              {/* File info row */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 10px",
+                  background: "#f9f9f9",
+                  borderRadius: 8,
+                  marginBottom: 10,
+                  fontSize: 12,
+                }}
+              >
+                <AgentIcon agent={job.agent} size="inline" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Text
+                    size={200}
+                    weight="semibold"
+                    style={{
+                      display: "block",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {fileName}
+                    {fileCount > 1 && (
+                      <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>
+                        {" "}+{fileCount - 1} more
+                      </span>
+                    )}
+                  </Text>
+                  <Text size={100} style={{ color: "var(--text-secondary)" }}>
+                    {meta?.label || job.agent} · {elapsedStr} · {job.progress.toolCalls} tools
+                  </Text>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: "flex", gap: 8 }}>
+                <Button
+                  appearance="primary"
+                  size="small"
+                  icon={<Open20Regular />}
+                  onClick={() => openInLibrary(job, key)}
+                  style={{ flex: 1, borderRadius: 6 }}
+                >
+                  Open
+                </Button>
+                <Button
+                  appearance="outline"
+                  size="small"
+                  icon={<ArrowDownload20Regular />}
+                  onClick={() => {
+                    if (primaryFile) {
+                      const a = document.createElement("a");
+                      a.href = `/file/download?path=${encodeURIComponent(primaryFile)}`;
+                      a.download = fileName;
+                      a.click();
+                    }
+                    dismiss(key, job.id);
+                  }}
+                  style={{ borderRadius: 6 }}
+                >
+                  Download
+                </Button>
+              </div>
+            </div>
+
+            {/* Auto-dismiss progress bar */}
+            <div
+              style={{
+                height: 2,
+                background: "#e0e0e0",
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  background: "#7FBA00",
+                  animation: `toast-progress ${AUTO_DISMISS_MS}ms linear forwards`,
+                }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

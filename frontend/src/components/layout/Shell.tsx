@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { GuidedTutorial } from "@/components/common/GuidedTutorial";
+import { CompletionToast } from "@/components/common/CompletionToast";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useJobStore } from "@/stores/jobStore";
 import { useTutorialStore } from "@/stores/tutorialStore";
@@ -67,6 +68,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
       </main>
       <GuidedTutorial />
+      <CompletionToast />
     </div>
   );
 }
