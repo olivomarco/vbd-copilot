@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Text, Card, Button, Badge, Tooltip } from "@fluentui/react-components";
-import { ArrowRight16Regular, ChevronLeft20Regular, ChevronRight20Regular, LockClosed16Regular } from "@fluentui/react-icons";
+import { ArrowRight16Regular, ChevronLeft20Regular, ChevronRight20Regular, LockClosed16Regular, Warning20Regular } from "@fluentui/react-icons";
 import { AGENT_META, type AgentType, type ContentLevel } from "@/api/types";
 import { useOutputStore } from "@/stores/outputStore";
 import React, { useEffect, useState, useRef, useCallback } from "react";
@@ -127,6 +127,45 @@ export function Launchpad() {
             style={{ color: "var(--text-secondary)", display: "block", marginTop: 2 }}
           >
             The ultimate content factory for Microsoft Cloud Solution Architects
+          </Text>
+        </div>
+      </div>
+
+      {/* ── Experimental Warning ── */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 12,
+          padding: "14px 18px",
+          marginBottom: 24,
+          background: "linear-gradient(135deg, #FFF4E5 0%, #FFF0DB 100%)",
+          border: "1px solid #FFB90060",
+          borderLeft: "4px solid #F25022",
+          borderRadius: 10,
+        }}
+      >
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            background: "#F2502218",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            marginTop: 1,
+          }}
+        >
+          <Warning20Regular style={{ color: "#F25022" }} />
+        </div>
+        <div>
+          <Text weight="semibold" size={300} style={{ display: "block", color: "#6B3A00" }}>
+            Experimental Interface
+          </Text>
+          <Text size={200} style={{ color: "#6B3A00CC", display: "block", marginTop: 2, lineHeight: 1.45 }}>
+            The Desktop / Web UI is experimental — it works for most flows but may have rough edges, missing features, or unexpected behaviour. The CLI is the stable, battle-tested path. Fall back to it if something breaks.
           </Text>
         </div>
       </div>

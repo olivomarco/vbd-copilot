@@ -1128,53 +1128,6 @@ export function AgentWorkspace() {
             );
           })()}
 
-          {/* Follow-up message input: visible when session is alive and not
-              actively running a turn, mirroring the CLI's prompt-after-turn. */}
-          {(job.status === "completed" || job.status === "failed") && (
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-              <Textarea
-                value={followUp}
-                onChange={(_, data) => setFollowUp(data.value)}
-                placeholder="Send a follow-up message..."
-                resize="vertical"
-                rows={1}
-                style={{ flex: 1 }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey && followUp.trim()) {
-                    e.preventDefault();
-                    // Reactivate the job — a new turn is starting
-                    useJobStore.getState().updateJob(jobId, {
-                      status: "running",
-                      phase: "researching",
-                      completedAt: undefined,
-                    });
-                    sendMessage(followUp.trim());
-                    pushEvent(jobId, { type: "user_followup", data: { content: followUp.trim() } });
-                    setFollowUp("");
-                  }
-                }}
-              />
-              <Button
-                appearance="primary"
-                icon={<Send20Regular />}
-                disabled={!followUp.trim()}
-                onClick={() => {
-                  if (!followUp.trim()) return;
-                  useJobStore.getState().updateJob(jobId, {
-                    status: "running",
-                    phase: "researching",
-                    completedAt: undefined,
-                  });
-                  sendMessage(followUp.trim());
-                  pushEvent(jobId, { type: "user_followup", data: { content: followUp.trim() } });
-                  setFollowUp("");
-                }}
-              >
-                Send
-              </Button>
-            </div>
-          )}
-
           {/* Stats row */}
           <div
             style={{
