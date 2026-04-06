@@ -16,6 +16,7 @@ How to decide who handles what.
 | Code review | Keaton | Review PRs, check quality, enforce conventions |
 | Testing | Hockney | Write tests, coverage enforcement, edge cases, pytest fixtures |
 | QA validation | Hockney | Run QA check scripts, verify test thresholds |
+| Product ownership & backlog | Kujan | Feature prioritization, acceptance criteria, user value, backlog grooming, requirement analysis |
 | Scope & priorities | Keaton | What to build next, trade-offs, decisions |
 | Session logging | Scribe | Automatic — never needs routing |
 | Work monitoring | Ralph | Backlog tracking, issue triage, keep-alive |

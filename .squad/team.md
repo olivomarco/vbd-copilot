@@ -17,6 +17,7 @@
 | Redfoot | Full-Stack Frontend Dev | .squad/agents/redfoot/charter.md | ⚛️ Active |
 | Fenster | Prompt Engineer | .squad/agents/fenster/charter.md | 📝 Active |
 | Hockney | Tester | .squad/agents/hockney/charter.md | 🧪 Active |
+| Kujan | Product Owner | .squad/agents/kujan/charter.md | 📦 Active |
 | Scribe | Session Logger | .squad/agents/scribe/charter.md | 📋 Active |
 | Ralph | Work Monitor | .squad/agents/ralph/charter.md | 🔄 Active |
 
