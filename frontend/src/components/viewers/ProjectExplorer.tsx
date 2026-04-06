@@ -21,6 +21,7 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { readFile, listOutputs, listGroupedOutputs } from "@/api/client";
 import type { OutputFile } from "@/api/types";
+import { DrawioRenderer } from "./DrawioRenderer";
 
 interface TreeNode {
   name: string;
@@ -233,6 +234,7 @@ export function ProjectExplorer() {
   );
 
   const isMarkdown = selectedFile.endsWith(".md");
+  const isDrawio = selectedFile.endsWith(".drawio");
 
   if (loading) {
     return (
@@ -373,6 +375,8 @@ export function ProjectExplorer() {
             >
               <Spinner size="small" />
             </div>
+          ) : isDrawio ? (
+            <DrawioRenderer xml={fileContent} />
           ) : isMarkdown ? (
             <div
               className="md-content"

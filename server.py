@@ -507,6 +507,7 @@ _FILE_TYPE_MAP = {
     ".yml": "yaml",
     ".ts": "typescript",
     ".txt": "text",
+    ".drawio": "drawio",
 }
 
 _SKIP_DIRS = {".fragments", "__pycache__", ".git", "node_modules"}
@@ -1392,7 +1393,7 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
 # Output file detection (mirrors app.py logic)
 # ---------------------------------------------------------------------------
 
-_INTERESTING_SUFFIXES = {".pptx", ".md", ".py", ".bicep", ".json", ".yaml", ".sh"}
+_INTERESTING_SUFFIXES = {".pptx", ".md", ".py", ".bicep", ".json", ".yaml", ".sh", ".drawio"}
 
 
 def _find_new_outputs(since: float) -> list[Path]:

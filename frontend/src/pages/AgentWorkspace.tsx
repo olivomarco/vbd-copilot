@@ -32,7 +32,7 @@ import {
   ClipboardTask20Regular,
   Chat20Regular,
 } from "@fluentui/react-icons";
-import { useJobStore, type Job, type AgentPhase, type JobEvent } from "@/stores/jobStore";
+import { useJobStore, type Job, type JobEvent } from "@/stores/jobStore";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { AGENT_META } from "@/api/types";
 import { getSessionEvents } from "@/api/client";
@@ -41,18 +41,7 @@ import remarkGfm from "remark-gfm";
 import { AgentIcon } from "@/components/common/AgentIcon";
 import { clearInputNotification } from "@/utils/notifications";
 
-const PHASES: { key: AgentPhase; label: string }[] = [
-  { key: "researching", label: "Research" },
-  { key: "planning", label: "Planning" },
-  { key: "reviewing", label: "Review" },
-  { key: "building", label: "Building" },
-  { key: "qa", label: "QA" },
-  { key: "delivering", label: "Delivery" },
-];
 
-function phaseIndex(phase: AgentPhase): number {
-  return PHASES.findIndex((p) => p.key === phase);
-}
 
 function formatElapsed(ms: number): string {
   const sec = Math.floor(ms / 1000);
@@ -710,26 +699,6 @@ export function AgentWorkspace() {
   }
 
   const meta = AGENT_META[job.agent] || { icon: "", label: job.agent, color: "#0078D4" };
-  const currentPhaseIdx = phaseIndex(job.phase);
-
-  // Determine which phase the job actually reached before failing.
-  // Walk the events backwards to find the last real phase_changed event.
-  const lastReachedPhase = useMemo(() => {
-    if (job.status !== "failed" && job.status !== "cancelled") return currentPhaseIdx;
-    // Find the last phase_changed event to know where it actually got to
-    for (let i = job.events.length - 1; i >= 0; i--) {
-      const e = job.events[i];
-      if (e.type === "phase_changed" && (e.data as any).phase) {
-        const idx = phaseIndex((e.data as any).phase as AgentPhase);
-        if (idx >= 0) return idx;
-      }
-    }
-    // Fallback: use tool/subagent events to infer
-    const hadTools = job.progress.toolCalls > 0;
-    const hadSubagents = job.progress.subagentRuns > 0;
-    if (!hadTools && !hadSubagents) return 0; // never got past research
-    return 0; // conservative: only mark research as reached
-  }, [job.events, job.status, job.progress, currentPhaseIdx]);
 
   // Filter to only meaningful events for the activity feed
   const feedEvents = job.events.filter(
@@ -869,148 +838,7 @@ export function AgentWorkspace() {
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
-      {/* Left: Progress Stepper */}
-      <div
-        style={{
-          width: 200,
-          borderRight: "1px solid var(--border)",
-          padding: "20px 16px",
-          display: "flex",
-          flexDirection: "column",
-          background: "var(--card-bg)",
-          flexShrink: 0,
-          overflow: "auto",
-        }}
-      >
-        <Button
-          appearance="subtle"
-          icon={<ArrowLeft20Regular />}
-          size="small"
-          onClick={() => navigate("/mission")}
-          style={{ marginBottom: 16, justifyContent: "flex-start" }}
-        >
-          Mission Ctrl
-        </Button>
-
-        <Text
-          weight="semibold"
-          size={200}
-          style={{
-            display: "block",
-            marginBottom: 14,
-            textTransform: "uppercase",
-            fontSize: 10,
-            letterSpacing: "0.06em",
-            color: "var(--text-secondary)",
-          }}
-        >
-          Progress
-        </Text>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {PHASES.map((p, i) => {
-            const isFailed = job.status === "failed" || job.status === "cancelled";
-            const effectiveIdx = isFailed ? lastReachedPhase : currentPhaseIdx;
-            const isDone = isFailed
-              ? i < effectiveIdx                      // only phases before the failure point
-              : i < currentPhaseIdx;
-            const isFailedPhase = isFailed && i === effectiveIdx && p.key !== "done";
-            const isActive = !isFailed && i === currentPhaseIdx && job.status !== "completed";
-            const isPending = isFailed
-              ? i > effectiveIdx || (i === effectiveIdx && !isFailedPhase)
-              : i > currentPhaseIdx;
-
-            return (
-              <div
-                key={p.key}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "6px 8px",
-                  borderRadius: 6,
-                  background: isActive
-                    ? "rgba(0,120,212,0.06)"
-                    : isFailedPhase
-                      ? "rgba(209,52,56,0.06)"
-                      : "transparent",
-                }}
-              >
-                <div
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    flexShrink: 0,
-                    background: isDone
-                      ? "#7FBA00"
-                      : isFailedPhase
-                        ? "#d13438"
-                        : isActive
-                          ? "var(--brand-primary)"
-                          : "#edebe9",
-                    color: isDone || isActive || isFailedPhase ? "#fff" : "#a19f9d",
-                    animation: isActive ? "pulse 2s infinite" : undefined,
-                  }}
-                >
-                  {isDone ? "✓" : isFailedPhase ? "✕" : i + 1}
-                </div>
-                <div>
-                  <Text
-                    size={200}
-                    weight={isActive || isFailedPhase ? "semibold" : "regular"}
-                    style={{
-                      color: isPending && !isFailedPhase
-                        ? "#a19f9d"
-                        : isFailedPhase
-                          ? "#d13438"
-                          : "var(--text-primary)",
-                      display: "block",
-                    }}
-                  >
-                    {p.label}
-                  </Text>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Stats */}
-        <div style={{ marginTop: "auto", paddingTop: 16, borderTop: "1px solid var(--border)" }}>
-          <Text
-            size={200}
-            style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-secondary)", marginBottom: 4 }}
-          >
-            <Wrench20Regular style={{ width: 14, height: 14 }} /> {job.progress.toolCalls} tool calls
-          </Text>
-          <Text
-            size={200}
-            style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-secondary)", marginBottom: 4 }}
-          >
-            <Bot20Regular style={{ width: 14, height: 14 }} /> {job.progress.subagentRuns} subagents
-          </Text>
-          <Text
-            size={200}
-            style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-secondary)" }}
-          >
-            <DataBarVertical20Regular style={{ width: 14, height: 14 }} /> {((job.usage.inputTokens + job.usage.outputTokens) / 1000).toFixed(0)}k tokens
-          </Text>
-          <Text
-            size={200}
-            style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-secondary)", marginBottom: 4 }}
-          >
-            <Timer20Regular style={{ width: 14, height: 14 }} /> {formatElapsed(job.completedAt ? job.completedAt - job.startedAt : elapsed)}
-          </Text>
-        </div>
-      </div>
-
-      {/* Center: Activity Feed */}
+      {/* Activity Feed */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {/* Header */}
         <div
@@ -1024,6 +852,13 @@ export function AgentWorkspace() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+            <Button
+              appearance="subtle"
+              icon={<ArrowLeft20Regular />}
+              size="small"
+              onClick={() => navigate("/mission")}
+              style={{ flexShrink: 0 }}
+            />
             <AgentIcon agent={job.agent} size="inline" />
             <Text
               weight="semibold"
@@ -1079,6 +914,31 @@ export function AgentWorkspace() {
               Cancel
             </Button>
           )}
+        </div>
+
+        {/* Stats bar */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            padding: "6px 24px",
+            borderBottom: "1px solid var(--border)",
+            background: "var(--card-bg)",
+          }}
+        >
+          <Text size={200} style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-secondary)" }}>
+            <Wrench20Regular style={{ width: 14, height: 14 }} /> {job.progress.toolCalls} tool calls
+          </Text>
+          <Text size={200} style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-secondary)" }}>
+            <Bot20Regular style={{ width: 14, height: 14 }} /> {job.progress.subagentRuns} subagents
+          </Text>
+          <Text size={200} style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-secondary)" }}>
+            <DataBarVertical20Regular style={{ width: 14, height: 14 }} /> {((job.usage.inputTokens + job.usage.outputTokens) / 1000).toFixed(0)}k tokens
+          </Text>
+          <Text size={200} style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-secondary)" }}>
+            <Timer20Regular style={{ width: 14, height: 14 }} /> {formatElapsed(job.completedAt ? job.completedAt - job.startedAt : elapsed)}
+          </Text>
         </div>
 
         {/* Activity feed */}

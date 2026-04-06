@@ -8,6 +8,7 @@ const OutputLibrary = lazy(() => import("./pages/OutputLibrary").then(m => ({ de
 const SlideViewer = lazy(() => import("./components/viewers/SlideViewer").then(m => ({ default: m.SlideViewer })));
 const MarkdownViewer = lazy(() => import("./components/viewers/MarkdownViewer").then(m => ({ default: m.MarkdownViewer })));
 const ProjectExplorer = lazy(() => import("./components/viewers/ProjectExplorer").then(m => ({ default: m.ProjectExplorer })));
+const DrawioViewer = lazy(() => import("./components/viewers/DrawioViewer").then(m => ({ default: m.DrawioViewer })));
 const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.Settings })));
 const AgentWorkspace = lazy(() => import("./pages/AgentWorkspace").then(m => ({ default: m.AgentWorkspace })));
 const MissionControl = lazy(() => import("./pages/MissionControl").then(m => ({ default: m.MissionControl })));
@@ -56,6 +57,7 @@ export function App() {
           <Route path="/library/slides" element={<SlideViewer />} />
           <Route path="/library/markdown" element={<MarkdownViewer />} />
           <Route path="/library/project" element={<ProjectExplorer />} />
+          <Route path="/library/drawio" element={<DrawioViewer />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
