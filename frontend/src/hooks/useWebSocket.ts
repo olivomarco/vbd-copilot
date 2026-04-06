@@ -27,6 +27,9 @@ export function useWebSocket(sessionId: string | null) {
   const pushEvent = useJobStore((s) => s.pushEvent);
   const setWs = useJobStore((s) => s.setWs);
 
+  /** Tracks which subagent is currently running (name) so tool events can be tagged. */
+  const activeSubagent = useRef<string | null>(null);
+
   const connect = useCallback((sid: string) => {
     // Close any existing connection first
     if (wsRef.current && wsRef.current.readyState < WebSocket.CLOSING) {
@@ -36,6 +39,7 @@ export function useWebSocket(sessionId: string | null) {
     }
 
     jobDone.current = false;
+    activeSubagent.current = null;
     const url = `${BASE_WS}/ws/${sid}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
@@ -131,8 +135,12 @@ export function useWebSocket(sessionId: string | null) {
           }
         }
 
-        // Push raw event to the activity feed
-        pushEvent(sid, { type: t, data: msg });
+        // Push raw event to the activity feed.
+        // Tag tool events with the active subagent so the UI can group them.
+        const eventData = (t === "tool_started" || t === "tool_completed") && activeSubagent.current
+          ? { ...msg, _subagent: activeSubagent.current }
+          : msg;
+        pushEvent(sid, { type: t, data: eventData });
       }
 
       switch (t) {
@@ -172,16 +180,23 @@ export function useWebSocket(sessionId: string | null) {
         }
 
         case "subagent_started": {
+          const agentName = msg.agent || "agent";
+          activeSubagent.current = agentName;
           const job = useJobStore.getState().getJob(sid);
           if (job) {
             updateJob(sid, {
               progress: {
                 ...job.progress,
                 subagentRuns: job.progress.subagentRuns + 1,
-                currentStep: `Subagent: ${msg.agent || "agent"}`,
+                currentStep: `Subagent: ${agentName}`,
               },
             });
           }
+          break;
+        }
+
+        case "subagent_completed": {
+          activeSubagent.current = null;
           break;
         }
 

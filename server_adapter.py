@@ -34,6 +34,7 @@ _last_times: dict[str, float] = {}              # session_id -> last event epoch
 _pending_inputs: dict[str, dict[str, Any]] = {}  # session_id -> last waiting_for_input payload
 _last_done: dict[str, dict[str, Any]] = {}        # session_id -> last done payload (for reconnect replay)
 _event_handler_unsubs: dict[str, Any] = {}       # session_id -> unsubscribe callable
+_active_subagents: dict[str, str | None] = {}    # session_id -> currently running subagent name
 
 # Legacy single-session aliases (used by terminal mode / backward compat)
 _active_ws: Any | None = None
@@ -329,7 +330,11 @@ def _make_ws_handler(session_id: str):
             args_raw = getattr(d, "arguments", None)
             args_str = json.dumps(args_raw, ensure_ascii=False) if args_raw else "{}"
             tool_starts[str(tool)] = time.time()
-            send({"type": "tool_started", "tool": str(tool), "args": args_str})
+            msg: dict[str, Any] = {"type": "tool_started", "tool": str(tool), "args": args_str}
+            sa = _active_subagents.get(session_id)
+            if sa:
+                msg["_subagent"] = sa
+            send(msg)
             # Emit phase detection
             phase = _detect_phase(tool=str(tool))
             if phase and phase != last_phase:
@@ -343,13 +348,18 @@ def _make_ws_handler(session_id: str):
             duration_ms = int((time.time() - started) * 1000)
             output_raw = getattr(d, "output", None)
             output_str = str(output_raw)[:500] if output_raw else None
-            send({"type": "tool_completed", "tool": str(tool), "duration_ms": duration_ms, "output_preview": output_str})
+            cmsg: dict[str, Any] = {"type": "tool_completed", "tool": str(tool), "duration_ms": duration_ms, "output_preview": output_str}
+            sa = _active_subagents.get(session_id)
+            if sa:
+                cmsg["_subagent"] = sa
+            send(cmsg)
             return
 
         if etype == SessionEventType.SUBAGENT_STARTED:
             # Agent is running subagents — clear any pending input
             _pending_inputs.pop(session_id, None)
             name = getattr(d, "agent_name", "?") or "?"
+            _active_subagents[session_id] = str(name)
             send({"type": "subagent_started", "agent": str(name)})
             phase = _detect_phase(agent=str(name))
             if phase and phase != last_phase:
@@ -359,6 +369,7 @@ def _make_ws_handler(session_id: str):
 
         if etype == SessionEventType.SUBAGENT_COMPLETED:
             name = getattr(d, "agent_name", "?") or "?"
+            _active_subagents.pop(session_id, None)
             send({"type": "subagent_completed", "agent": str(name)})
             return
 
@@ -391,6 +402,7 @@ def ws_reset(session_id: str | None = None) -> None:
             _seen_ids[session_id].clear()
         if session_id in _tool_starts:
             _tool_starts[session_id].clear()
+        _active_subagents.pop(session_id, None)
         q = _input_queues.get(session_id)
         if q:
             while not q.empty():

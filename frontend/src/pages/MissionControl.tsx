@@ -111,6 +111,22 @@ function JobCard({ job }: { job: Job }) {
           >
             {job.agent} · {job.progress.currentStep}
           </Text>
+          {/* Running subagent + tool activity indicator */}
+          {(job.status === "running" || job.status === "queued") &&
+            (job.progress.subagentRuns > 0 || job.progress.toolCalls > 0) && (
+            <Text
+              size={100}
+              style={{
+                color: "var(--text-secondary)",
+                display: "flex",
+                gap: 8,
+                marginTop: 2,
+              }}
+            >
+              {job.progress.toolCalls > 0 && <span>{job.progress.toolCalls} tools</span>}
+              {job.progress.subagentRuns > 0 && <span>{job.progress.subagentRuns} subagents</span>}
+            </Text>
+          )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           <Text size={200} style={{ color: "var(--text-secondary)", whiteSpace: "nowrap" }}>

@@ -388,26 +388,49 @@ async def get_session_events(session_id: str) -> JSONResponse:
             "time": turn.get("started_at", ""),
         })
 
-        # invocations
+        # invocations — ordered by started_at so subagent/tool interleaving is correct
         invocations = store.get_invocations_for_turn(turn["id"])
+        invocations.sort(key=lambda inv: inv.get("started_at", ""))
+
+        # Build time ranges for subagent runs to tag nested tool calls
+        subagent_ranges: list[tuple[str, str, str]] = []  # (name, started_at, ended_at)
+        for inv in invocations:
+            if inv.get("type") == "subagent":
+                sa_start = inv.get("started_at", "")
+                sa_end = inv.get("ended_at") or "9999"
+                subagent_ranges.append((inv.get("name", ""), sa_start, sa_end))
+
+        def _find_parent_subagent(tool_start: str) -> str | None:
+            for sa_name, sa_start, sa_end in subagent_ranges:
+                if sa_start <= tool_start <= sa_end:
+                    return sa_name
+            return None
+
         for inv in invocations:
             inv_type = inv.get("type", "")
             inv_name = inv.get("name", "")
 
             if inv_type == "tool_call":
+                parent = _find_parent_subagent(inv.get("started_at", ""))
+                tool_data: dict = {"tool": inv_name, "args": inv.get("input", "{}")}
+                if parent:
+                    tool_data["_subagent"] = parent
                 events.append({
                     "type": "tool_started",
-                    "data": {"tool": inv_name, "args": inv.get("input", "{}")},
+                    "data": tool_data,
                     "time": inv.get("started_at", ""),
                 })
                 output_raw = inv.get("output") or ""
+                complete_data: dict = {
+                    "tool": inv_name,
+                    "output_preview": output_raw[:500],
+                    "duration_ms": inv.get("duration_ms", 0),
+                }
+                if parent:
+                    complete_data["_subagent"] = parent
                 events.append({
                     "type": "tool_completed",
-                    "data": {
-                        "tool": inv_name,
-                        "output_preview": output_raw[:500],
-                        "duration_ms": inv.get("duration_ms", 0),
-                    },
+                    "data": complete_data,
                     "time": inv.get("ended_at") or inv.get("started_at", ""),
                 })
             elif inv_type == "subagent":

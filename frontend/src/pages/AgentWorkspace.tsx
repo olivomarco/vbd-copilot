@@ -97,8 +97,8 @@ function formatArgs(argsStr?: string): string {
 }
 
 interface EventDataMap {
-  tool_started: { tool?: string; args?: string };
-  tool_completed: { tool?: string; duration_ms?: number; output_preview?: string };
+  tool_started: { tool?: string; args?: string; _subagent?: string };
+  tool_completed: { tool?: string; duration_ms?: number; output_preview?: string; _subagent?: string };
   subagent_started: { agent?: string };
   subagent_completed: { agent?: string };
   delta: { content?: string };
@@ -273,6 +273,96 @@ function CollapsibleWarning({ message, subtle }: { message: string; subtle?: boo
     >
       <span style={{ marginRight: 6, display: "inline-flex" }}>{subtle ? <Flash20Regular /> : <Warning20Regular />}</span>
       {open ? message : short}
+    </div>
+  );
+}
+
+/** Collapsible group of events that occurred while a subagent was running. */
+function SubagentGroup({
+  agentName,
+  events,
+  completionMap,
+  isComplete,
+}: {
+  agentName: string;
+  events: JobEvent[];
+  completionMap: Map<number, JobEvent>;
+  isComplete: boolean;
+}) {
+  const [open, setOpen] = useState(true);
+  const toolCount = events.filter((e) => e.type === "tool_started").length;
+
+  // Filter out tool_completed events that are already merged into tool_started rows
+  const mergedIds = new Set<number>();
+  for (const e of events) {
+    if (e.type === "tool_started") {
+      const c = completionMap.get(e.id);
+      if (c) mergedIds.add(c.id);
+    }
+  }
+  const filteredEvents = events.filter((e) => !mergedIds.has(e.id));
+
+  return (
+    <div
+      style={{
+        borderRadius: 8,
+        border: `1px solid ${isComplete ? "rgba(0,150,0,0.15)" : "rgba(0,120,212,0.2)"}`,
+        overflow: "hidden",
+      }}
+    >
+      {/* Header */}
+      <div
+        onClick={() => setOpen(!open)}
+        style={{
+          padding: "8px 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          cursor: "pointer",
+          userSelect: "none",
+          background: isComplete ? "#f0faf0" : "#fff5e6",
+        }}
+      >
+        <span style={{ fontSize: 10, color: "var(--text-secondary)", flexShrink: 0, width: 12, display: "inline-flex" }}>
+          {open ? <ChevronDown12Regular /> : <ChevronRight12Regular />}
+        </span>
+        <span style={{ flexShrink: 0, display: "inline-flex" }}>
+          {isComplete ? <Checkmark20Regular /> : <Bot20Regular />}
+        </span>
+        <strong style={{ fontSize: 13 }}>{agentName}</strong>
+        {toolCount > 0 && (
+          <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+            {toolCount} tool call{toolCount !== 1 ? "s" : ""}
+          </span>
+        )}
+        {!isComplete && (
+          <Spinner size="tiny" style={{ marginLeft: "auto" }} />
+        )}
+      </div>
+
+      {/* Nested events */}
+      {open && filteredEvents.length > 0 && (
+        <div
+          style={{
+            padding: "6px 10px 8px 28px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            background: "rgba(0,0,0,0.015)",
+          }}
+        >
+          {filteredEvents.map((e) => (
+            <EventCard key={e.id} event={e} completion={completionMap.get(e.id)} />
+          ))}
+        </div>
+      )}
+
+      {/* Collapsed summary when no nested events */}
+      {open && filteredEvents.length === 0 && !isComplete && (
+        <div style={{ padding: "6px 12px 8px 28px", fontSize: 12, color: "var(--text-secondary)" }}>
+          Running...
+        </div>
+      )}
     </div>
   );
 }
@@ -708,6 +798,58 @@ export function AgentWorkspace() {
     (e) => !mergedCompletionIds.has(e.id) && !mergedAnswerIds.has(e.id),
   );
 
+  // Build display groups: standalone events + subagent groups with nested tool calls.
+  // A SubagentGroup spans from subagent_started to subagent_completed, collecting
+  // any tool_started/tool_completed events with a matching _subagent tag.
+  type DisplayItem =
+    | { kind: "event"; event: JobEvent }
+    | { kind: "subagent"; name: string; events: JobEvent[]; isComplete: boolean; id: number };
+
+  const displayGroups = useMemo<DisplayItem[]>(() => {
+    const result: DisplayItem[] = [];
+    // Track active subagent groups by name (stack for nested subagents)
+    const activeGroups = new Map<string, { events: JobEvent[]; id: number }>();
+
+    for (const e of displayEvents) {
+      const d = e.data as any;
+
+      if (e.type === "subagent_started") {
+        activeGroups.set(d.agent || "agent", { events: [], id: e.id });
+        continue; // don't render standalone — will be the group header
+      }
+
+      if (e.type === "subagent_completed") {
+        const name = d.agent || "agent";
+        const group = activeGroups.get(name);
+        if (group) {
+          result.push({ kind: "subagent", name, events: group.events, isComplete: true, id: group.id });
+          activeGroups.delete(name);
+        } else {
+          // Orphan completed event (missed the start) — show inline
+          result.push({ kind: "event", event: e });
+        }
+        continue;
+      }
+
+      // Check if this event belongs to an active subagent
+      const subagentTag = d._subagent as string | undefined;
+      if (subagentTag && activeGroups.has(subagentTag)) {
+        activeGroups.get(subagentTag)!.events.push(e);
+        continue;
+      }
+
+      // Standalone event
+      result.push({ kind: "event", event: e });
+    }
+
+    // Flush any still-active subagent groups (not yet completed)
+    for (const [name, group] of activeGroups) {
+      result.push({ kind: "subagent", name, events: group.events, isComplete: false, id: group.id });
+    }
+
+    return result;
+  }, [displayEvents.length]);
+
   // Auto-scroll the activity feed to the bottom when new events arrive
   useEffect(() => {
     const el = feedRef.current;
@@ -723,7 +865,7 @@ export function AgentWorkspace() {
     const el = feedRef.current;
     if (!el || userScrolledUp.current) return;
     el.scrollTop = el.scrollHeight;
-  }, [displayEvents.length]);
+  }, [displayGroups.length]);
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
@@ -963,9 +1105,24 @@ export function AgentWorkspace() {
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {displayEvents.map((e) => (
-              <EventCard key={e.id} event={e} completion={completionMap.get(e.id)} userAnswer={answerMap.get(e.id)} />
-            ))}
+            {displayGroups.map((item) =>
+              item.kind === "subagent" ? (
+                <SubagentGroup
+                  key={`sa-${item.id}`}
+                  agentName={item.name}
+                  events={item.events}
+                  completionMap={completionMap}
+                  isComplete={item.isComplete}
+                />
+              ) : (
+                <EventCard
+                  key={item.event.id}
+                  event={item.event}
+                  completion={completionMap.get(item.event.id)}
+                  userAnswer={answerMap.get(item.event.id)}
+                />
+              ),
+            )}
           </div>
 
           {/* Completion actions */}
