@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Shell } from "./components/layout/Shell";
 import { useJobStore } from "./stores/jobStore";
+import { useActiveJobWatcher } from "./hooks/useActiveJobWatcher";
 
 const Launchpad = lazy(() => import("./pages/Launchpad").then(m => ({ default: m.Launchpad })));
 const OutputLibrary = lazy(() => import("./pages/OutputLibrary").then(m => ({ default: m.OutputLibrary })));
@@ -46,6 +47,10 @@ const _cleanupDone = (() => {
 })();
 
 export function App() {
+  // Maintain lightweight WS connections for all active jobs so notifications
+  // (sound, badge, system) fire even when the user is not on the workspace page.
+  useActiveJobWatcher();
+
   return (
     <Shell>
       <Suspense fallback={<div style={{ display: "flex", justifyContent: "center", padding: 80 }}>Loading...</div>}>

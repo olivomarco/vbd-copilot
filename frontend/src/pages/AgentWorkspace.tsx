@@ -662,8 +662,14 @@ export function AgentWorkspace() {
     hydratedRef.current = jobId;
     getSessionEvents(jobId)
       .then((serverEvents) => {
-        const existingTimes = new Set(job.events.map((e) => e.time));
+        const currentJob = useJobStore.getState().getJob(jobId);
+        if (!currentJob) return;
+        const existingTimes = new Set(currentJob.events.map((e) => e.time));
+        // Track which event types we already have to prevent duplicating
+        // one-shot events like "done" (client timestamps differ from server).
+        const hasDone = currentJob.events.some((e) => e.type === "done");
         for (const se of serverEvents) {
+          if ((se.type === "done" || se.type === "cancelled") && hasDone) continue;
           const ts = new Date(se.time).getTime();
           if (!existingTimes.has(ts)) {
             pushEvent(jobId, { type: se.type, data: se.data });
@@ -811,13 +817,15 @@ export function AgentWorkspace() {
       result.push({ kind: "event", event: e });
     }
 
-    // Flush any still-active subagent groups (not yet completed)
+    // Flush any still-active subagent groups.
+    // If the job is in a terminal state, all subagents must have finished.
+    const jobIsDone = job.status === "completed" || job.status === "failed" || job.status === "cancelled";
     for (const [name, group] of activeGroups) {
-      result.push({ kind: "subagent", name, events: group.events, isComplete: false, id: group.id });
+      result.push({ kind: "subagent", name, events: group.events, isComplete: jobIsDone, id: group.id });
     }
 
     return result;
-  }, [displayEvents.length]);
+  }, [displayEvents.length, job.status]);
 
   // Auto-scroll the activity feed to the bottom when new events arrive
   useEffect(() => {

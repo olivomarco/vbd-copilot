@@ -333,6 +333,21 @@ export function MissionControl() {
                 completedAt: Date.now(),
                 pendingInput: [],
               });
+            } else if (srv.pending_input && fresh.status !== "waiting") {
+              // Server has a pending question the frontend doesn't know about
+              const q = srv.pending_input.question || "The agent has a question";
+              const alreadyQueued = (fresh.pendingInput || []).some(
+                (p) => p.question === q,
+              );
+              if (!alreadyQueued) {
+                updateJob(job.id, {
+                  status: "waiting",
+                  pendingInput: [
+                    ...(fresh.pendingInput || []),
+                    { question: q, choices: srv.pending_input.choices || undefined },
+                  ],
+                });
+              }
             }
           })
           .catch(() => {});

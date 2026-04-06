@@ -337,7 +337,7 @@ async def get_turn_invocations(session_id: str, turn_number: int) -> JSONRespons
 @app.get("/sessions/{session_id}/status")
 async def get_session_status(session_id: str) -> JSONResponse:
     """Lightweight status check for frontend reconnect polling."""
-    from server_adapter import _ws_map
+    from server_adapter import _ws_map, get_pending_input
 
     store = _store()
     full_id = store.resolve_prefix("sessions", session_id)
@@ -350,6 +350,7 @@ async def get_session_status(session_id: str) -> JSONResponse:
 
     in_memory = full_id in _session_map
     has_ws = bool(_ws_map.get(full_id))
+    pending = get_pending_input(full_id)
 
     return JSONResponse(content={
         "session_id": full_id,
@@ -358,6 +359,7 @@ async def get_session_status(session_id: str) -> JSONResponse:
         "has_running_turn": in_memory and has_ws,
         "turn_count": detail.get("turn_count", 0),
         "resumable": bool(detail.get("resumable", 0)),
+        "pending_input": pending,
     })
 
 

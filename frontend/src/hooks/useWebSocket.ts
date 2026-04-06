@@ -27,8 +27,8 @@ export function useWebSocket(sessionId: string | null) {
   const pushEvent = useJobStore((s) => s.pushEvent);
   const setWs = useJobStore((s) => s.setWs);
 
-  /** Tracks which subagent is currently running (name) so tool events can be tagged. */
-  const activeSubagent = useRef<string | null>(null);
+  /** Stack of active subagent names — supports nested subagents. */
+  const activeSubagentStack = useRef<string[]>([]);
 
   const connect = useCallback((sid: string) => {
     // Close any existing connection first
@@ -39,7 +39,7 @@ export function useWebSocket(sessionId: string | null) {
     }
 
     jobDone.current = false;
-    activeSubagent.current = null;
+    activeSubagentStack.current = [];
     const url = `${BASE_WS}/ws/${sid}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
@@ -135,10 +135,26 @@ export function useWebSocket(sessionId: string | null) {
           }
         }
 
+        // Skip duplicate terminal events for jobs that already finished.
+        // The server replays the last "done" payload on WS reconnect, which
+        // would otherwise add a second "Job completed!" card to the feed.
+        if (t === "done" || t === "cancelled") {
+          const existingJob = useJobStore.getState().getJob(sid);
+          if (existingJob && (existingJob.status === "completed" || existingJob.status === "failed" || existingJob.status === "cancelled")) {
+            // Job is already terminal — skip the duplicate event entirely
+            return;
+          }
+        }
+
         // Push raw event to the activity feed.
         // Tag tool events with the active subagent so the UI can group them.
-        const eventData = (t === "tool_started" || t === "tool_completed") && activeSubagent.current
-          ? { ...msg, _subagent: activeSubagent.current }
+        // Prefer the server-provided _subagent tag (more reliable); fall back to client stack.
+        const isToolEvent = t === "tool_started" || t === "tool_completed";
+        const serverTag = isToolEvent ? msg._subagent : undefined;
+        const clientTag = activeSubagentStack.current.length > 0 ? activeSubagentStack.current[activeSubagentStack.current.length - 1] : undefined;
+        const subagentTag = serverTag || clientTag;
+        const eventData = isToolEvent && subagentTag
+          ? { ...msg, _subagent: subagentTag }
           : msg;
         pushEvent(sid, { type: t, data: eventData });
       }
@@ -181,7 +197,7 @@ export function useWebSocket(sessionId: string | null) {
 
         case "subagent_started": {
           const agentName = msg.agent || "agent";
-          activeSubagent.current = agentName;
+          activeSubagentStack.current.push(agentName);
           const job = useJobStore.getState().getJob(sid);
           if (job) {
             updateJob(sid, {
@@ -196,7 +212,13 @@ export function useWebSocket(sessionId: string | null) {
         }
 
         case "subagent_completed": {
-          activeSubagent.current = null;
+          const completedName = msg.agent || "agent";
+          const idx = activeSubagentStack.current.lastIndexOf(completedName);
+          if (idx >= 0) {
+            activeSubagentStack.current.splice(idx, 1);
+          } else if (activeSubagentStack.current.length > 0) {
+            activeSubagentStack.current.pop();
+          }
           break;
         }
 
