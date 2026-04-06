@@ -253,7 +253,7 @@ export function Launchpad() {
         size={200}
         style={{ display: "block", color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.5 }}
       >
-        Each step builds on the previous — brainstorm ideas, then architect, build, and demo your solution.
+        Each step builds on the previous — brainstorm ideas (optional), then architect, build, and demo your solution.
       </Text>
 
       <div
