@@ -58,3 +58,18 @@
 - Follow existing component patterns before introducing new ones
 - Keep desktop app responsive — agent workflows can run for an hour
 - WebSocket reconnection on disconnect
+
+## Phase 1 — Envelope Protocol & Dual-WS Fix — 2026-04-07
+
+### Changes Made
+- **types.ts**: Added `WsEnvelope<T>` generic + 15 typed data payload interfaces for all WS event types (tool, subagent, delta, done, error, usage, snapshot, etc.)
+- **useWebSocket.ts**: Envelope unwrap (`raw.v === 1` check) with backward compat for raw messages. ID-based dedup via `seenIds` Set (cleared on connect). `session_snapshot` handler restores subagent stack, pending input, and done state on reconnect. Event hydration via `getSessionEvents()` for cold-start/reconnect with <5 events. New cases: `subagent_failed` (removes from stack, updates progress) and `subagent_selected` (informational no-op).
+- **useActiveJobWatcher.ts**: Same envelope unwrap. Added guard: when workspace WS (`_ws`) is active, watcher skips all events except terminal `done`/`cancelled` — fixes the dual-WS double-counting bug.
+
+### Key Patterns
+- Envelope unwrap: `const isEnvelope = raw.v === 1 && raw.id && raw.data;` — `msg` becomes `raw.data` for envelopes, `raw` for legacy
+- ID dedup: `seenIds.current` Set of UUID strings, checked before processing, cleared on `ws.onopen`
+- Snapshot hydration: `handleSnapshot()` is a function declaration (hoisted) in hook body, called from inside `connect` callback
+- Event hydration: `getSessionEvents()` fetched on open, merged by `type:data` composite key to avoid dupes
+- Backward compat: all handlers work with both envelope and raw message formats
+- `sendMessage`/`sendUserResponse` unchanged — client→server doesn't use envelopes

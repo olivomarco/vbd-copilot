@@ -93,3 +93,11 @@ User prompt → ui.prompt() → route_to_agent() → @mention OR LLM classify
 - rich>=13.0, prompt-toolkit>=3.0.43, python-pptx>=1.0.2
 - fastapi>=0.115, uvicorn[standard]>=0.32, websockets>=13.0
 - mcp>=1.0, pillow>=11.0, pymupdf>=1.24, markitdown>=0.1.0
+
+## Cross-Agent Update — Phase 1 SDK↔Frontend Bridge (2026-04-07)
+
+Phase 1 completed by McManus + Redfoot + Hockney in parallel:
+- **server_adapter.py** now uses `SessionConnection` class (replaces module-level dicts), v1 envelope protocol `{v, type, id, seq, ts, correlationId, data}`, `build_snapshot()` for reconnect
+- **Frontend** unwraps envelopes with backward compat, ID-based dedup, snapshot hydration, dual-WS bug fixed
+- **34 new tests** in `tests/test_server_adapter.py`, 346 total passing
+- Decisions recorded: SessionConnection pattern, envelope protocol structure, frontend backward-compat strategy

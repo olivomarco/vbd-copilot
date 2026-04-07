@@ -91,3 +91,18 @@ Severity levels: CRITICAL > MAJOR > MINOR. Unified placeholder regex (IGNORECASE
 3. Severity across QA: CRITICAL (must fix) > MAJOR > MINOR
 4. Test coverage ≥ 80% — this is the floor, not the goal
 5. Every bug should become a missing test case
+
+## Phase 1 — SessionConnection + Envelope Protocol Tests — 2026-04-07
+
+Added `tests/test_server_adapter.py` with 34 tests covering McManus's server_adapter.py refactor:
+- **SessionConnection lifecycle (6):** init defaults, add/remove_ws, reset_turn state clearing, reset_turn preserves pending_input, cleanup clears everything, next_seq monotonic
+- **Connection registry (7):** get_connection unknown, get_or_create idempotent, add_ws creates conn, add_ws second returns False, remove_ws cleans up empty, remove_ws keeps remaining, remove_ws unknown session
+- **Cancel flag compat (3):** per-session set/get, legacy global set/get, unknown session returns False
+- **Envelope protocol (6):** structure validation, correlation ID, seq increments, None conn fallback, unique IDs, timestamp recency
+- **Snapshot (5):** active session, waiting session, idle session, unknown returns None, includes last_done
+- **User response flow (4):** push/pop roundtrip, timeout raises TimeoutError, push clears pending_input, FIFO ordering
+- **ws_reset (3):** delegates to SessionConnection, unknown session is noop, legacy no-arg path
+
+Key pattern: autouse `_clear_connections` fixture clears `_connections` dict before/after every test to isolate module-level state. Imported `_connections` directly for fixture access — private but necessary for test isolation.
+
+Total suite: 346 tests, all green.

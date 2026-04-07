@@ -92,3 +92,21 @@
 4. Output detection: mtime-based grace period scan
 5. Context tracking: turn-level tokens aggregated to session for /usage
 6. Prefix resolution: short session IDs (12 chars) → resolve_prefix() finds full UUID
+
+## Phase 1 Backend — SessionConnection, Envelope, Snapshot (2026-04-07)
+
+### What was done
+- **SessionConnection class** added to `server_adapter.py`: encapsulates all per-session WebSocket state (websockets, cancel_flag, input_queue, pending_input, last_done, active_subagents, seen_event_ids, tool_starts, event_handler_unsub, seq counter). Replaces 10+ module-level dicts.
+- **_connections registry**: `dict[str, SessionConnection]`. All public functions delegate to it while keeping identical signatures for backward compat.
+- **v1 message envelope protocol**: `_envelope(conn, msg_type, data, correlation_id)` wraps every outgoing message with `{v, type, id, seq, ts, correlationId, data}`. Monotonic `seq` per session for ordering; UUID `id` per message.
+- **Correlation IDs**: tool lifecycle (start → complete) and subagent lifecycle (started → completed/failed) share a UUID correlation_id so frontend can pair events. Stored in `conn.tool_starts` as `(epoch, corr_id)` tuples and `conn.subagent_correlations` dict.
+- **Session snapshot**: `build_snapshot(session_id)` returns an enveloped `session_snapshot` message with status, pending_input, last_done, active_subagents, and seq. Sent on WS reconnect instead of individual replays.
+- **New SDK events forwarded**: `SUBAGENT_FAILED` and `SUBAGENT_SELECTED` now emit to frontend. Future placeholders for `TOOL_EXECUTION_PROGRESS` and `ASSISTANT_INTENT`.
+- **server.py changes**: imports updated (removed `_ws_map`, added `get_connection`, `build_snapshot`), snapshot replaces individual pending/done replays, `add_ws` now returns bool for is_first detection.
+- **Tests**: 26 new tests in `tests/test_session_connection.py`. Full suite: 312 passed, 0 failed.
+
+### Key decisions
+- Legacy terminal mode (`_active_ws`, `_cancel_flag`, `_user_input_queue`) preserved untouched.
+- `push_user_response` uses `_get_or_create()` (not `_connections.get()`) so push/pop work even without a WS connection (e.g., tests).
+- `remove_ws` triggers `cleanup()` when last WS disconnects — unsubscribes the event handler and clears state.
+- All event handler messages now go through `emit()` wrapper which envelopes automatically. Raw `_send()` stays available for backward-compat direct calls from server.py.
