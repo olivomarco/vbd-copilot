@@ -38,7 +38,7 @@ const TEMPLATES: Template[] = [
   {
     title: "Azure AI Hackathon",
     agent: "hackathon-conductor",
-    brief: { topic: "Building intelligent apps with Azure AI Services", contentLevel: "L300", duration: "2 hours" },
+    brief: { topic: "Building intelligent apps with Azure AI Services", contentLevel: "L300", duration: "Full day" },
   },
   {
     title: "Container Apps Architecture",

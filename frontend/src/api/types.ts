@@ -148,6 +148,8 @@ export const AGENT_META: Record<
     /** Override the "Topic" field label and placeholder per agent. */
     topicLabel?: string;
     topicPlaceholder?: string;
+    /** Override the duration dropdown options per agent. Falls back to DURATIONS. */
+    durationOptions?: readonly string[];
   }
 > = {
   "slide-conductor": {
@@ -180,6 +182,7 @@ export const AGENT_META: Record<
     showAudience: true,
     defaultLevel: "L300",
     beta: true,
+    durationOptions: ["Half day", "Full day", "2 days"],
   },
   "ai-brainstorming": {
     label: "Brainstorm AI Projects",

@@ -52,7 +52,8 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
 
   const [topic, setTopic] = useState(initialBrief?.topic || "");
   const [level, setLevel] = useState<ContentLevel>(initialBrief?.contentLevel as ContentLevel || meta.defaultLevel);
-  const [duration, setDuration] = useState(initialBrief?.duration || "30 min");
+  const agentDurations = meta.durationOptions ?? DURATIONS;
+  const [duration, setDuration] = useState(initialBrief?.duration || agentDurations[0]);
   const [audience, setAudience] = useState(initialBrief?.audience || "");
   const [notes, setNotes] = useState(initialBrief?.notes || "");
   const [submitting, setSubmitting] = useState(false);
@@ -307,10 +308,10 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
             </Text>
             <Dropdown
               value={duration}
-              onOptionSelect={(_, d) => setDuration(d.optionValue || "30 min")}
+              onOptionSelect={(_, d) => setDuration(d.optionValue || agentDurations[0])}
               style={{ width: "100%" }}
             >
-              {DURATIONS.map((d) => (
+              {agentDurations.map((d) => (
                 <Option key={d} value={d}>
                   {d}
                 </Option>
