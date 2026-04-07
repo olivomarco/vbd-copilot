@@ -18,8 +18,11 @@ export function DrawioRenderer({ xml }: { xml: string }) {
   // Build the self-contained HTML document for the iframe.
   // viewer-static.min.js auto-discovers <div class="mxgraph"> elements
   // and renders them as interactive diagrams with pan/zoom.
+  //
+  // IMPORTANT: The data-mxgraph attribute is set via JS (setAttribute) rather
+  // than inline HTML to avoid the browser's HTML parser decoding entities
+  // (e.g. &quot; → ") inside the XML, which corrupts the JSON config.
   const srcDoc = useMemo(() => {
-    // Escape the XML for safe embedding inside a JSON string inside an HTML attribute
     const config = JSON.stringify({
       highlight: "#0078D4",
       nav: true,
@@ -27,6 +30,10 @@ export function DrawioRenderer({ xml }: { xml: string }) {
       toolbar: "zoom layers lightbox",
       xml: xml,
     });
+
+    // Escape </ sequences to prevent the browser from prematurely closing
+    // the <script> tag when the XML contains markup like </mxCell>.
+    const safeConfig = config.replace(/<\//g, "<\\/");
 
     return `<!DOCTYPE html>
 <html>
@@ -37,10 +44,22 @@ export function DrawioRenderer({ xml }: { xml: string }) {
     html, body { width:100%; height:100%; overflow:hidden; background:#fafafa; }
     .geDiagramContainer { overflow: auto !important; }
     .mxgraph { width:100%; height:100%; }
+    .drawio-error { padding:24px; color:#d32f2f; font-family:system-ui,sans-serif; }
+    .drawio-error pre { white-space:pre-wrap; margin-top:8px; font-size:12px; color:#666; }
   </style>
 </head>
 <body>
-  <div class="mxgraph" data-mxgraph='${config.replace(/'/g, "&#39;")}'></div>
+  <div class="mxgraph" id="drawio-target"></div>
+  <script>
+    try {
+      var cfg = ${safeConfig};
+      document.getElementById('drawio-target').setAttribute('data-mxgraph', JSON.stringify(cfg));
+    } catch(e) {
+      document.getElementById('drawio-target').innerHTML =
+        '<div class="drawio-error"><strong>Could not render diagram</strong>'
+        + '<pre>' + e.message + '<\\/pre></div>';
+    }
+  <\/script>
   <script src="https://viewer.diagrams.net/js/viewer-static.min.js"><\/script>
 </body>
 </html>`;
