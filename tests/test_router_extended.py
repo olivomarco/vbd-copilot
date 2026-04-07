@@ -12,7 +12,6 @@ from router import (
     _auto_approve,
     _classify_intent,
     _ensure_classifier,
-    detect_agent,
     init_router,
     route_to_agent,
 )
@@ -97,9 +96,6 @@ class TestClassifyIntent:
         mock_session.send_and_wait = AsyncMock(return_value=None)
 
         with patch("router._ensure_classifier", new_callable=AsyncMock, return_value=mock_session):
-            # Simulate event by calling handler before send_and_wait resolves
-            original_send = mock_session.send_and_wait
-
             async def send_with_events(*args, **kwargs):
                 # Simulate streamed event
                 handler = events_captured[0]

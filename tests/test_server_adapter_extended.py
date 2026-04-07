@@ -10,11 +10,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from server_adapter import (
-    SessionConnection,
     _connections,
     _detect_phase,
     _get_or_create,
-    _make_ws_handler,
     add_ws,
     clear_last_done,
     emit_state_changed,
@@ -34,7 +32,6 @@ from server_adapter import (
     unregister_event_handler,
     ws_reset,
 )
-import server_adapter
 
 
 @pytest.fixture(autouse=True)
