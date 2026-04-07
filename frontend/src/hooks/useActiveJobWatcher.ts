@@ -58,14 +58,24 @@ export function useActiveJobWatcher() {
       connections.current.set(id, ws);
 
       ws.onmessage = (ev) => {
-        let msg: any;
+        let raw: any;
         try {
-          msg = JSON.parse(ev.data);
+          raw = JSON.parse(ev.data);
         } catch {
           return;
         }
 
-        const t = msg.type as string;
+        // Unwrap v1 envelope
+        const isEnvelope = raw.v === 1 && raw.id && raw.data;
+        const t: string = raw.type;
+        const msg = isEnvelope ? raw.data : raw;
+
+        // If the workspace WS is handling this session, only process
+        // terminal events (done/cancelled) as a safety net
+        const wsCheckJob = useJobStore.getState().getJob(id);
+        if (wsCheckJob?._ws && wsCheckJob._ws.readyState < WebSocket.CLOSING) {
+          if (t !== "done" && t !== "cancelled") return;
+        }
 
         if (t === "waiting_for_input") {
           const question = msg.question || "The agent has a question";

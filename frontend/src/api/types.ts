@@ -111,6 +111,8 @@ export interface UsageStats {
   by_model: { model: string; input_tokens: number; output_tokens: number; cost_usd: number; turn_count: number }[];
 }
 
+export interface WsAssistantMessage { content: string; }
+
 // Agent type mappings
 export type AgentType =
   | "slide-conductor"
@@ -244,3 +246,56 @@ export const DURATIONS = [
   "1.5 hours",
   "2 hours",
 ] as const;
+
+// ── WebSocket envelope protocol ────────────────────────────────────
+
+/** v1 message envelope — all WebSocket messages from the backend are wrapped in this */
+export interface WsEnvelope<T = Record<string, unknown>> {
+  v: 1;
+  type: string;
+  id: string;           // UUID for dedup
+  seq: number;          // monotonic per-session sequence
+  ts: number;           // server epoch seconds
+  correlationId: string | null;
+  data: T;
+}
+
+/** Data payloads for specific message types */
+export interface WsToolStarted {
+  tool: string;
+  args: string;
+  _subagent?: string;
+}
+
+export interface WsToolCompleted {
+  tool: string;
+  duration_ms: number;
+  output_preview: string | null;
+  _subagent?: string;
+}
+
+export interface WsSubagentStarted { agent: string; }
+export interface WsSubagentCompleted { agent: string; }
+export interface WsSubagentFailed { agent: string; error: string; }
+export interface WsSubagentSelected { agent: string; }
+export interface WsDelta { content: string; }
+export interface WsDone { status: string; }
+export interface WsError { message: string; }
+export interface WsWaitingForInput { question: string; choices?: string[]; }
+export interface WsInputResolved {}
+export interface WsPhaseChanged { phase: string; }
+export interface WsNewFiles { files: string[]; }
+export interface WsUsage {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+}
+export interface WsSessionSnapshot {
+  session_id: string;
+  status: "active" | "waiting" | "idle";
+  pending_input: { question: string; choices?: string[] } | null;
+  last_done: { status: string } | null;
+  active_subagents: string[];
+  seq: number;
+}

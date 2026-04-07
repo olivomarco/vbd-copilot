@@ -158,14 +158,15 @@ async def create_session(body: CreateSessionRequest) -> JSONResponse:
 
     async def _user_input(request: Any, _inv: Any) -> Any:
         from copilot.types import UserInputResponse
-        from server_adapter import pop_user_response, _send, set_pending_input
+        from server_adapter import pop_user_response, _send, _envelope, set_pending_input, get_connection
         question = request.get("question", "")
         choices = request.get("choices")
         sid = _sid_ref[0] if _sid_ref else None
-        payload = {"type": "waiting_for_input", "question": question, "choices": choices}
+        payload_data = {"question": question, "choices": choices}
+        conn = get_connection(sid) if sid else None
         if sid:
-            set_pending_input(sid, payload)
-        _send(payload, sid)
+            set_pending_input(sid, payload_data)
+        _send(_envelope(conn, "waiting_for_input", payload_data), sid)
         try:
             answer = await pop_user_response(timeout=300.0, session_id=sid)
         except asyncio.TimeoutError:
@@ -173,7 +174,7 @@ async def create_session(body: CreateSessionRequest) -> JSONResponse:
         finally:
             if sid:
                 set_pending_input(sid, None)
-                _send({"type": "input_resolved"}, sid)
+                _send(_envelope(conn, "input_resolved", {}), sid)
         return UserInputResponse(answer=answer, wasFreeform=True)
 
     try:
@@ -234,19 +235,20 @@ async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONRes
 
     async def _user_input(request: Any, _inv: Any) -> Any:
         from copilot.types import UserInputResponse
-        from server_adapter import _send, pop_user_response, set_pending_input
+        from server_adapter import _send, _envelope, pop_user_response, set_pending_input, get_connection
         question = request.get("question", "")
         choices = request.get("choices")
-        payload = {"type": "waiting_for_input", "question": question, "choices": choices}
-        set_pending_input(full_id, payload)
-        _send(payload, full_id)
+        payload_data = {"question": question, "choices": choices}
+        conn = get_connection(full_id)
+        set_pending_input(full_id, payload_data)
+        _send(_envelope(conn, "waiting_for_input", payload_data), full_id)
         try:
             answer = await pop_user_response(timeout=300.0, session_id=full_id)
         except asyncio.TimeoutError:
             answer = ""
         finally:
             set_pending_input(full_id, None)
-            _send({"type": "input_resolved"}, full_id)
+            _send(_envelope(conn, "input_resolved", {}), full_id)
         return UserInputResponse(answer=answer, wasFreeform=True)
 
     try:
@@ -337,7 +339,7 @@ async def get_turn_invocations(session_id: str, turn_number: int) -> JSONRespons
 @app.get("/sessions/{session_id}/status")
 async def get_session_status(session_id: str) -> JSONResponse:
     """Lightweight status check for frontend reconnect polling."""
-    from server_adapter import _ws_map, get_pending_input
+    from server_adapter import get_connection, get_pending_input
 
     store = _store()
     full_id = store.resolve_prefix("sessions", session_id)
@@ -349,7 +351,8 @@ async def get_session_status(session_id: str) -> JSONResponse:
         raise HTTPException(status_code=404, detail="Session not found")
 
     in_memory = full_id in _session_map
-    has_ws = bool(_ws_map.get(full_id))
+    conn = get_connection(full_id)
+    has_ws = conn is not None and bool(conn.websockets)
     pending = get_pending_input(full_id)
 
     return JSONResponse(content={
@@ -390,6 +393,15 @@ async def get_session_events(session_id: str) -> JSONResponse:
             "time": turn.get("started_at", ""),
         })
 
+        # assistant response (if persisted)
+        response_text = turn.get("assistant_response", "")
+        if response_text:
+            events.append({
+                "type": "assistant_message",
+                "data": {"content": response_text},
+                "time": turn.get("ended_at") or turn.get("started_at", ""),
+            })
+
         # invocations — ordered by started_at so subagent/tool interleaving is correct
         invocations = store.get_invocations_for_turn(turn["id"])
         invocations.sort(key=lambda inv: inv.get("started_at", ""))
@@ -413,7 +425,7 @@ async def get_session_events(session_id: str) -> JSONResponse:
             inv_name = inv.get("name", "")
 
             if inv_type == "tool_call":
-                parent = _find_parent_subagent(inv.get("started_at", ""))
+                parent = inv.get("subagent_name") or _find_parent_subagent(inv.get("started_at", ""))
                 tool_data: dict = {"tool": inv_name, "args": inv.get("input", "{}")}
                 if parent:
                     tool_data["_subagent"] = parent
@@ -1147,7 +1159,8 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
         pop_user_response,
         set_active_ws,
         set_cancel_flag,
-        _ws_map,
+        get_connection,
+        build_snapshot,
         ws_reset,
         _send,
         register_event_handler,
@@ -1157,8 +1170,7 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
     from router import route_to_agent
 
     await websocket.accept()
-    is_first_ws = session_id not in _ws_map or len(_ws_map.get(session_id, set())) == 0
-    add_ws(session_id, websocket)
+    is_first_ws = add_ws(session_id, websocket)
     if is_first_ws:
         ws_reset(session_id)
 
@@ -1177,19 +1189,20 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
 
             async def _user_input(request: Any, _inv: Any) -> Any:
                 from copilot.types import UserInputResponse
-                from server_adapter import set_pending_input
+                from server_adapter import set_pending_input, _envelope, get_connection as _gc
                 question = request.get("question", "")
                 choices = request.get("choices")
-                payload = {"type": "waiting_for_input", "question": question, "choices": choices}
-                set_pending_input(session_id, payload)
-                _send(payload, session_id)
+                payload_data = {"question": question, "choices": choices}
+                conn = _gc(session_id)
+                set_pending_input(session_id, payload_data)
+                _send(_envelope(conn, "waiting_for_input", payload_data), session_id)
                 try:
                     answer = await pop_user_response(timeout=300.0, session_id=session_id)
                 except asyncio.TimeoutError:
                     answer = ""
                 finally:
                     set_pending_input(session_id, None)
-                    _send({"type": "input_resolved"}, session_id)
+                    _send(_envelope(_gc(session_id), "input_resolved", {}), session_id)
                 return UserInputResponse(answer=answer, wasFreeform=True)
 
             try:
@@ -1225,22 +1238,15 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
     # surviving across WS reconnections.
     register_event_handler(session_id, session)
 
-    # Re-send pending waiting_for_input state to reconnecting clients
-    from server_adapter import get_pending_input, get_last_done
-    pending = get_pending_input(session_id)
-    if pending:
-        try:
-            await websocket.send_text(json.dumps(pending))
-        except Exception:
-            pass
-
-    # Re-send done status to reconnecting clients who missed it
-    last_done = get_last_done(session_id)
-    if last_done:
-        try:
-            await websocket.send_text(json.dumps(last_done))
-        except Exception:
-            pass
+    # Send session snapshot to reconnecting clients (replaces individual
+    # pending_input / last_done replays with a single structured message).
+    if not is_first_ws:
+        snapshot = build_snapshot(session_id)
+        if snapshot:
+            try:
+                await websocket.send_text(json.dumps(snapshot, ensure_ascii=False))
+            except Exception:
+                pass
 
     current_turn_task: asyncio.Task[Any] | None = None
 
@@ -1285,9 +1291,10 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
             set_last_done(session_id, {"type": "done", "status": turn_status})
 
             if _collector and turn_id:
+                from server_adapter import get_accumulated_response
                 _collector.on_turn_end(
                     turn_id,
-                    assistant_response="",
+                    assistant_response=get_accumulated_response(session_id),
                     status=turn_status,
                 )
 
@@ -1386,7 +1393,7 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
         # Unregister the event handler only when ALL WebSockets for the session
         # are gone. This matches CLI behavior where the handler persists for
         # the session lifetime.
-        remaining = _ws_map.get(session_id)
+        remaining = get_connection(session_id)
         if not remaining:
             unregister_event_handler(session_id)
 

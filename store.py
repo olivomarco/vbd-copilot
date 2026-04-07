@@ -91,6 +91,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_nickname
 
 _MIGRATIONS: list[str] = [
     "ALTER TABLE sessions ADD COLUMN nickname TEXT",
+    "ALTER TABLE invocations ADD COLUMN subagent_name TEXT",
 ]
 
 
@@ -445,13 +446,14 @@ class EventStore:
         inv_type: str,
         name: str = "",
         input_data: str = "{}",
+        subagent_name: str | None = None,
     ) -> str:
         inv_id = _new_id()
         self._execute(
             "INSERT INTO invocations "
-            "(id, turn_id, session_id, type, name, input, started_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (inv_id, turn_id, session_id, inv_type, name, input_data, _now_iso()),
+            "(id, turn_id, session_id, type, name, input, started_at, subagent_name) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (inv_id, turn_id, session_id, inv_type, name, input_data, _now_iso(), subagent_name),
         )
         self._commit()
         return inv_id

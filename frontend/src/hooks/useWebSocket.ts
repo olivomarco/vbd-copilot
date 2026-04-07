@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useJobStore } from "@/stores/jobStore";
 import type { AgentPhase } from "@/stores/jobStore";
-import { getSessionStatus } from "@/api/client";
+import { getSessionStatus, getSessionEvents } from "@/api/client";
 import { notifyInputRequired, clearInputNotification, notifyJobCompleted } from "@/utils/notifications";
 
 const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -30,6 +30,37 @@ export function useWebSocket(sessionId: string | null) {
   /** Stack of active subagent names — supports nested subagents. */
   const activeSubagentStack = useRef<string[]>([]);
 
+  /** Seen envelope IDs for deduplication. */
+  const seenIds = useRef<Set<string>>(new Set());
+
+  /** Apply a session_snapshot from the server to restore state. */
+  function handleSnapshot(sid: string, snap: any) {
+    const currentJob = useJobStore.getState().getJob(sid);
+    if (!currentJob) return;
+
+    // Restore active subagent stack from server
+    activeSubagentStack.current = [...(snap.active_subagents || [])];
+
+    // Restore pending input if server has one
+    if (snap.pending_input) {
+      const q = snap.pending_input.question || "The agent has a question";
+      const alreadyQueued = (currentJob.pendingInput || []).some((p: any) => p.question === q);
+      if (!alreadyQueued) {
+        updateJob(sid, {
+          status: "waiting",
+          pendingInput: [...(currentJob.pendingInput || []), { question: q, choices: snap.pending_input.choices }],
+        });
+      }
+    }
+
+    // Restore done state if server says so
+    if (snap.last_done) {
+      if (currentJob.status !== "completed" && currentJob.status !== "failed" && currentJob.status !== "cancelled") {
+        pushEvent(sid, { type: "done", data: snap.last_done });
+      }
+    }
+  }
+
   const connect = useCallback((sid: string) => {
     // Close any existing connection first
     if (wsRef.current && wsRef.current.readyState < WebSocket.CLOSING) {
@@ -47,8 +78,28 @@ export function useWebSocket(sessionId: string | null) {
 
     ws.onopen = () => {
       reconnectAttempts.current = 0;
-      // Preserve a waiting review gate if the socket reconnects mid-approval.
+      seenIds.current.clear();
+
       const job = useJobStore.getState().getJob(sid);
+
+      // Hydrate: fetch history for active jobs with few events (cold start / reconnect)
+      if (job && job.events.length < 5 && job.status !== "completed" && job.status !== "failed" && job.status !== "cancelled") {
+        getSessionEvents(sid)
+          .then((serverEvents) => {
+            const currentJob = useJobStore.getState().getJob(sid);
+            if (!currentJob) return;
+            const existingKeys = new Set(currentJob.events.map(e => `${e.type}:${JSON.stringify(e.data)}`));
+            for (const se of serverEvents) {
+              const key = `${se.type}:${JSON.stringify(se.data)}`;
+              if (!existingKeys.has(key)) {
+                pushEvent(sid, { type: se.type, data: se.data });
+              }
+            }
+          })
+          .catch(() => {});
+      }
+
+      // Preserve a waiting review gate if the socket reconnects mid-approval.
       if (job && job.status !== "completed" && job.status !== "failed" && job.status !== "cancelled") {
         updateJob(sid, { status: job.pendingInput?.length ? "waiting" : "running" });
       }
@@ -83,14 +134,28 @@ export function useWebSocket(sessionId: string | null) {
     };
 
     ws.onmessage = (ev) => {
-      let msg: any;
+      let raw: any;
       try {
-        msg = JSON.parse(ev.data);
+        raw = JSON.parse(ev.data);
       } catch {
         return;
       }
 
-      const t = msg.type as string;
+      // Unwrap v1 envelope — backward compat: raw messages still work
+      const isEnvelope = raw.v === 1 && raw.id && raw.data;
+      const t: string = raw.type;
+      const msg = isEnvelope ? raw.data : raw;
+      const msgId: string | null = isEnvelope ? raw.id : null;
+
+      // Dedup by envelope ID
+      if (msgId && seenIds.current.has(msgId)) return;
+      if (msgId) seenIds.current.add(msgId);
+
+      // Handle session_snapshot — initialize state from server
+      if (t === "session_snapshot") {
+        handleSnapshot(sid, msg);
+        return;
+      }
 
       if (t !== "pong" && t !== "heartbeat") {
         // Deduplicate waiting_for_input events BEFORE pushing to the feed.
@@ -221,6 +286,30 @@ export function useWebSocket(sessionId: string | null) {
           }
           break;
         }
+
+        case "subagent_failed": {
+          const failedName = msg.agent || "agent";
+          const failIdx = activeSubagentStack.current.lastIndexOf(failedName);
+          if (failIdx >= 0) {
+            activeSubagentStack.current.splice(failIdx, 1);
+          } else if (activeSubagentStack.current.length > 0) {
+            activeSubagentStack.current.pop();
+          }
+          const failJob = useJobStore.getState().getJob(sid);
+          if (failJob) {
+            updateJob(sid, {
+              progress: {
+                ...failJob.progress,
+                currentStep: `Subagent failed: ${failedName}`,
+              },
+            });
+          }
+          break;
+        }
+
+        case "subagent_selected":
+          // Informational — agent was selected but not yet started
+          break;
 
         case "waiting_for_input": {
           // Dedup is handled above (before pushEvent). If we reach here,

@@ -147,6 +147,7 @@ class EventCollector:
         self,
         tool_name: str,
         args: str = "{}",
+        subagent_name: str | None = None,
     ) -> str | None:
         """Record the start of a tool call.  Returns invocation ID."""
         turn_id = self._current_turn_id
@@ -159,6 +160,7 @@ class EventCollector:
             inv_type="tool_call",
             name=tool_name,
             input_data=args,
+            subagent_name=subagent_name,
         )
         self._store.increment_turn_tool_count(turn_id)
         return inv_id

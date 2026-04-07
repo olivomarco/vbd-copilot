@@ -7,40 +7,142 @@ them as newline-delimited JSON over an active WebSocket connection.
 The existing ``CopilotUI`` + ``EventCollector`` → SQLite pipeline is never
 touched; this adapter is wired in *addition* to it via a second ``session.on``
 subscriber so that no terminal-side code breaks.
+
+v2: Introduces ``SessionConnection`` to encapsulate per-session state,
+    a v1 message envelope protocol, session snapshots for reconnection,
+    and correlation IDs for tool/subagent lifecycle events.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import time
+import uuid
 from typing import Any
 
 log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Per-session state for concurrent WebSocket connections.
-# server.py manages one WS per session_id via /ws/{session_id}.
+# SessionConnection — encapsulates all per-session WebSocket state
 # ---------------------------------------------------------------------------
 
-_ws_map: dict[str, set[Any]] = {}                  # session_id -> set of WebSockets
-_cancel_flags: dict[str, bool] = {}             # session_id -> cancelled
-_input_queues: dict[str, asyncio.Queue[str]] = {}  # session_id -> Queue
-_seen_ids: dict[str, set[str]] = {}             # session_id -> seen event ids
-_tool_starts: dict[str, dict[str, float]] = {}  # session_id -> {tool: epoch}
-_last_times: dict[str, float] = {}              # session_id -> last event epoch
-_pending_inputs: dict[str, dict[str, Any]] = {}  # session_id -> last waiting_for_input payload
-_last_done: dict[str, dict[str, Any]] = {}        # session_id -> last done payload (for reconnect replay)
-_event_handler_unsubs: dict[str, Any] = {}       # session_id -> unsubscribe callable
-_active_subagents: dict[str, list[str]] = {}     # session_id -> stack of active subagent names
+class SessionConnection:
+    """Manages WebSocket state for a single Copilot SDK session.
+
+    Replaces the previous module-level dicts (_ws_map, _cancel_flags, etc.)
+    with a single object per session.  Lifecycle: created on first WS connect,
+    destroyed when the last WS disconnects.
+    """
+
+    __slots__ = (
+        "session_id", "websockets", "cancel_flag", "input_queue",
+        "pending_input", "last_done", "active_subagents",
+        "subagent_correlations", "seen_event_ids", "tool_starts",
+        "last_event_time", "event_handler_unsub", "_seq", "created_at",
+        "response_buffer",
+    )
+
+    def __init__(self, session_id: str) -> None:
+        self.session_id = session_id
+        self.websockets: set[Any] = set()
+        self.cancel_flag: bool = False
+        self.input_queue: asyncio.Queue[str] = asyncio.Queue()
+        self.pending_input: dict[str, Any] | None = None
+        self.last_done: dict[str, Any] | None = None
+        self.active_subagents: list[str] = []
+        self.subagent_correlations: dict[str, str] = {}  # agent_name -> correlation_id
+        self.seen_event_ids: set[str] = set()
+        self.tool_starts: dict[str, tuple[float, str]] = {}  # tool -> (epoch, correlation_id)
+        self.last_event_time: float = 0.0
+        self.event_handler_unsub: Any | None = None
+        self._seq: int = 0  # monotonic sequence counter for envelope
+        self.created_at: float = time.time()
+        self.response_buffer: list[str] = []
+
+    def next_seq(self) -> int:
+        """Return the next monotonic sequence number."""
+        self._seq += 1
+        return self._seq
+
+    def add_ws(self, ws: Any) -> bool:
+        """Add a WebSocket. Returns True if this is the first connection."""
+        is_first = len(self.websockets) == 0
+        self.websockets.add(ws)
+        return is_first
+
+    def remove_ws(self, ws: Any) -> bool:
+        """Remove a WebSocket. Returns True if no connections remain."""
+        self.websockets.discard(ws)
+        return len(self.websockets) == 0
+
+    def reset_turn(self) -> None:
+        """Clear per-turn state for a new turn."""
+        self.cancel_flag = False
+        self.seen_event_ids.clear()
+        self.tool_starts.clear()
+        self.active_subagents.clear()
+        self.subagent_correlations.clear()
+        self._seq = 0
+        self.response_buffer.clear()
+        # drain input queue
+        while not self.input_queue.empty():
+            try:
+                self.input_queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+
+    def cleanup(self) -> None:
+        """Full cleanup when all clients disconnect."""
+        self.reset_turn()
+        self.pending_input = None
+        self.last_done = None
+        if self.event_handler_unsub is not None:
+            with contextlib.suppress(Exception):
+                self.event_handler_unsub()
+            self.event_handler_unsub = None
+
+    def get_response_text(self) -> str:
+        """Return accumulated assistant response text."""
+        return "".join(self.response_buffer)
+
+
+# ---------------------------------------------------------------------------
+# Connection registry + legacy single-session state
+# ---------------------------------------------------------------------------
+
+_connections: dict[str, SessionConnection] = {}
 
 # Legacy single-session aliases (used by terminal mode / backward compat)
 _active_ws: Any | None = None
 _cancel_flag: bool = False
 _user_input_queue: asyncio.Queue[str] = asyncio.Queue()
 
+# Legacy globals for the __legacy__ handler path (terminal mode)
+_seen_event_ids: set[str] = set()
+_pending_tool_starts: dict[str, float] = {}
+
+
+def get_connection(session_id: str) -> SessionConnection | None:
+    """Return the SessionConnection for *session_id*, or None."""
+    return _connections.get(session_id)
+
+
+def _get_or_create(session_id: str) -> SessionConnection:
+    """Return existing or create a new SessionConnection."""
+    conn = _connections.get(session_id)
+    if conn is None:
+        conn = SessionConnection(session_id)
+        _connections[session_id] = conn
+    return conn
+
+
+# ---------------------------------------------------------------------------
+# Public functions — same signatures as before, delegate to SessionConnection
+# ---------------------------------------------------------------------------
 
 _SENTINEL = object()  # distinguishes "no ws arg" from "ws=None"
 
@@ -60,50 +162,30 @@ def set_active_ws(ws_or_session_id: Any | None, ws: Any = _SENTINEL) -> None:
         # Per-session two-arg: set_active_ws(session_id, ws)
         sid = str(ws_or_session_id)
         if ws is False or ws is None:
-            # Remove this specific websocket from the set
-            conns = _ws_map.get(sid)
-            if conns is not None:
-                # If we were passed None without a specific ws to remove,
-                # it means the caller wants a full teardown (legacy compat).
-                # In the new multi-WS flow, server.py calls remove_ws() instead.
-                pass
+            # Legacy compat — server.py uses remove_ws() in new flow
+            pass
         else:
-            if sid not in _ws_map:
-                _ws_map[sid] = set()
-                _cancel_flags[sid] = False
-                _seen_ids[sid] = set()
-                _tool_starts[sid] = {}
-                _last_times[sid] = 0.0
-                _input_queues.setdefault(sid, asyncio.Queue())
-            _ws_map[sid].add(ws)
+            conn = _get_or_create(sid)
+            conn.add_ws(ws)
 
 
-def add_ws(session_id: str, ws: Any) -> None:
-    """Add a WebSocket connection to a session's subscriber set."""
+def add_ws(session_id: str, ws: Any) -> bool:
+    """Add a WebSocket connection to a session.  Returns True if first."""
+    conn = _get_or_create(str(session_id))
+    return conn.add_ws(ws)
+
+
+def remove_ws(session_id: str, ws: Any) -> bool:
+    """Remove a single WebSocket from a session.  Returns True if none remain."""
     sid = str(session_id)
-    if sid not in _ws_map:
-        _ws_map[sid] = set()
-        _cancel_flags[sid] = False
-        _seen_ids[sid] = set()
-        _tool_starts[sid] = {}
-        _last_times[sid] = 0.0
-        _input_queues.setdefault(sid, asyncio.Queue())
-    _ws_map[sid].add(ws)
-
-
-def remove_ws(session_id: str, ws: Any) -> None:
-    """Remove a single WebSocket from a session's subscriber set."""
-    sid = str(session_id)
-    conns = _ws_map.get(sid)
-    if conns is not None:
-        conns.discard(ws)
-        # Only clean up session state when ALL connections are gone
-        if not conns:
-            _ws_map.pop(sid, None)
-            _cancel_flags.pop(sid, None)
-            _seen_ids.pop(sid, None)
-            _tool_starts.pop(sid, None)
-            _last_times.pop(sid, None)
+    conn = _connections.get(sid)
+    if conn is None:
+        return True
+    is_empty = conn.remove_ws(ws)
+    if is_empty:
+        conn.cleanup()
+        _connections.pop(sid, None)
+    return is_empty
 
 
 def get_active_ws() -> Any | None:
@@ -113,74 +195,84 @@ def get_active_ws() -> Any | None:
 def set_cancel_flag(value: bool, session_id: str | None = None) -> None:
     global _cancel_flag
     if session_id:
-        _cancel_flags[session_id] = value
+        conn = _connections.get(session_id)
+        if conn:
+            conn.cancel_flag = value
     else:
         _cancel_flag = value
 
 
 def get_cancel_flag(session_id: str | None = None) -> bool:
     if session_id:
-        return _cancel_flags.get(session_id, False)
+        conn = _connections.get(session_id)
+        return conn.cancel_flag if conn else False
     return _cancel_flag
 
 
 def set_pending_input(session_id: str, payload: dict[str, Any] | None) -> None:
     """Track or clear the pending waiting_for_input state for a session."""
-    if payload is None:
-        _pending_inputs.pop(session_id, None)
-    else:
-        _pending_inputs[session_id] = payload
+    conn = _connections.get(session_id)
+    if conn:
+        conn.pending_input = payload
 
 
 def get_pending_input(session_id: str) -> dict[str, Any] | None:
     """Return the pending waiting_for_input payload, or None."""
-    return _pending_inputs.get(session_id)
+    conn = _connections.get(session_id)
+    return conn.pending_input if conn else None
 
 
 def set_last_done(session_id: str, payload: dict[str, Any]) -> None:
     """Store the last done event for a session so reconnecting clients receive it."""
-    _last_done[session_id] = payload
+    conn = _connections.get(session_id)
+    if conn:
+        conn.last_done = payload
 
 
 def get_last_done(session_id: str) -> dict[str, Any] | None:
     """Return the stored done payload, or None."""
-    return _last_done.get(session_id)
+    conn = _connections.get(session_id)
+    return conn.last_done if conn else None
 
 
 def clear_last_done(session_id: str) -> None:
     """Clear the stored done status (e.g. when a new turn starts)."""
-    _last_done.pop(session_id, None)
+    conn = _connections.get(session_id)
+    if conn:
+        conn.last_done = None
 
 
 def has_event_handler(session_id: str) -> bool:
     """Check if a session already has a registered WS event handler."""
-    return session_id in _event_handler_unsubs
+    conn = _connections.get(session_id)
+    return conn is not None and conn.event_handler_unsub is not None
 
 
 def register_event_handler(session_id: str, session: Any) -> None:
     """Register a WS event handler for a session (idempotent)."""
-    if session_id in _event_handler_unsubs:
+    conn = _get_or_create(session_id)
+    if conn.event_handler_unsub is not None:
         return  # already registered
     handler = _make_ws_handler(session_id)
     unsub = session.on(handler)
-    _event_handler_unsubs[session_id] = unsub
+    conn.event_handler_unsub = unsub
 
 
 def unregister_event_handler(session_id: str) -> None:
     """Unregister the WS event handler for a session if one exists."""
-    unsub = _event_handler_unsubs.pop(session_id, None)
-    if unsub is not None:
-        import contextlib
+    conn = _connections.get(session_id)
+    if conn is not None and conn.event_handler_unsub is not None:
         with contextlib.suppress(Exception):
-            unsub()
+            conn.event_handler_unsub()
+        conn.event_handler_unsub = None
 
 
 def push_user_response(content: str, session_id: str | None = None) -> None:
     """Push a user response for the current waiting_for_input prompt."""
     if session_id:
-        _pending_inputs.pop(session_id, None)  # clear pending input on response
-        q = _input_queues.setdefault(session_id, asyncio.Queue())
-        q.put_nowait(content)
+        conn = _get_or_create(session_id)
+        conn.pending_input = None  # clear pending input on response
+        conn.input_queue.put_nowait(content)
     else:
         _user_input_queue.put_nowait(content)
 
@@ -188,9 +280,60 @@ def push_user_response(content: str, session_id: str | None = None) -> None:
 async def pop_user_response(timeout: float = 300.0, session_id: str | None = None) -> str:
     """Block until the renderer sends a user_response message."""
     if session_id:
-        q = _input_queues.setdefault(session_id, asyncio.Queue())
-        return await asyncio.wait_for(q.get(), timeout=timeout)
+        conn = _get_or_create(session_id)
+        return await asyncio.wait_for(conn.input_queue.get(), timeout=timeout)
     return await asyncio.wait_for(_user_input_queue.get(), timeout=timeout)
+
+
+def get_accumulated_response(session_id: str) -> str:
+    """Return the accumulated assistant response text for a session."""
+    conn = _connections.get(session_id)
+    return conn.get_response_text() if conn else ""
+
+
+# ---------------------------------------------------------------------------
+# Message envelope protocol (v1)
+# ---------------------------------------------------------------------------
+
+def _envelope(
+    conn: SessionConnection | None,
+    msg_type: str,
+    data: dict[str, Any],
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
+    """Wrap a message in the v1 envelope protocol."""
+    return {
+        "v": 1,
+        "type": msg_type,
+        "id": str(uuid.uuid4()),
+        "seq": conn.next_seq() if conn else 0,
+        "ts": time.time(),
+        "correlationId": correlation_id,
+        "data": data,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Session snapshot for reconnecting clients
+# ---------------------------------------------------------------------------
+
+def build_snapshot(session_id: str) -> dict[str, Any] | None:
+    """Build a ``session_snapshot`` envelope for a reconnecting client.
+
+    Returns None if the session has no active connection state.
+    """
+    conn = _connections.get(session_id)
+    if conn is None:
+        return None
+    status = "waiting" if conn.pending_input else ("active" if conn.websockets else "idle")
+    return _envelope(conn, "session_snapshot", {
+        "session_id": session_id,
+        "status": status,
+        "pending_input": conn.pending_input,
+        "last_done": conn.last_done,
+        "active_subagents": list(conn.active_subagents),
+        "seq": conn._seq,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -198,14 +341,19 @@ async def pop_user_response(timeout: float = 300.0, session_id: str | None = Non
 # ---------------------------------------------------------------------------
 
 def _send(payload: dict[str, Any], session_id: str | None = None) -> None:
-    """Fan out a JSON message to all WebSockets subscribed to a session."""
-    connections: set[Any] | None = None
+    """Fan out a JSON message to all WebSockets subscribed to a session.
+
+    Accepts both raw dicts (backward compat from server.py) and enveloped
+    messages produced by ``_envelope()``.
+    """
+    ws_set: set[Any] | None = None
     if session_id:
-        connections = _ws_map.get(session_id)
-    if not connections:
+        conn = _connections.get(session_id)
+        ws_set = conn.websockets if conn else None
+    if not ws_set:
         # Fallback to legacy single-WS
         if _active_ws is not None:
-            connections = {_active_ws}
+            ws_set = {_active_ws}
         else:
             return
 
@@ -219,7 +367,7 @@ def _send(payload: dict[str, Any], session_id: str | None = None) -> None:
         except (RuntimeError, Exception):
             dead.append(ws)
 
-    for ws in list(connections):  # list() to avoid mutation during iteration
+    for ws in list(ws_set):  # list() to avoid mutation during iteration
         try:
             # Skip WebSockets that are already closed
             if hasattr(ws, "client_state") and ws.client_state.name == "DISCONNECTED":
@@ -230,9 +378,11 @@ def _send(payload: dict[str, Any], session_id: str | None = None) -> None:
         except RuntimeError:
             dead.append(ws)
     # Clean up dead connections
-    if dead and session_id and session_id in _ws_map:
-        for ws in dead:
-            _ws_map[session_id].discard(ws)
+    if dead and session_id:
+        conn = _connections.get(session_id)
+        if conn:
+            for ws in dead:
+                conn.websockets.discard(ws)
 
 
 # ---------------------------------------------------------------------------
@@ -275,22 +425,23 @@ def _detect_phase(tool: str = "", agent: str = "") -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Event handler (wired via session.on(ws_handle_event))
+# Event handler (wired via session.on())
 # ---------------------------------------------------------------------------
 
-_seen_event_ids: set[str] = set()
-_last_event_time: float = 0.0
-_pending_tool_starts: dict[str, float] = {}  # tool_name -> start_epoch
-_current_phase: str = ""  # track last emitted phase for dedup
-
-
 def _make_ws_handler(session_id: str):
-    """Return an event handler closure bound to a specific session_id."""
+    """Return an event handler closure bound to a specific *session_id*.
+
+    All outgoing messages are wrapped in v1 envelopes.  Tool and subagent
+    lifecycle events carry correlation IDs so the frontend can pair
+    start/complete messages.
+    """
     last_phase = ""
 
     def _handler(event: Any) -> None:
         nonlocal last_phase
-        _last_times[session_id] = time.time()
+        conn = _connections.get(session_id)
+        if conn:
+            conn.last_event_time = time.time()
 
         try:
             from copilot.generated.session_events import SessionEventType
@@ -299,10 +450,15 @@ def _make_ws_handler(session_id: str):
 
         etype = event.type
         d = event.data
-        seen = _seen_ids.get(session_id, _seen_event_ids)
-        tool_starts = _tool_starts.get(session_id, _pending_tool_starts)
-        def send(p):
-            return _send(p, session_id)
+
+        # Resolve dedup set: per-connection or legacy global
+        seen = conn.seen_event_ids if conn else _seen_event_ids
+
+        def emit(msg_type: str, data: dict[str, Any], correlation_id: str | None = None) -> None:
+            """Wrap *data* in an envelope and send."""
+            _send(_envelope(conn, msg_type, data, correlation_id), session_id)
+
+        # -- Streaming deltas -----------------------------------------------
 
         if etype in (
             SessionEventType.ASSISTANT_MESSAGE_DELTA,
@@ -314,85 +470,134 @@ def _make_ws_handler(session_id: str):
             seen.add(eid)
             delta = getattr(d, "delta_content", None) or ""
             if delta:
-                send({"type": "delta", "content": delta})
+                emit("delta", {"content": delta})
+                if conn:
+                    conn.response_buffer.append(delta)
             return
-
-        if etype == SessionEventType.ASSISTANT_REASONING_DELTA:
             delta = getattr(d, "delta_content", None) or ""
             if delta:
-                send({"type": "reasoning_delta", "content": delta})
+                emit("reasoning_delta", {"content": delta})
             return
 
+        # -- Tool lifecycle -------------------------------------------------
+
         if etype == SessionEventType.TOOL_EXECUTION_START:
-            # Agent is running tools — clear any pending input (user responded or backend timed out)
-            _pending_inputs.pop(session_id, None)
+            # Agent is running tools — clear any pending input
+            if conn:
+                conn.pending_input = None
             tool = getattr(d, "tool_name", None) or getattr(d, "mcp_tool_name", None) or "?"
             args_raw = getattr(d, "arguments", None)
             args_str = json.dumps(args_raw, ensure_ascii=False) if args_raw else "{}"
-            tool_starts[str(tool)] = time.time()
-            msg: dict[str, Any] = {"type": "tool_started", "tool": str(tool), "args": args_str}
-            sa_stack = _active_subagents.get(session_id)
+            corr_id = str(uuid.uuid4())
+            if conn:
+                conn.tool_starts[str(tool)] = (time.time(), corr_id)
+            payload: dict[str, Any] = {"tool": str(tool), "args": args_str}
+            sa_stack = conn.active_subagents if conn else []
             if sa_stack:
-                msg["_subagent"] = sa_stack[-1]
-            send(msg)
+                payload["_subagent"] = sa_stack[-1]
+            emit("tool_started", payload, correlation_id=corr_id)
             # Emit phase detection
             phase = _detect_phase(tool=str(tool))
             if phase and phase != last_phase:
                 last_phase = phase
-                send({"type": "phase_changed", "phase": phase})
+                emit("phase_changed", {"phase": phase})
             return
 
         if etype == SessionEventType.TOOL_EXECUTION_COMPLETE:
             tool = getattr(d, "tool_name", None) or getattr(d, "mcp_tool_name", None) or "?"
-            started = tool_starts.pop(str(tool), _last_times.get(session_id, 0))
+            started, corr_id = (0.0, None)
+            if conn:
+                started, corr_id = conn.tool_starts.pop(
+                    str(tool), (conn.last_event_time, None)
+                )
             duration_ms = int((time.time() - started) * 1000)
             output_raw = getattr(d, "output", None)
             output_str = str(output_raw)[:500] if output_raw else None
-            cmsg: dict[str, Any] = {"type": "tool_completed", "tool": str(tool), "duration_ms": duration_ms, "output_preview": output_str}
-            sa_stack = _active_subagents.get(session_id)
+            payload = {
+                "tool": str(tool),
+                "duration_ms": duration_ms,
+                "output_preview": output_str,
+            }
+            sa_stack = conn.active_subagents if conn else []
             if sa_stack:
-                cmsg["_subagent"] = sa_stack[-1]
-            send(cmsg)
+                payload["_subagent"] = sa_stack[-1]
+            emit("tool_completed", payload, correlation_id=corr_id)
             return
+
+        # Future: TOOL_EXECUTION_PROGRESS
+
+        # -- Subagent lifecycle ---------------------------------------------
 
         if etype == SessionEventType.SUBAGENT_STARTED:
             # Agent is running subagents — clear any pending input
-            _pending_inputs.pop(session_id, None)
+            if conn:
+                conn.pending_input = None
             name = getattr(d, "agent_name", "?") or "?"
-            _active_subagents.setdefault(session_id, []).append(str(name))
-            send({"type": "subagent_started", "agent": str(name)})
+            corr_id = str(uuid.uuid4())
+            if conn:
+                conn.active_subagents.append(str(name))
+                conn.subagent_correlations[str(name)] = corr_id
+            emit("subagent_started", {"agent": str(name)}, correlation_id=corr_id)
             phase = _detect_phase(agent=str(name))
             if phase and phase != last_phase:
                 last_phase = phase
-                send({"type": "phase_changed", "phase": phase})
+                emit("phase_changed", {"phase": phase})
             return
 
         if etype == SessionEventType.SUBAGENT_COMPLETED:
             name = getattr(d, "agent_name", "?") or "?"
-            sa_stack = _active_subagents.get(session_id)
-            if sa_stack:
-                # Pop the completed subagent; if it's not at the top, remove by name
+            corr_id: str | None = None
+            if conn:
+                corr_id = conn.subagent_correlations.pop(str(name), None)
+                sa_stack = conn.active_subagents
                 try:
                     sa_stack.remove(str(name))
                 except ValueError:
-                    sa_stack.pop() if sa_stack else None
-                if not sa_stack:
-                    del _active_subagents[session_id]
-            send({"type": "subagent_completed", "agent": str(name)})
+                    if sa_stack:
+                        sa_stack.pop()
+            emit("subagent_completed", {"agent": str(name)}, correlation_id=corr_id)
             return
+
+        # SUBAGENT_FAILED — forward the error to the frontend
+        if hasattr(SessionEventType, "SUBAGENT_FAILED") and etype == SessionEventType.SUBAGENT_FAILED:
+            name = getattr(d, "agent_name", "?") or "?"
+            error = getattr(d, "message", None) or getattr(d, "error", None) or str(d)
+            corr_id = None
+            if conn:
+                corr_id = conn.subagent_correlations.pop(str(name), None)
+                sa_stack = conn.active_subagents
+                try:
+                    sa_stack.remove(str(name))
+                except ValueError:
+                    if sa_stack:
+                        sa_stack.pop()
+            emit("subagent_failed", {"agent": str(name), "error": str(error)}, correlation_id=corr_id)
+            return
+
+        # SUBAGENT_SELECTED — notify frontend when the SDK picks a subagent
+        if hasattr(SessionEventType, "SUBAGENT_SELECTED") and etype == SessionEventType.SUBAGENT_SELECTED:
+            name = getattr(d, "agent_name", "?") or "?"
+            emit("subagent_selected", {"agent": str(name)})
+            return
+
+        # Future: ASSISTANT_INTENT
+
+        # -- Usage / errors -------------------------------------------------
 
         if etype == SessionEventType.ASSISTANT_USAGE:
             input_t = getattr(d, "input_tokens", 0) or 0
             output_t = getattr(d, "output_tokens", 0) or 0
             cache_r = getattr(d, "cache_read_tokens", 0) or 0
             cache_w = getattr(d, "cache_write_tokens", 0) or 0
-            send({"type": "usage", "input_tokens": input_t, "output_tokens": output_t,
-                  "cache_read_tokens": cache_r, "cache_write_tokens": cache_w})
+            emit("usage", {
+                "input_tokens": input_t, "output_tokens": output_t,
+                "cache_read_tokens": cache_r, "cache_write_tokens": cache_w,
+            })
             return
 
         if etype == SessionEventType.SESSION_ERROR:
-            msg = getattr(d, "message", str(d))
-            send({"type": "error", "message": str(msg)})
+            error_msg = getattr(d, "message", str(d))
+            emit("error", {"message": str(error_msg)})
             return
 
         # Catch-all for any unhandled event types
@@ -405,19 +610,9 @@ def ws_reset(session_id: str | None = None) -> None:
     """Clear per-turn state when a new turn begins."""
     global _cancel_flag
     if session_id:
-        _cancel_flags[session_id] = False
-        if session_id in _seen_ids:
-            _seen_ids[session_id].clear()
-        if session_id in _tool_starts:
-            _tool_starts[session_id].clear()
-        _active_subagents.pop(session_id, None)
-        q = _input_queues.get(session_id)
-        if q:
-            while not q.empty():
-                try:
-                    q.get_nowait()
-                except asyncio.QueueEmpty:
-                    break
+        conn = _connections.get(session_id)
+        if conn:
+            conn.reset_turn()
     else:
         _seen_event_ids.clear()
         _pending_tool_starts.clear()

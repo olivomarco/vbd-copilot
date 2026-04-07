@@ -100,6 +100,8 @@ interface EventDataMap {
   user_followup: { content?: string };
   input_resolved: Record<string, never>;
   connection_error: { message?: string };
+  assistant_message: { content?: string };
+  subagent_failed: { agent?: string; error?: string };
 }
 
 function eventData<T extends keyof EventDataMap>(event: JobEvent, _type: T): EventDataMap[T] {
@@ -379,6 +381,32 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
       <div style={{ padding: "8px 12px", background: "#f0faf0", borderRadius: 6, fontSize: 13 }}>
         <span style={{ marginRight: 6, display: "inline-flex" }}><Checkmark20Regular /></span>
         Subagent <strong>{d.agent}</strong> completed
+      </div>
+    );
+  }
+  if (t === "assistant_message") {
+    const content = (d as EventDataMap["assistant_message"]).content || "";
+    if (!content.trim()) return null;
+    return (
+      <div key={event.id} style={{ padding: "8px 12px" }}>
+        <div className="md-content">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+        </div>
+      </div>
+    );
+  }
+  if (t === "subagent_failed") {
+    const fd = d as EventDataMap["subagent_failed"];
+    return (
+      <div style={{
+        padding: "6px 12px",
+        borderRadius: 6,
+        fontSize: 12,
+        background: "var(--colorStatusDangerBackground1)",
+        color: "var(--colorStatusDangerForeground1)",
+      }}>
+        <span style={{ marginRight: 6, display: "inline-flex" }}><Warning20Regular /></span>
+        <strong>Subagent failed:</strong> {fd.agent || "unknown"} — {fd.error || "Unknown error"}
       </div>
     );
   }

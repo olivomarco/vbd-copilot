@@ -167,3 +167,36 @@ class TestSubagentInvocations:
 
     def test_on_subagent_end_none(self, collector):
         collector.on_subagent_end(None)
+
+
+class TestSubagentNamePassthrough:
+
+    def test_on_tool_start_with_subagent_name(self, collector, store):
+        """on_tool_start should pass subagent_name to record_invocation."""
+        collector.on_session_created("s-sa1", agent="test")
+        collector.on_turn_start("s-sa1", agent="test", user_prompt="test")
+        inv_id = collector.on_tool_start("search_web", "{}", subagent_name="researcher")
+        assert inv_id is not None
+        inv = store.get_invocation(inv_id)
+        assert inv["subagent_name"] == "researcher"
+
+    def test_on_tool_start_without_subagent_name(self, collector, store):
+        """on_tool_start without subagent_name should store None."""
+        collector.on_session_created("s-sa2", agent="test")
+        collector.on_turn_start("s-sa2", agent="test", user_prompt="test")
+        inv_id = collector.on_tool_start("search_web", "{}")
+        assert inv_id is not None
+        inv = store.get_invocation(inv_id)
+        assert inv.get("subagent_name") is None
+
+
+class TestAssistantResponsePersistence:
+
+    def test_on_turn_end_stores_assistant_response(self, collector, store):
+        """on_turn_end should persist assistant_response to the turns table."""
+        collector.on_session_created("s-resp1", agent="test")
+        tid = collector.on_turn_start("s-resp1", agent="test", user_prompt="hi")
+        collector.on_turn_end(tid, assistant_response="Hello, how can I help?", model="gpt-4o")
+        turn = store.get_turn(tid)
+        assert turn is not None
+        assert turn["assistant_response"] == "Hello, how can I help?"

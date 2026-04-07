@@ -331,6 +331,38 @@ class TestCleanup:
         assert store.get_session("s1") is None
 
 
+class TestSubagentName:
+
+    def test_record_invocation_with_subagent_name(self, store):
+        """record_invocation should store subagent_name when provided."""
+        store.start_session("s-sub1", agent="test")
+        tid = store.start_turn(session_id="s-sub1", agent="test")
+        inv_id = store.record_invocation(
+            turn_id=tid,
+            session_id="s-sub1",
+            inv_type="tool_call",
+            name="search_web",
+            subagent_name="research-agent",
+        )
+        inv = store.get_invocation(inv_id)
+        assert inv is not None
+        assert inv["subagent_name"] == "research-agent"
+
+    def test_record_invocation_without_subagent_name(self, store):
+        """subagent_name should be None when not provided."""
+        store.start_session("s-sub2", agent="test")
+        tid = store.start_turn(session_id="s-sub2", agent="test")
+        inv_id = store.record_invocation(
+            turn_id=tid,
+            session_id="s-sub2",
+            inv_type="tool_call",
+            name="search_web",
+        )
+        inv = store.get_invocation(inv_id)
+        assert inv is not None
+        assert inv.get("subagent_name") is None
+
+
 class TestSchemaIdempotency:
 
     def test_reopen_database(self, tmp_path):
@@ -342,3 +374,11 @@ class TestSchemaIdempotency:
         s2 = EventStore(db, retention_days=0)
         assert s2.get_session("s1") is not None
         s2.close()
+
+    def test_subagent_name_migration_idempotent(self, tmp_path):
+        """Opening two EventStore instances on the same DB should not fail."""
+        db = tmp_path / "test.db"
+        store1 = EventStore(db, retention_days=0)
+        store1.close()
+        store2 = EventStore(db, retention_days=0)  # Should not raise
+        store2.close()
