@@ -31,6 +31,7 @@ import {
   Timer20Regular,
   ClipboardTask20Regular,
   Chat20Regular,
+  ArrowSync20Regular,
 } from "@fluentui/react-icons";
 import { useJobStore, type Job, type JobEvent } from "@/stores/jobStore";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -591,22 +592,53 @@ export function AgentWorkspace() {
   const [followUp, setFollowUp] = useState("");
   // Guard: disable response buttons immediately after a send to prevent double-clicks
   const [respondedToCurrentQ, setRespondedToCurrentQ] = useState(false);
+  // Retry state: becomes true after 15s without input_resolved from backend
+  const [retryAvailable, setRetryAvailable] = useState(false);
 
-  // Reset the responded flag whenever a new question arrives
+  // Reset the responded flag whenever a genuinely new (non-submitted) question arrives
   useEffect(() => {
-    if (job?.pendingInput?.[0]?.question) {
+    const input = job?.pendingInput?.[0];
+    if (input?.question && !input.submitted) {
       setRespondedToCurrentQ(false);
+      setRetryAvailable(false);
     }
-  }, [job?.pendingInput?.[0]?.question]);
+  }, [job?.pendingInput?.[0]?.question, job?.pendingInput?.[0]?.submitted]);
+
+  // Retry timeout: 15s after submission with no input_resolved, allow retry
+  useEffect(() => {
+    const input = job?.pendingInput?.[0];
+    if (!input?.submitted || !input.submittedAt) {
+      setRetryAvailable(false);
+      return;
+    }
+    const elapsed = Date.now() - input.submittedAt;
+    const remaining = Math.max(0, 15_000 - elapsed);
+    const timer = setTimeout(() => setRetryAvailable(true), remaining);
+    return () => clearTimeout(timer);
+  }, [job?.pendingInput?.[0]?.submitted, job?.pendingInput?.[0]?.submittedAt]);
 
   const guardedSendResponse = useCallback(
     (content: string, origin: "explicit" | "choice" | "skip" = "explicit") => {
       if (respondedToCurrentQ) return;
       setRespondedToCurrentQ(true);
+      setRetryAvailable(false);
       sendUserResponse(content, origin);
     },
     [respondedToCurrentQ, sendUserResponse],
   );
+
+  const retryLastResponse = useCallback(() => {
+    if (!jobId) return;
+    const currentJob = useJobStore.getState().getJob(jobId);
+    const input = currentJob?.pendingInput?.[0];
+    if (!input?.submitted) return;
+    // Reset submission state so the card reverts to interactive
+    const queue = currentJob?.pendingInput || [];
+    const reset = [{ question: input.question, choices: input.choices }, ...queue.slice(1)];
+    useJobStore.getState().updateJob(jobId, { pendingInput: reset });
+    setRespondedToCurrentQ(false);
+    setRetryAvailable(false);
+  }, [jobId]);
 
   // Assemble and send the initial prompt when the WS connects
   const promptSent = useRef(false);
@@ -1136,16 +1168,49 @@ export function AgentWorkspace() {
             const queueLength = job.pendingInput!.length;
             const isPlanReview = deltaText.length > 50;
             const hasChoices = !!(currentInput.choices && currentInput.choices.length > 0);
+            const isSubmitted = !!currentInput.submitted;
             return (
             <Card
               style={{
-                border: `2px solid ${isPlanReview ? "#FFB900" : "#0078D4"}`,
+                border: `2px solid ${isSubmitted ? "#8a8886" : isPlanReview ? "#FFB900" : "#0078D4"}`,
                 borderRadius: 10,
                 padding: "16px 20px",
-                background: isPlanReview ? "#fffbf0" : "#f0f6ff",
+                background: isSubmitted ? "#f5f5f5" : isPlanReview ? "#fffbf0" : "#f0f6ff",
+                opacity: isSubmitted && !retryAvailable ? 0.8 : 1,
+                transition: "opacity 0.3s",
               }}
             >
-              {deltaText.trim() && (
+              {isSubmitted && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "8px 12px", marginBottom: 12, borderRadius: 6,
+                  background: retryAvailable ? "#fff4ce" : "#e8f5e9",
+                  border: `1px solid ${retryAvailable ? "#f0c800" : "#a5d6a7"}`,
+                  fontSize: 13,
+                }}>
+                  {retryAvailable ? (
+                    <>
+                      <Warning20Regular style={{ color: "#c87400" }} />
+                      <span style={{ flex: 1, color: "#6b5900" }}>Response may not have reached the server.</span>
+                      <Button
+                        appearance="outline"
+                        size="small"
+                        icon={<ArrowSync20Regular />}
+                        onClick={retryLastResponse}
+                      >
+                        Retry
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Spinner size="tiny" />
+                      <span style={{ color: "#4a7c59" }}>Response sent — waiting for confirmation...</span>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {!isSubmitted && deltaText.trim() && (
                 <div
                   className="md-content"
                   style={{
@@ -1179,7 +1244,7 @@ export function AgentWorkspace() {
                 )}
               </div>
 
-              {hasChoices && (
+              {!isSubmitted && hasChoices && (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
                   {currentInput.choices!.map((choice, i) => (
                     <Button
@@ -1195,19 +1260,22 @@ export function AgentWorkspace() {
                 </div>
               )}
 
-              <Textarea
-                id="plan-edit"
-                value={editedPlan}
-                onChange={(_, data) => setEditedPlan(data.value)}
-                placeholder={isPlanReview
-                  ? "Optional: add clarifications or edits before approving"
-                  : "Type your answer..."
-                }
-                resize="vertical"
-                rows={isPlanReview ? 3 : 2}
-                style={{ marginBottom: 12 }}
-              />
+              {!isSubmitted && (
+                <Textarea
+                  id="plan-edit"
+                  value={editedPlan}
+                  onChange={(_, data) => setEditedPlan(data.value)}
+                  placeholder={isPlanReview
+                    ? "Optional: add clarifications or edits before approving"
+                    : "Type your answer..."
+                  }
+                  resize="vertical"
+                  rows={isPlanReview ? 3 : 2}
+                  style={{ marginBottom: 12 }}
+                />
+              )}
 
+              {!isSubmitted && (
               <div style={{ display: "flex", gap: 10 }}>
                 {isPlanReview ? (
                   <>
@@ -1259,6 +1327,7 @@ export function AgentWorkspace() {
                   </>
                 )}
               </div>
+              )}
             </Card>
             );
           })()}

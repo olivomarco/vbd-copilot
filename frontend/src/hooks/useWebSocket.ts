@@ -59,12 +59,19 @@ export function useWebSocket(sessionId: string | null) {
     // Restore pending input if server has one
     if (snap.pending_input) {
       const q = snap.pending_input.question || "The agent has a question";
-      const alreadyQueued = (currentJob.pendingInput || []).some((p: any) => p.question === q);
-      if (!alreadyQueued) {
+      const existingIdx = (currentJob.pendingInput || []).findIndex((p: any) => p.question === q);
+      if (existingIdx === -1) {
+        // Server has a question we don't know about — add it
         updateJob(sid, {
           status: "waiting",
           pendingInput: [...(currentJob.pendingInput || []), { question: q, choices: snap.pending_input.choices }],
         });
+      } else if (currentJob.pendingInput![existingIdx].submitted) {
+        // We sent a response but the server still has pending_input — the
+        // response was lost during the WS drop. Reset to allow retry.
+        const queue = [...currentJob.pendingInput!];
+        queue[existingIdx] = { question: q, choices: snap.pending_input.choices };
+        updateJob(sid, { status: "waiting", pendingInput: queue });
       }
     }
 
@@ -405,8 +412,8 @@ export function useWebSocket(sessionId: string | null) {
         }
 
         case "input_resolved": {
-          // Backend signals that the waiting_for_input prompt was resolved
-          // (user responded via another client, or backend timed out)
+          // Backend confirms the pending prompt was answered successfully.
+          // Remove the first (submitted) item and advance the queue.
           const curJob = useJobStore.getState().getJob(sid);
           const remaining = (curJob?.pendingInput || []).slice(1);
           updateJob(sid, {
@@ -745,20 +752,25 @@ export function useWebSocket(sessionId: string | null) {
       safeSend(JSON.stringify({ type: "user_response", content: normalized }));
       // Push the response as an event so it appears in the activity feed
       pushEvent(sessionId, { type: "user_response", data: { content: normalized, origin } });
-      // Remove the answered question (first in queue) — keep remaining
-      const rest = (currentJob?.pendingInput || []).slice(1);
-      updateJob(sessionId, {
-        status: rest.length > 0 ? "waiting" : "running",
-        pendingInput: rest.length > 0 ? rest : undefined,
-      });
-      if (rest.length === 0) clearInputNotification();
+      // Mark the first item as submitted rather than removing it.
+      // The card stays visible in a "sent" state until the backend confirms
+      // via `input_resolved`. This prevents silent loss if the WS message
+      // never reaches the server.
+      const queue = currentJob?.pendingInput || [];
+      if (queue.length > 0) {
+        const updated = [{ ...queue[0], submitted: true, submittedAt: Date.now() }, ...queue.slice(1)];
+        updateJob(sessionId, { pendingInput: updated });
+      }
     },
     [sessionId, safeSend],
   );
 
-  // Reset the duplicate guard whenever a new question arrives
+  // Reset the duplicate guard whenever a genuinely new (non-submitted) question arrives
   const currentPendingQuestion = useJobStore(
-    (s) => s.getJob(sessionId ?? "")?.pendingInput?.[0]?.question ?? null,
+    (s) => {
+      const input = s.getJob(sessionId ?? "")?.pendingInput?.[0];
+      return input && !input.submitted ? input.question : null;
+    },
   );
   useEffect(() => {
     if (currentPendingQuestion) {

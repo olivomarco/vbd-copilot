@@ -109,6 +109,10 @@ export interface Job {
   pendingInput?: {
     question: string;
     choices?: string[];
+    /** True after the user sent a response; cleared by `input_resolved`. */
+    submitted?: boolean;
+    /** Epoch ms when the response was sent — drives retry timeout. */
+    submittedAt?: number;
   }[];
   outputFiles: string[];
   usage: {
