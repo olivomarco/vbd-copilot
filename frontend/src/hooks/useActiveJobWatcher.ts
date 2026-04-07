@@ -266,4 +266,19 @@ export function useActiveJobWatcher() {
       connections.current.clear();
     };
   }, []);
+
+  // Repeating reminder: re-fire notification every 60s while any job is waiting for input
+  const waitingJobs = Object.values(jobs).filter((j) => j.status === "waiting");
+  useEffect(() => {
+    if (waitingJobs.length === 0) return;
+    const interval = setInterval(() => {
+      const current = Object.values(useJobStore.getState().jobs).filter(
+        (j) => j.status === "waiting" && j.pendingInput?.length,
+      );
+      if (current.length > 0) {
+        void notifyInputRequired();
+      }
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [waitingJobs.length > 0]);
 }

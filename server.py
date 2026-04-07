@@ -46,6 +46,10 @@ _copilot_client: Any = None     # CopilotClient instance
 _session_map: dict[str, Any] = {}   # session_id -> Session object
 _collector: Any = None          # EventCollector instance
 
+# Timeout for ask_user questions.  Must be long enough for the user to
+# return from other apps/meetings.  Matches the agent session timeout.
+_ASK_USER_TIMEOUT = 7200.0  # 2 hours
+
 # ---------------------------------------------------------------------------
 # FastAPI application
 # ---------------------------------------------------------------------------
@@ -184,7 +188,7 @@ async def create_session(body: CreateSessionRequest) -> JSONResponse:
             _send(_envelope(conn, "waiting_for_input", payload_data), sid)
             timed_out = False
             try:
-                answer = await pop_user_response(timeout=300.0, session_id=sid)
+                answer = await pop_user_response(timeout=_ASK_USER_TIMEOUT, session_id=sid)
             except asyncio.TimeoutError:
                 answer = ""
                 timed_out = True
@@ -267,7 +271,7 @@ async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONRes
             _send(_envelope(conn, "waiting_for_input", payload_data), full_id)
             timed_out = False
             try:
-                answer = await pop_user_response(timeout=300.0, session_id=full_id)
+                answer = await pop_user_response(timeout=_ASK_USER_TIMEOUT, session_id=full_id)
             except asyncio.TimeoutError:
                 answer = ""
                 timed_out = True
@@ -1258,7 +1262,7 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                     _send(_envelope(conn, "waiting_for_input", payload_data), session_id)
                     timed_out = False
                     try:
-                        answer = await pop_user_response(timeout=300.0, session_id=session_id)
+                        answer = await pop_user_response(timeout=_ASK_USER_TIMEOUT, session_id=session_id)
                     except asyncio.TimeoutError:
                         answer = ""
                         timed_out = True
