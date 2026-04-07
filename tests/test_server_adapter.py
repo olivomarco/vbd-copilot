@@ -13,6 +13,7 @@ from server_adapter import (
     _envelope,
     add_ws,
     build_snapshot,
+    emit_state_changed,
     get_accumulated_response,
     get_cancel_flag,
     get_connection,
@@ -21,8 +22,11 @@ from server_adapter import (
     push_user_response,
     remove_ws,
     set_cancel_flag,
+    start_heartbeat,
+    stop_heartbeat,
     ws_reset,
 )
+import server_adapter
 
 
 # ---------------------------------------------------------------------------
@@ -35,6 +39,8 @@ def _clear_connections():
     _connections.clear()
     yield
     _connections.clear()
+    # Ensure heartbeat task is stopped after every test
+    stop_heartbeat()
 
 
 # ===================================================================
@@ -362,3 +368,107 @@ class TestResponseBuffer:
 
     def test_get_accumulated_response_unknown_session(self):
         assert get_accumulated_response("nonexistent") == ""
+
+
+# ===================================================================
+# 9. emit_state_changed
+# ===================================================================
+
+class TestEmitStateChanged:
+    @pytest.mark.asyncio
+    async def test_emit_state_changed_with_connection(self):
+        """emit_state_changed should not raise when clients are connected."""
+        add_ws("state-1", object())
+        conn = get_connection("state-1")
+        assert conn is not None
+        # _send will try ws.send_text on the bare object and silently fail
+        # but emit_state_changed itself should not raise
+        emit_state_changed("state-1", "ended", "test_reason")
+
+    def test_emit_state_changed_no_connection(self):
+        """emit_state_changed should be a no-op for unknown sessions."""
+        emit_state_changed("nonexistent", "ended", "test")
+
+    def test_emit_state_changed_no_websockets(self):
+        """emit_state_changed should be a no-op when session has no connected WS."""
+        conn = _get_or_create("state-empty")
+        assert len(conn.websockets) == 0
+        emit_state_changed("state-empty", "ended", "test")  # should not raise
+
+
+# ===================================================================
+# 10. Heartbeat start / stop
+# ===================================================================
+
+class TestHeartbeat:
+    @pytest.mark.asyncio
+    async def test_start_stop_heartbeat(self):
+        """Heartbeat task should start and be cancellable."""
+        start_heartbeat()
+        await asyncio.sleep(0.05)
+        task = server_adapter._heartbeat_task
+        assert task is not None
+        assert not task.done()
+        stop_heartbeat()
+        await asyncio.sleep(0.05)
+        assert server_adapter._heartbeat_task is None
+
+    @pytest.mark.asyncio
+    async def test_start_heartbeat_idempotent(self):
+        """Calling start_heartbeat twice should not create duplicate tasks."""
+        start_heartbeat()
+        await asyncio.sleep(0.01)
+        task1 = server_adapter._heartbeat_task
+        start_heartbeat()
+        await asyncio.sleep(0.01)
+        task2 = server_adapter._heartbeat_task
+        assert task1 is task2  # same task, not a new one
+        stop_heartbeat()
+
+
+# ===================================================================
+# 11. Envelope shapes for heartbeat and state_changed
+# ===================================================================
+
+class TestPhase3EnvelopeShapes:
+    def test_heartbeat_envelope_shape(self):
+        """Heartbeat envelopes should have the correct structure."""
+        conn = SessionConnection("hb-test")
+        env = _envelope(conn, "heartbeat", {"ts": 1234567890.0})
+        assert env["v"] == 1
+        assert env["type"] == "heartbeat"
+        assert env["data"]["ts"] == 1234567890.0
+        assert env["id"]  # UUID present
+        assert env["seq"] == 1
+
+    def test_state_changed_envelope_shape(self):
+        """session_state_changed envelopes should include status and reason."""
+        conn = SessionConnection("sc-test")
+        env = _envelope(conn, "session_state_changed", {
+            "session_id": "sc-test",
+            "status": "ended",
+            "reason": "session_deleted",
+        })
+        assert env["v"] == 1
+        assert env["type"] == "session_state_changed"
+        assert env["data"]["status"] == "ended"
+        assert env["data"]["reason"] == "session_deleted"
+
+
+# ===================================================================
+# 12. Snapshot during response accumulation
+# ===================================================================
+
+class TestSnapshotDuringResponse:
+    def test_snapshot_during_response(self):
+        """Snapshot should build correctly when response_buffer has content."""
+        ws = object()
+        add_ws("snap-resp", ws)
+        conn = get_connection("snap-resp")
+        conn.response_buffer.append("Hello ")
+        conn.response_buffer.append("world")
+        snap = build_snapshot("snap-resp")
+        assert snap is not None
+        assert snap["data"]["status"] == "active"
+        # response_buffer is internal state, not exposed in snapshot,
+        # but snapshot should still build without errors

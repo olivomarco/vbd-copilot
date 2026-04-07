@@ -113,6 +113,16 @@ export interface UsageStats {
 
 export interface WsAssistantMessage { content: string; }
 
+export interface WsSessionStateChanged {
+  session_id: string;
+  status: string;
+  reason: string;
+}
+
+export interface WsHeartbeat {
+  ts: number;
+}
+
 // Agent type mappings
 export type AgentType =
   | "slide-conductor"

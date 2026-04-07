@@ -337,6 +337,62 @@ def build_snapshot(session_id: str) -> dict[str, Any] | None:
 
 
 # ---------------------------------------------------------------------------
+# Server-push: session state changed
+# ---------------------------------------------------------------------------
+
+def emit_state_changed(session_id: str, status: str, reason: str = "") -> None:
+    """Push a ``session_state_changed`` event to all connected clients.
+
+    No-op if the session has no active WebSocket connections.
+    """
+    conn = _connections.get(session_id)
+    if conn and conn.websockets:
+        _send(
+            _envelope(conn, "session_state_changed", {
+                "session_id": session_id,
+                "status": status,
+                "reason": reason,
+            }),
+            session_id,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Server-side heartbeat
+# ---------------------------------------------------------------------------
+
+_heartbeat_task: asyncio.Task[Any] | None = None
+HEARTBEAT_INTERVAL_S: int = 15
+
+
+async def _heartbeat_loop() -> None:
+    """Send a heartbeat to every connected session every HEARTBEAT_INTERVAL_S."""
+    while True:
+        await asyncio.sleep(HEARTBEAT_INTERVAL_S)
+        for sid, conn in list(_connections.items()):
+            if conn.websockets:
+                try:
+                    _send(_envelope(conn, "heartbeat", {"ts": time.time()}), sid)
+                except Exception:
+                    pass
+
+
+def start_heartbeat() -> None:
+    """Start the background heartbeat loop (call once at server startup)."""
+    global _heartbeat_task
+    if _heartbeat_task is None or _heartbeat_task.done():
+        _heartbeat_task = asyncio.ensure_future(_heartbeat_loop())
+
+
+def stop_heartbeat() -> None:
+    """Stop the background heartbeat loop (for clean shutdown / tests)."""
+    global _heartbeat_task
+    if _heartbeat_task and not _heartbeat_task.done():
+        _heartbeat_task.cancel()
+        _heartbeat_task = None
+
+
+# ---------------------------------------------------------------------------
 # Helper: send a JSON message over a WebSocket (fire-and-forget)
 # ---------------------------------------------------------------------------
 

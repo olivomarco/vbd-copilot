@@ -11,6 +11,18 @@ const MAX_RECONNECT_ATTEMPTS = 12;
 const RECONNECT_DELAY_MS = 2000;
 const HEARTBEAT_INTERVAL_MS = 25000;
 const MAX_SERVER_CHECK_ATTEMPTS = 3;
+const STALE_THRESHOLD_MS = 45_000; // 3 missed server heartbeats at 15s
+
+/**
+ * Exponential backoff: 1s, 2s, 4s, 8s, 16s, cap at 30s.
+ * Adds ±25% jitter to prevent thundering herd.
+ */
+function getReconnectDelay(attempt: number): number {
+  const base = 1000;
+  const delay = Math.min(base * Math.pow(2, attempt), 30_000);
+  const jitter = delay * 0.25 * (Math.random() * 2 - 1);
+  return Math.round(delay + jitter);
+}
 
 /**
  * Opens a WebSocket to /ws/{sessionId}, parses events, and updates
@@ -32,6 +44,9 @@ export function useWebSocket(sessionId: string | null) {
 
   /** Seen envelope IDs for deduplication. */
   const seenIds = useRef<Set<string>>(new Set());
+
+  /** Timestamp of last message received from server — for stale connection detection. */
+  const lastServerMessage = useRef<number>(Date.now());
 
   /** Apply a session_snapshot from the server to restore state. */
   function handleSnapshot(sid: string, snap: any) {
@@ -130,7 +145,7 @@ export function useWebSocket(sessionId: string | null) {
             }
           })
           .catch(() => { /* server unreachable — WS will handle it */ });
-      }, 3000);
+      }, 10000);
     };
 
     ws.onmessage = (ev) => {
@@ -140,6 +155,9 @@ export function useWebSocket(sessionId: string | null) {
       } catch {
         return;
       }
+
+      // Any message from the server proves the connection is alive
+      lastServerMessage.current = Date.now();
 
       // Unwrap v1 envelope — backward compat: raw messages still work
       const isEnvelope = raw.v === 1 && raw.id && raw.data;
@@ -353,6 +371,24 @@ export function useWebSocket(sessionId: string | null) {
           break;
         }
 
+        case "session_state_changed": {
+          if (msg.status === "ended") {
+            jobDone.current = true;
+            clearInputNotification();
+            const stateJob = useJobStore.getState().getJob(sid);
+            if (stateJob && stateJob.status !== "completed" && stateJob.status !== "failed" && stateJob.status !== "cancelled") {
+              updateJob(sid, {
+                status: "completed",
+                phase: "done",
+                completedAt: Date.now(),
+                pendingInput: [],
+              });
+              pushEvent(sid, { type: "done", data: { status: "success", reason: msg.reason || "Session ended" } });
+            }
+          }
+          break;
+        }
+
         case "pong":
         case "heartbeat":
           break;
@@ -456,7 +492,7 @@ export function useWebSocket(sessionId: string | null) {
 
       if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
         reconnectAttempts.current += 1;
-        reconnectTimer.current = setTimeout(() => connect(sid), RECONNECT_DELAY_MS);
+        reconnectTimer.current = setTimeout(() => connect(sid), getReconnectDelay(reconnectAttempts.current));
       } else if (serverCheckAttempts.current < MAX_SERVER_CHECK_ATTEMPTS) {
         // Don't give up yet — ask the server if the session is still alive
         serverCheckAttempts.current += 1;
@@ -569,6 +605,15 @@ export function useWebSocket(sessionId: string | null) {
       if (job.status === "completed" || job.status === "failed" || job.status === "cancelled") return;
 
       const ws = wsRef.current;
+
+      // Stale connection detection: if no message from server in 45s
+      // (3 missed heartbeats at 15s interval), force reconnect
+      if (ws?.readyState === WebSocket.OPEN && (Date.now() - lastServerMessage.current) > STALE_THRESHOLD_MS) {
+        intentionalClose.current = false; // allow reconnect
+        ws.close();
+        return;
+      }
+
       if (ws?.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "ping" }));
       } else if (!ws || ws.readyState === WebSocket.CLOSED) {

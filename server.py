@@ -23,6 +23,8 @@ import json
 import logging
 import os
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -48,7 +50,16 @@ _collector: Any = None          # EventCollector instance
 # FastAPI application
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="CSA Copilot API", version="1.0.0", docs_url=None, redoc_url=None)
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    from server_adapter import start_heartbeat, stop_heartbeat
+    start_heartbeat()
+    yield
+    stop_heartbeat()
+
+
+app = FastAPI(title="CSA Copilot API", version="1.0.0", docs_url=None, redoc_url=None, lifespan=_lifespan)
 
 # Allow the Electron renderer (loaded from file://) to call the API.
 # Restricted to only localhost origins for security.
@@ -284,9 +295,10 @@ async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONRes
 
 @app.delete("/sessions/{session_id}")
 async def end_session(session_id: str) -> JSONResponse:
-    from server_adapter import unregister_event_handler
+    from server_adapter import unregister_event_handler, emit_state_changed
     if _event_store:
         full_id = _event_store.resolve_prefix("sessions", session_id) or session_id
+        emit_state_changed(full_id, "ended", "session_deleted")
         _event_store.end_session(full_id, resumable=False)
     session = _session_map.pop(session_id, None)
     if session:
@@ -1163,6 +1175,7 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
         build_snapshot,
         ws_reset,
         _send,
+        _envelope,
         register_event_handler,
         unregister_event_handler,
     )
@@ -1218,15 +1231,19 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                 })
                 _session_map[session_id] = session
             except Exception as exc:
+                conn = get_connection(session_id)
                 await websocket.send_text(json.dumps(
-                    {"type": "error", "message": f"Failed to create session: {exc}"}
+                    _envelope(conn, "error", {"message": f"Failed to create session: {exc}"}),
+                    ensure_ascii=False,
                 ))
                 await websocket.close()
                 set_active_ws(session_id, None)
                 return
         else:
+            conn = get_connection(session_id)
             await websocket.send_text(json.dumps(
-                {"type": "error", "message": "Copilot client not ready"}
+                _envelope(conn, "error", {"message": "Copilot client not ready"}),
+                ensure_ascii=False,
             ))
             await websocket.close()
             set_active_ws(session_id, None)
@@ -1265,26 +1282,27 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
             turn_status = "timeout"
             # Match CLI behavior: timeout is non-fatal. The agent may still be
             # running server-side. The user can keep chatting.
-            _send({
-                "type": "error",
+            conn = get_connection(session_id)
+            _send(_envelope(conn, "error", {
                 "message": (
                     f"Timeout after {DEFAULT_TIMEOUT // 60} min — the agent is "
                     "still running on the server. You can keep chatting; "
                     "it may deliver results on the next turn."
                 ),
-            }, session_id)
+            }), session_id)
         except Exception as exc:
             turn_status = "error"
-            _send({"type": "error", "message": str(exc)}, session_id)
+            conn = get_connection(session_id)
+            _send(_envelope(conn, "error", {"message": str(exc)}), session_id)
         finally:
+            conn = get_connection(session_id)
             new_files = _find_new_outputs(before_time)
             if new_files:
-                _send({
-                    "type": "new_files",
+                _send(_envelope(conn, "new_files", {
                     "files": [str(f) for f in new_files],
-                }, session_id)
+                }), session_id)
 
-            _send({"type": "done", "status": turn_status}, session_id)
+            _send(_envelope(conn, "done", {"status": turn_status}), session_id)
 
             # Persist done status so reconnecting clients can pick it up
             from server_adapter import set_last_done
@@ -1307,8 +1325,10 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
             try:
                 msg = json.loads(raw)
             except json.JSONDecodeError:
+                conn = get_connection(session_id)
                 await websocket.send_text(json.dumps(
-                    {"type": "error", "message": "Invalid JSON"}
+                    _envelope(conn, "error", {"message": "Invalid JSON"}),
+                    ensure_ascii=False,
                 ))
                 continue
 
@@ -1320,11 +1340,11 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                     continue
 
                 if current_turn_task and not current_turn_task.done():
+                    conn = get_connection(session_id)
                     _send(
-                        {
-                            "type": "error",
+                        _envelope(conn, "error", {
                             "message": "A turn is already running. Respond to the active prompt or cancel it first.",
-                        },
+                        }),
                         session_id,
                     )
                     continue
@@ -1358,7 +1378,8 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                         user_prompt=clean,
                     )
 
-                _send({"type": "turn_started", "agent": agent_name}, session_id)
+                conn = get_connection(session_id)
+                _send(_envelope(conn, "turn_started", {"agent": agent_name}), session_id)
                 # Clear stale done status from previous turn so it isn't replayed
                 from server_adapter import clear_last_done
                 clear_last_done(session_id)
@@ -1372,16 +1393,20 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
             elif msg_type == "user_response":
                 content = str(msg.get("content", "")).strip()
                 if not content:
-                    _send({"type": "error", "message": "Empty response ignored — please type a reply."}, session_id)
+                    conn = get_connection(session_id)
+                    _send(_envelope(conn, "error", {"message": "Empty response ignored — please type a reply."}), session_id)
                     continue
                 push_user_response(content, session_id)
 
             elif msg_type == "ping":
-                _send({"type": "pong"}, session_id)
+                conn = get_connection(session_id)
+                _send(_envelope(conn, "pong", {}), session_id)
 
             else:
+                conn = get_connection(session_id)
                 await websocket.send_text(json.dumps(
-                    {"type": "error", "message": f"Unknown message type: {msg_type}"}
+                    _envelope(conn, "error", {"message": f"Unknown message type: {msg_type}"}),
+                    ensure_ascii=False,
                 ))
 
     except WebSocketDisconnect:

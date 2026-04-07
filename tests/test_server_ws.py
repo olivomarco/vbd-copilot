@@ -76,4 +76,4 @@ def test_websocket_allows_user_response_while_turn_is_waiting(client):
 
         done = ws.receive_json()
         assert done["type"] == "done"
-        assert done["status"] == "success"
+        assert done.get("data", done).get("status") == "success"

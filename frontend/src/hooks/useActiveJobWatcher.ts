@@ -77,6 +77,20 @@ export function useActiveJobWatcher() {
           if (t !== "done" && t !== "cancelled") return;
         }
 
+        if (t === "session_state_changed" && msg.status === "ended") {
+          const currentJob = useJobStore.getState().getJob(id);
+          if (currentJob && currentJob.status !== "completed" && currentJob.status !== "failed" && currentJob.status !== "cancelled") {
+            updateJob(id, {
+              status: "completed",
+              phase: "done",
+              completedAt: Date.now(),
+              pendingInput: [],
+            });
+            clearInputNotification();
+            notifyJobCompleted(currentJob.title || "Your content is ready");
+          }
+        }
+
         if (t === "waiting_for_input") {
           const question = msg.question || "The agent has a question";
           const choices = msg.choices || undefined;
