@@ -6,6 +6,7 @@ import {
   Spinner,
   Dropdown,
   Option,
+  Switch,
 } from "@fluentui/react-components";
 import { checkHealth, getUsage } from "@/api/client";
 import type { UsageStats } from "@/api/types";
@@ -24,6 +25,8 @@ export function Settings() {
   const [usagePeriod, setUsagePeriod] = useState("all");
   const theme = useSettingsStore((s) => s.theme);
   const setTheme = useSettingsStore((s) => s.setTheme);
+  const verboseMode = useSettingsStore((s) => s.verboseMode);
+  const setVerboseMode = useSettingsStore((s) => s.setVerboseMode);
 
   useEffect(() => {
     Promise.all([
@@ -85,6 +88,18 @@ export function Settings() {
               <Option value="dark">Dark</Option>
               <Option value="system">System</Option>
             </Dropdown>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <Text size={300} style={{ display: "block" }}>Verbose Mode</Text>
+              <Text size={200} style={{ color: "var(--text-secondary)", display: "block", marginTop: 2 }}>
+                Show detailed model output including thinking tokens, tool I/O, and reasoning in Mission Control
+              </Text>
+            </div>
+            <Switch
+              checked={verboseMode}
+              onChange={(_, d) => setVerboseMode(d.checked)}
+            />
           </div>
         </div>
       </Card>

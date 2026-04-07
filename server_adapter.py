@@ -536,6 +536,14 @@ def _make_ws_handler(session_id: str):
             """Wrap *data* in an envelope and send."""
             _send(_envelope(conn, msg_type, data, correlation_id), session_id)
 
+        # -- Reasoning deltas (thinking tokens) ----------------------------
+
+        if hasattr(SessionEventType, "ASSISTANT_REASONING_DELTA") and etype == SessionEventType.ASSISTANT_REASONING_DELTA:
+            delta = getattr(d, "delta_content", None) or ""
+            if delta:
+                emit("reasoning_delta", {"content": delta})
+            return
+
         # -- Streaming deltas -----------------------------------------------
 
         if etype in (
@@ -551,10 +559,6 @@ def _make_ws_handler(session_id: str):
                 emit("delta", {"content": delta})
                 if conn:
                     conn.response_buffer.append(delta)
-            return
-            delta = getattr(d, "delta_content", None) or ""
-            if delta:
-                emit("reasoning_delta", {"content": delta})
             return
 
         # -- Tool lifecycle -------------------------------------------------
@@ -602,7 +606,17 @@ def _make_ws_handler(session_id: str):
             emit("tool_completed", payload, correlation_id=corr_id)
             return
 
-        # Future: TOOL_EXECUTION_PROGRESS
+        # -- Tool partial/progress events --------------------------------
+
+        if hasattr(SessionEventType, "TOOL_EXECUTION_PARTIAL_RESULT") and etype == SessionEventType.TOOL_EXECUTION_PARTIAL_RESULT:
+            partial = getattr(d, "partial_output", None) or ""
+            emit("tool_partial_result", {"content": partial[:2000]})
+            return
+
+        if hasattr(SessionEventType, "TOOL_EXECUTION_PROGRESS") and etype == SessionEventType.TOOL_EXECUTION_PROGRESS:
+            msg = getattr(d, "progress_message", None) or ""
+            emit("tool_progress", {"message": msg})
+            return
 
         # -- Subagent lifecycle ---------------------------------------------
 
@@ -658,7 +672,40 @@ def _make_ws_handler(session_id: str):
             emit("subagent_selected", {"agent": str(name)})
             return
 
-        # Future: ASSISTANT_INTENT
+        # SUBAGENT_DESELECTED
+        if hasattr(SessionEventType, "SUBAGENT_DESELECTED") and etype == SessionEventType.SUBAGENT_DESELECTED:
+            name = getattr(d, "agent_name", "?") or "?"
+            emit("subagent_deselected", {"agent": str(name)})
+            return
+
+        # -- Reasoning / intent events --------------------------------------
+
+        if hasattr(SessionEventType, "ASSISTANT_REASONING") and etype == SessionEventType.ASSISTANT_REASONING:
+            text = getattr(d, "reasoning_text", None) or ""
+            if text:
+                emit("assistant_reasoning", {"text": text[:2000]})
+            return
+
+        if hasattr(SessionEventType, "ASSISTANT_INTENT") and etype == SessionEventType.ASSISTANT_INTENT:
+            intent = getattr(d, "intent", None) or ""
+            if intent:
+                emit("assistant_intent", {"intent": intent})
+            return
+
+        # -- Session lifecycle events ---------------------------------------
+
+        if hasattr(SessionEventType, "SESSION_HANDOFF") and etype == SessionEventType.SESSION_HANDOFF:
+            name = getattr(d, "agent_name", None) or "?"
+            emit("session_handoff", {"agent": str(name)})
+            return
+
+        if hasattr(SessionEventType, "ASSISTANT_TURN_START") and etype == SessionEventType.ASSISTANT_TURN_START:
+            emit("turn_started", {})
+            return
+
+        if hasattr(SessionEventType, "ASSISTANT_TURN_END") and etype == SessionEventType.ASSISTANT_TURN_END:
+            emit("turn_ended", {})
+            return
 
         # -- Usage / errors -------------------------------------------------
 
@@ -676,6 +723,15 @@ def _make_ws_handler(session_id: str):
         if etype == SessionEventType.SESSION_ERROR:
             error_msg = getattr(d, "message", str(d))
             emit("error", {"message": str(error_msg)})
+            return
+
+        if hasattr(SessionEventType, "SESSION_COMPACTION_START") and etype == SessionEventType.SESSION_COMPACTION_START:
+            emit("compaction_start", {})
+            return
+
+        if hasattr(SessionEventType, "SESSION_COMPACTION_COMPLETE") and etype == SessionEventType.SESSION_COMPACTION_COMPLETE:
+            post = int(getattr(d, "post_compaction_tokens", 0) or 0)
+            emit("compaction_complete", {"post_tokens": post})
             return
 
         # Catch-all for any unhandled event types

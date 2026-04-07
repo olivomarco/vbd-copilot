@@ -29,8 +29,11 @@ import {
   Document20Regular,
   Settings20Regular,
   DocumentText20Regular,
+  ChevronDown12Regular,
+  ChevronRight12Regular,
 } from "@fluentui/react-icons";
 import { useJobStore, type Job } from "@/stores/jobStore";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { AGENT_META } from "@/api/types";
 import { useState, useEffect } from "react";
 import { BriefForm } from "@/components/brief/BriefForm";
@@ -38,6 +41,7 @@ import type { AgentType } from "@/api/types";
 import type { SessionInfo, Turn } from "@/api/types";
 import { AgentIcon } from "@/components/common/AgentIcon";
 import { listSessions, getSessionTurns, resumeSession as apiResumeSession, getSessionStatus } from "@/api/client";
+import { LiveActivityLog } from "@/components/mission/LiveActivityLog";
 
 function formatElapsed(job: Job): string {
   const ms = (job.completedAt || Date.now()) - job.startedAt;
@@ -283,6 +287,194 @@ function JobCard({ job }: { job: Job }) {
               );
             })}
           </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * LiveJobCard — wraps a running/waiting job card, connects WebSocket,
+ * and renders a collapsible LiveActivityLog below the job summary.
+ */
+function LiveJobCard({ job }: { job: Job }) {
+  const navigate = useNavigate();
+  const meta = AGENT_META[job.agent] || { icon: "", label: job.agent, color: "#666" };
+  const events = useJobStore((s) => s.jobs[job.id]?.events ?? []);
+  const isLive = job.status === "running" || job.status === "queued" || job.status === "waiting";
+  const [logOpen, setLogOpen] = useState(false);
+
+  // Connect WebSocket for this job
+  useWebSocket(isLive ? job.id : null);
+
+  // Auto-expand only when the job is waiting for input (needs attention)
+  useEffect(() => {
+    if (isLive && job.status === "waiting" && !logOpen) {
+      setLogOpen(true);
+    }
+  }, [job.status === "waiting", isLive]);
+
+  return (
+    <Card
+      style={{
+        border: job.status === "waiting" ? "2px solid #FFB900" : "1px solid #edebe9",
+        borderRadius: 10,
+        padding: "14px 18px",
+        transition: "all 0.15s ease",
+        animation: job.status === "waiting" ? "pulse 3s infinite" : undefined,
+      }}
+    >
+      {/* Clickable summary row */}
+      <div
+        style={{ cursor: "pointer" }}
+        onClick={() => navigate(`/workspace?id=${job.id}`)}
+        onMouseEnter={(e) => {
+          (e.currentTarget.parentElement as HTMLElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.06)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget.parentElement as HTMLElement).style.boxShadow = "none";
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+          <AgentIcon agent={job.agent} size="inline" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Text
+              weight="semibold"
+              size={300}
+              style={{
+                display: "block",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {job.title}
+            </Text>
+            <Text
+              size={200}
+              style={{
+                color: "var(--text-secondary)",
+                display: "block",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {job.agent} · {job.progress.currentStep}
+            </Text>
+            {(job.status === "running" || job.status === "queued") &&
+              (job.progress.subagentRuns > 0 || job.progress.toolCalls > 0) && (
+              <Text
+                size={100}
+                style={{
+                  color: "var(--text-secondary)",
+                  display: "flex",
+                  gap: 8,
+                  marginTop: 2,
+                }}
+              >
+                {job.progress.toolCalls > 0 && <span>{job.progress.toolCalls} tools</span>}
+                {job.progress.subagentRuns > 0 && <span>{job.progress.subagentRuns} subagents</span>}
+              </Text>
+            )}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            <Text size={200} style={{ color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
+              {formatElapsed(job)}
+            </Text>
+            <span
+              style={{
+                padding: "2px 8px",
+                borderRadius: 5,
+                fontSize: 10,
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.02em",
+                color: "white",
+                whiteSpace: "nowrap",
+                background:
+                  job.status === "completed"
+                    ? "#7FBA00"
+                    : job.status === "failed"
+                      ? "#d13438"
+                      : job.status === "waiting"
+                        ? "#d48806"
+                        : "var(--brand-primary)",
+              }}
+            >
+              {job.status}
+            </span>
+          </div>
+
+          {job.status === "running" && (
+            <div
+              style={{
+                width: 60,
+                height: 6,
+                background: "var(--border)",
+                borderRadius: 3,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  borderRadius: 3,
+                  background: "var(--brand-primary)",
+                  animation: "indeterminate 1.5s ease-in-out infinite",
+                  width: "40%",
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Waiting indicator */}
+        {job.status === "waiting" && job.pendingInput?.[0] && (
+          <div
+            style={{
+              marginTop: 10,
+              padding: "8px 12px",
+              background: "#fffbf0",
+              borderRadius: 6,
+              fontSize: 13,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Warning20Regular /> {job.pendingInput[0].question.slice(0, 60)}{job.pendingInput.length > 1 ? ` (+${job.pendingInput.length - 1})` : ""}</span>
+            <Button appearance="primary" size="small" onClick={(e) => { e.stopPropagation(); navigate(`/workspace?id=${job.id}`); }}>
+              Review
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Collapsible Activity Log */}
+      {events.length > 0 && (
+        <div style={{ marginTop: 8, borderTop: "1px solid var(--border)", paddingTop: 6 }}>
+          <div
+            onClick={() => setLogOpen(!logOpen)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              cursor: "pointer",
+              userSelect: "none",
+              padding: "2px 0",
+            }}
+          >
+            <span style={{ fontSize: 10, color: "var(--text-secondary)", display: "inline-flex" }}>
+              {logOpen ? <ChevronDown12Regular /> : <ChevronRight12Regular />}
+            </span>
+            <Text size={200} style={{ color: "var(--text-secondary)", textTransform: "uppercase", fontSize: 10, letterSpacing: "0.04em", fontWeight: 600 }}>
+              Activity Log
+            </Text>
+          </div>
+          {logOpen && (
+            <LiveActivityLog events={events} isRunning={isLive} />
+          )}
         </div>
       )}
     </Card>
@@ -585,7 +777,7 @@ export function MissionControl() {
           </Text>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {running.map((j) => (
-              <JobCard key={j.id} job={j} />
+              <LiveJobCard key={j.id} job={j} />
             ))}
           </div>
         </div>
@@ -610,7 +802,7 @@ export function MissionControl() {
           </Text>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {waiting.map((j) => (
-              <JobCard key={j.id} job={j} />
+              <LiveJobCard key={j.id} job={j} />
             ))}
           </div>
         </div>

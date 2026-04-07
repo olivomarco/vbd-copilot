@@ -105,3 +105,11 @@
 - Jitter formula: `delay * 0.25 * (Math.random() * 2 - 1)` gives ±25% range
 - `reconnectAttempts.current` is reset to 0 on successful open, so backoff resets naturally
 - `session_state_changed` in watcher uses same terminal-state guard as `done` handler
+
+### 2026-04-07: Verbose Mode + LiveActivityLog for MissionControl
+- **settingsStore.ts**: Added `verboseMode: boolean` (default false) + `setVerboseMode` action. Follows existing create-only pattern (no persist middleware).
+- **Settings.tsx**: Added Fluent UI `Switch` toggle for verbose mode in the General card, below Theme dropdown. Description text explains what it controls.
+- **LiveActivityLog.tsx**: New component at `frontend/src/components/mission/LiveActivityLog.tsx`. Categorizes events into "always" (phase, subagent, waiting, done, errors, files), "verbose" (deltas, tools, reasoning, usage, compaction, turns), and "skip" (pong, heartbeat, snapshot). Accumulates consecutive delta/reasoning_delta events into text blocks. Auto-scroll with scroll-away detection. Caps at 200 visible events. Relative timestamps updated every 10s.
+- **MissionControl.tsx**: Created `LiveJobCard` component that wraps running/waiting jobs. Each LiveJobCard calls `useWebSocket(jobId)` to connect WS, reads events from jobStore reactively, and renders a collapsible `LiveActivityLog` below the job summary. Running/waiting sections render `<LiveJobCard>`, completed still uses `<JobCard>`.
+- **Key design decision**: Rather than creating `useMultiWebSocket`, used a per-card component wrapper (`LiveJobCard`) that calls `useWebSocket` once per job. This follows React's hooks rules naturally and mirrors how AgentWorkspace does it.
+- **Waiting-for-input visibility**: Always shown prominently in yellow highlight even when verbose is off — this is the key fix for "stuck job" perception on MissionControl.

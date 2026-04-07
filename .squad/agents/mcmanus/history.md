@@ -138,3 +138,24 @@
 - `emit_state_changed` is safe on sessions with zero WS connections — checks `conn.websockets` before sending.
 - Direct `websocket.send_text()` calls for pre-loop errors also now use envelopes (with `conn` from `get_connection()`).
 - Test updated: `test_server_ws.py` assertion uses `done.get("data", done).get("status")` to handle both raw and enveloped formats.
+
+## Fix: Verbose/Debug Event Forwarding over WebSocket (2026-04-07)
+
+### What was done
+- **Bug fix: dead `reasoning_delta` code** — unreachable block after a `return` in the `ASSISTANT_MESSAGE_DELTA` handler was removed. `ASSISTANT_REASONING_DELTA` now has its own handler before the streaming deltas section, with `hasattr` guard for SDK compat.
+- **10 new event types forwarded** to the frontend via WebSocket:
+  - `TOOL_EXECUTION_PARTIAL_RESULT` → `tool_partial_result`
+  - `TOOL_EXECUTION_PROGRESS` → `tool_progress`
+  - `ASSISTANT_INTENT` → `assistant_intent`
+  - `ASSISTANT_REASONING` → `assistant_reasoning` (truncated to 2000 chars)
+  - `SESSION_HANDOFF` → `session_handoff`
+  - `SESSION_COMPACTION_START` → `compaction_start`
+  - `SESSION_COMPACTION_COMPLETE` → `compaction_complete`
+  - `ASSISTANT_TURN_START` → `turn_started`
+  - `ASSISTANT_TURN_END` → `turn_ended`
+  - `SUBAGENT_DESELECTED` → `subagent_deselected`
+
+### Key patterns
+- All new event types use `hasattr(SessionEventType, "EVENT_NAME")` guards for backward compat with older SDK versions.
+- Events logically grouped: reasoning/intent near streaming deltas, tool partial/progress near tool lifecycle, session/turn/subagent near their siblings.
+- Attribute names match ui.py patterns exactly (e.g., `d.partial_output`, `d.progress_message`, `d.intent`, `d.reasoning_text`, `d.post_compaction_tokens`).

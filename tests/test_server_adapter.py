@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -11,6 +14,7 @@ from server_adapter import (
     SessionConnection,
     _connections,
     _envelope,
+    _make_ws_handler,
     add_ws,
     build_snapshot,
     emit_state_changed,
@@ -472,3 +476,337 @@ class TestSnapshotDuringResponse:
         assert snap["data"]["status"] == "active"
         # response_buffer is internal state, not exposed in snapshot,
         # but snapshot should still build without errors
+
+
+# ===================================================================
+# 13. Event handler — verbose/debug event forwarding
+# ===================================================================
+
+# --- Helpers -----------------------------------------------------------
+
+class _FakeSessionEventType:
+    """Minimal stand-in for SessionEventType with all event types we need."""
+    ASSISTANT_MESSAGE_DELTA = "ASSISTANT_MESSAGE_DELTA"
+    ASSISTANT_STREAMING_DELTA = "ASSISTANT_STREAMING_DELTA"
+    TOOL_EXECUTION_START = "TOOL_EXECUTION_START"
+    TOOL_EXECUTION_COMPLETE = "TOOL_EXECUTION_COMPLETE"
+    SUBAGENT_STARTED = "SUBAGENT_STARTED"
+    SUBAGENT_COMPLETED = "SUBAGENT_COMPLETED"
+    SUBAGENT_FAILED = "SUBAGENT_FAILED"
+    SUBAGENT_SELECTED = "SUBAGENT_SELECTED"
+    ASSISTANT_USAGE = "ASSISTANT_USAGE"
+    SESSION_ERROR = "SESSION_ERROR"
+    # New verbose/debug event types
+    ASSISTANT_REASONING_DELTA = "ASSISTANT_REASONING_DELTA"
+    TOOL_EXECUTION_PARTIAL_RESULT = "TOOL_EXECUTION_PARTIAL_RESULT"
+    TOOL_EXECUTION_PROGRESS = "TOOL_EXECUTION_PROGRESS"
+    ASSISTANT_INTENT = "ASSISTANT_INTENT"
+    ASSISTANT_REASONING = "ASSISTANT_REASONING"
+    SESSION_HANDOFF = "SESSION_HANDOFF"
+    SESSION_COMPACTION_START = "SESSION_COMPACTION_START"
+    SESSION_COMPACTION_COMPLETE = "SESSION_COMPACTION_COMPLETE"
+    ASSISTANT_TURN_START = "ASSISTANT_TURN_START"
+    ASSISTANT_TURN_END = "ASSISTANT_TURN_END"
+    SUBAGENT_DESELECTED = "SUBAGENT_DESELECTED"
+
+
+def _make_event(etype, **data_attrs):
+    """Build a fake event compatible with _handler's expectations."""
+    data = SimpleNamespace(**data_attrs)
+    return SimpleNamespace(type=etype, id=str(id(data)), data=data)
+
+
+@pytest.fixture
+def handler_env():
+    """Set up a handler with a mock _send, returning (handler, sent_messages).
+
+    Patches SessionEventType so the handler sees all event type attributes.
+    """
+    sid = "handler-test"
+    add_ws(sid, object())
+    sent: list[dict] = []
+
+    def fake_send(payload, session_id=None):
+        sent.append(payload)
+
+    with patch("server_adapter._send", side_effect=fake_send):
+        with patch(
+            "copilot.generated.session_events.SessionEventType",
+            _FakeSessionEventType,
+            create=True,
+        ):
+            handler = _make_ws_handler(sid)
+            yield handler, sent, sid
+
+
+# --- Tests for each new event type ---
+
+class TestVerboseEventForwarding:
+    """Tests that each new verbose/debug event type is correctly forwarded."""
+
+    def test_reasoning_delta(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.ASSISTANT_REASONING_DELTA,
+            delta_content="thinking about this...",
+        ))
+        assert len(sent) == 1
+        assert sent[0]["type"] == "reasoning_delta"
+        assert sent[0]["data"]["content"] == "thinking about this..."
+
+    def test_reasoning_delta_empty_skipped(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.ASSISTANT_REASONING_DELTA,
+            delta_content="",
+        ))
+        assert len(sent) == 0
+
+    def test_reasoning_delta_none_skipped(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.ASSISTANT_REASONING_DELTA,
+            delta_content=None,
+        ))
+        assert len(sent) == 0
+
+    def test_tool_partial_result(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.TOOL_EXECUTION_PARTIAL_RESULT,
+            partial_output="partial data here",
+        ))
+        assert len(sent) == 1
+        assert sent[0]["type"] == "tool_partial_result"
+        assert sent[0]["data"]["content"] == "partial data here"
+
+    def test_tool_partial_result_truncated_at_2000(self, handler_env):
+        handler, sent, sid = handler_env
+        long_output = "x" * 3000
+        handler(_make_event(
+            _FakeSessionEventType.TOOL_EXECUTION_PARTIAL_RESULT,
+            partial_output=long_output,
+        ))
+        assert len(sent[0]["data"]["content"]) == 2000
+
+    def test_tool_progress(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.TOOL_EXECUTION_PROGRESS,
+            progress_message="Searching files...",
+        ))
+        assert len(sent) == 1
+        assert sent[0]["type"] == "tool_progress"
+        assert sent[0]["data"]["message"] == "Searching files..."
+
+    def test_assistant_intent(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.ASSISTANT_INTENT,
+            intent="I will search the codebase",
+        ))
+        assert len(sent) == 1
+        assert sent[0]["type"] == "assistant_intent"
+        assert sent[0]["data"]["intent"] == "I will search the codebase"
+
+    def test_assistant_intent_empty_skipped(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.ASSISTANT_INTENT,
+            intent="",
+        ))
+        assert len(sent) == 0
+
+    def test_assistant_reasoning(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.ASSISTANT_REASONING,
+            reasoning_text="The user wants to refactor the auth module",
+        ))
+        assert len(sent) == 1
+        assert sent[0]["type"] == "assistant_reasoning"
+        assert sent[0]["data"]["text"] == "The user wants to refactor the auth module"
+
+    def test_assistant_reasoning_truncated_at_2000(self, handler_env):
+        handler, sent, sid = handler_env
+        long_text = "y" * 3000
+        handler(_make_event(
+            _FakeSessionEventType.ASSISTANT_REASONING,
+            reasoning_text=long_text,
+        ))
+        assert len(sent[0]["data"]["text"]) == 2000
+
+    def test_assistant_reasoning_empty_skipped(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.ASSISTANT_REASONING,
+            reasoning_text="",
+        ))
+        assert len(sent) == 0
+
+    def test_session_handoff(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.SESSION_HANDOFF,
+            agent_name="slide-builder",
+        ))
+        assert len(sent) == 1
+        assert sent[0]["type"] == "session_handoff"
+        assert sent[0]["data"]["agent"] == "slide-builder"
+
+    def test_compaction_start(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.SESSION_COMPACTION_START,
+        ))
+        assert len(sent) == 1
+        assert sent[0]["type"] == "compaction_start"
+        assert sent[0]["data"] == {}
+
+    def test_compaction_complete(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.SESSION_COMPACTION_COMPLETE,
+            post_compaction_tokens=4096,
+        ))
+        assert len(sent) == 1
+        assert sent[0]["type"] == "compaction_complete"
+        assert sent[0]["data"]["post_tokens"] == 4096
+
+    def test_compaction_complete_none_defaults_to_zero(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.SESSION_COMPACTION_COMPLETE,
+            post_compaction_tokens=None,
+        ))
+        assert sent[0]["data"]["post_tokens"] == 0
+
+    def test_turn_started(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.ASSISTANT_TURN_START,
+        ))
+        assert len(sent) == 1
+        assert sent[0]["type"] == "turn_started"
+        assert sent[0]["data"] == {}
+
+    def test_turn_ended(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.ASSISTANT_TURN_END,
+        ))
+        assert len(sent) == 1
+        assert sent[0]["type"] == "turn_ended"
+        assert sent[0]["data"] == {}
+
+    def test_subagent_deselected(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.SUBAGENT_DESELECTED,
+            agent_name="qa-reviewer",
+        ))
+        assert len(sent) == 1
+        assert sent[0]["type"] == "subagent_deselected"
+        assert sent[0]["data"]["agent"] == "qa-reviewer"
+
+
+# ===================================================================
+# 14. hasattr guards — events missing from SessionEventType
+# ===================================================================
+
+class _MinimalSessionEventType:
+    """SessionEventType WITHOUT the new verbose attributes.
+
+    Simulates an older SDK where these event types don't exist.
+    """
+    ASSISTANT_MESSAGE_DELTA = "ASSISTANT_MESSAGE_DELTA"
+    ASSISTANT_STREAMING_DELTA = "ASSISTANT_STREAMING_DELTA"
+    TOOL_EXECUTION_START = "TOOL_EXECUTION_START"
+    TOOL_EXECUTION_COMPLETE = "TOOL_EXECUTION_COMPLETE"
+    SUBAGENT_STARTED = "SUBAGENT_STARTED"
+    SUBAGENT_COMPLETED = "SUBAGENT_COMPLETED"
+    ASSISTANT_USAGE = "ASSISTANT_USAGE"
+    SESSION_ERROR = "SESSION_ERROR"
+    # Deliberately MISSING: ASSISTANT_REASONING_DELTA, TOOL_EXECUTION_PARTIAL_RESULT,
+    # TOOL_EXECUTION_PROGRESS, ASSISTANT_INTENT, ASSISTANT_REASONING, SESSION_HANDOFF,
+    # SESSION_COMPACTION_START, SESSION_COMPACTION_COMPLETE, ASSISTANT_TURN_START,
+    # ASSISTANT_TURN_END, SUBAGENT_DESELECTED
+
+
+class TestHasattrGuards:
+    """Events guarded by hasattr should not crash when the enum lacks the attribute."""
+
+    @pytest.fixture
+    def minimal_handler_env(self):
+        sid = "guard-test"
+        add_ws(sid, object())
+        sent: list[dict] = []
+
+        def fake_send(payload, session_id=None):
+            sent.append(payload)
+
+        with patch("server_adapter._send", side_effect=fake_send):
+            with patch(
+                "copilot.generated.session_events.SessionEventType",
+                _MinimalSessionEventType,
+                create=True,
+            ):
+                handler = _make_ws_handler(sid)
+                yield handler, sent
+
+    def test_unknown_event_type_does_not_crash(self, minimal_handler_env):
+        """An event with an unrecognized type should hit the catch-all without error."""
+        handler, sent = minimal_handler_env
+        handler(_make_event("TOTALLY_UNKNOWN_TYPE"))
+        assert len(sent) == 0  # not forwarded, but no exception
+
+
+# ===================================================================
+# 15. Existing delta handling still works
+# ===================================================================
+
+class TestExistingDeltaStillWorks:
+    """Verify ASSISTANT_MESSAGE_DELTA forwarding was not broken."""
+
+    def test_message_delta_forwarded(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.ASSISTANT_MESSAGE_DELTA,
+            delta_content="Hello world",
+        ))
+        assert len(sent) == 1
+        assert sent[0]["type"] == "delta"
+        assert sent[0]["data"]["content"] == "Hello world"
+
+    def test_message_delta_accumulates_response_buffer(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.ASSISTANT_MESSAGE_DELTA,
+            delta_content="chunk1",
+        ))
+        handler(_make_event(
+            _FakeSessionEventType.ASSISTANT_MESSAGE_DELTA,
+            delta_content="chunk2",
+        ))
+        conn = get_connection(sid)
+        assert conn.get_response_text() == "chunk1chunk2"
+
+    def test_message_delta_dedup_by_event_id(self, handler_env):
+        handler, sent, sid = handler_env
+        evt = _make_event(
+            _FakeSessionEventType.ASSISTANT_MESSAGE_DELTA,
+            delta_content="dup",
+        )
+        handler(evt)
+        handler(evt)  # same event object → same id → deduped
+        assert len(sent) == 1
+
+    def test_streaming_delta_forwarded(self, handler_env):
+        handler, sent, sid = handler_env
+        handler(_make_event(
+            _FakeSessionEventType.ASSISTANT_STREAMING_DELTA,
+            delta_content="streaming chunk",
+        ))
+        assert len(sent) == 1
+        assert sent[0]["type"] == "delta"
+        assert sent[0]["data"]["content"] == "streaming chunk"

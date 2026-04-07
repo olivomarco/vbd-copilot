@@ -26,6 +26,8 @@ const POLL_INTERVAL_MS = 8000;
  */
 export function useActiveJobWatcher() {
   const connections = useRef<Map<string, WebSocket>>(new Map());
+  /** Seen envelope IDs for waiting_for_input dedup across hooks. */
+  const seenWaitingIds = useRef<Set<string>>(new Set());
 
   const jobs = useJobStore((s) => s.jobs);
   const updateJob = useJobStore((s) => s.updateJob);
@@ -70,12 +72,32 @@ export function useActiveJobWatcher() {
         const isEnvelope = raw.v === 1 && raw.id && raw.data;
         const t: string = raw.type;
         const msg = isEnvelope ? raw.data : raw;
+        const msgId: string | null = isEnvelope ? raw.id : null;
 
-        // If the workspace WS is handling this session, only process
-        // terminal events (done/cancelled), new_files, and input_timed_out as a safety net
+        // If the workspace WS (from AgentWorkspace or LiveJobCard) is handling
+        // this session, skip everything except terminal events and file delivery.
+        // waiting_for_input is explicitly skipped here — the workspace WS handles
+        // it, and dual processing causes duplicate notifications and event cards.
         const wsCheckJob = useJobStore.getState().getJob(id);
         if (wsCheckJob?._ws && wsCheckJob._ws.readyState < WebSocket.CLOSING) {
           if (t !== "done" && t !== "cancelled" && t !== "new_files" && t !== "input_timed_out") return;
+        }
+
+        // Even without the workspace WS, guard against race conditions where
+        // both hooks process the same waiting_for_input nearly simultaneously.
+        // Use envelope ID dedup to prevent double-processing.
+        if (t === "waiting_for_input" && msgId) {
+          if (seenWaitingIds.current.has(msgId)) return;
+          seenWaitingIds.current.add(msgId);
+          // Also check if the event is already in the job's events list
+          // (the workspace WS may have pushed it just before us)
+          const raceCheckJob = useJobStore.getState().getJob(id);
+          if (raceCheckJob) {
+            const alreadyInFeed = raceCheckJob.events.some(
+              (e) => e.type === "waiting_for_input" && (e.data as any).question === (msg.question || "The agent has a question"),
+            );
+            if (alreadyInFeed) return;
+          }
         }
 
         if (t === "session_state_changed" && msg.status === "ended") {
@@ -111,8 +133,12 @@ export function useActiveJobWatcher() {
               { question, choices },
             ],
           });
-          // Push to event feed so the workspace shows it when the user navigates
-          pushEvent(id, { type: t, data: msg });
+          // NOTE: Do NOT pushEvent here. The useWebSocket hook (from
+          // AgentWorkspace or LiveJobCard) is responsible for pushing
+          // waiting_for_input to the event feed. If the watcher also pushes,
+          // the feed shows duplicate "Waiting for input" cards. The watcher
+          // only needs to update pendingInput (for the UI badge/status) and
+          // fire the notification sound.
           void notifyInputRequired();
         }
 

@@ -19,6 +19,11 @@ let systemNotificationTimer: ReturnType<typeof setTimeout> | null = null;
 /* ------------------------------------------------------------------ */
 
 let audioCtx: AudioContext | null = null;
+/** Timestamp of the last notification sound — used for debouncing. */
+let lastSoundTime = 0;
+/** Minimum gap between notification sounds (ms). Prevents double-chime
+ *  when multiple WebSocket hooks process the same event. */
+const SOUND_DEBOUNCE_MS = 2000;
 
 function getAudioContext(): AudioContext {
   if (!audioCtx) {
@@ -29,9 +34,14 @@ function getAudioContext(): AudioContext {
 
 /**
  * Play a short two-tone chime.  Uses the Web Audio API so no external
- * audio file is needed.
+ * audio file is needed.  Debounced: ignores calls within 2 s of the
+ * last chime to prevent double-notification from parallel WS hooks.
  */
 export function playNotificationSound(): void {
+  const now = Date.now();
+  if (now - lastSoundTime < SOUND_DEBOUNCE_MS) return;
+  lastSoundTime = now;
+
   try {
     const ctx = getAudioContext();
 
@@ -235,7 +245,8 @@ function sendSystemNotification(title: string, body: string): void {
 
 /**
  * Fire all attention signals: sound + favicon badge + title flash.
- * Safe to call multiple times — deduplicates internally.
+ * Safe to call multiple times — debounces sound and deduplicates
+ * favicon/title internally.
  */
 export async function notifyInputRequired(): Promise<void> {
   initializeNotifications();

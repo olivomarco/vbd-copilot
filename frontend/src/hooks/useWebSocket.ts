@@ -349,11 +349,18 @@ export function useWebSocket(sessionId: string | null) {
           const choices = msg.choices || undefined;
           const currentJob = useJobStore.getState().getJob(sid);
           const prevQueue = currentJob?.pendingInput || [];
-          updateJob(sid, {
-            status: "waiting",
-            pendingInput: [...prevQueue, { question, choices }],
-          });
-          void notifyInputRequired();
+          // Guard against the watcher hook having already queued this question
+          const alreadyNotified = prevQueue.some((p) => p.question === question);
+          if (!alreadyNotified) {
+            updateJob(sid, {
+              status: "waiting",
+              pendingInput: [...prevQueue, { question, choices }],
+            });
+            void notifyInputRequired();
+          } else {
+            // Question already queued by watcher — just ensure status is waiting
+            updateJob(sid, { status: "waiting" });
+          }
           break;
         }
 
