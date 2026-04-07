@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
-from typing import Optional
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -48,15 +47,15 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    username: Optional[str] = None
-    role: Optional[str] = None
+    username: str | None = None
+    role: str | None = None
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (
         expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -65,7 +64,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def decode_access_token(token: str) -> Optional[dict]:
+def decode_access_token(token: str) -> dict | None:
     """Decode and validate a JWT. Returns None if the token is invalid or expired."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])

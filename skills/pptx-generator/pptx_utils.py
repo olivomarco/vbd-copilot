@@ -10,7 +10,7 @@ Microsoft brand identity; logo and lead background are loaded from assets/.
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN, MSO_ANCHOR, MSO_AUTO_SIZE
+from pptx.enum.text import PP_ALIGN, MSO_AUTO_SIZE
 from pptx.enum.shapes import MSO_SHAPE
 from collections import namedtuple
 import os
@@ -494,7 +494,6 @@ def group_shapes(slide, shapes_list):
     """
     from pptx.oxml.ns import qn
     from lxml import etree
-    from copy import deepcopy
 
     spTree = slide.shapes._spTree
 
@@ -1106,7 +1105,7 @@ def add_progress_bar(slide, left, top, width, height=Inches(0.18),
         add_progress_bar(slide, x, y, Inches(4), progress=0.85, label="Adoption")
     """
     # Track (background)
-    track = add_rounded_card(slide, left, top, width, height,
+    _track = add_rounded_card(slide, left, top, width, height,
                              fill=track_color, border=None, corner_radius=0.5)
     # Fill (foreground)
     fill_w = max(int(width * progress), Inches(0.08))
@@ -1838,7 +1837,7 @@ def add_feature_grid(slide, features, left=CONTENT_LEFT, top=CONTENT_TOP,
         ch = int(card_h)  # EMU for proportional offsets
 
         # Card with subtle shadow
-        card = add_elevated_card(slide, x, y, card_w, card_h,
+        _card = add_elevated_card(slide, x, y, card_w, card_h,
                                  fill=MS_WHITE, border=MS_LIGHT_GRAY, shadow="paper")
         # Top accent
         add_rect(slide, x, y, card_w, Inches(0.04), color)
@@ -2022,7 +2021,7 @@ def add_agenda_list(slide, items, left=CONTENT_LEFT, top=Inches(1.5),
         num_bg = MS_DARK_BLUE if is_active else MS_BLUE
         num_text = MS_WHITE
 
-        card = add_elevated_card(slide, left, y, width, item_h,
+        _card = add_elevated_card(slide, left, y, width, item_h,
                                  fill=bg_color,
                                  border=MS_ACCENT_LIGHT if not is_active else None,
                                  corner_radius=0.04,
@@ -2112,7 +2111,7 @@ def add_pricing_table(slide, tiers, left=CONTENT_LEFT, top=Inches(1.3),
         y_offset = Inches(-0.15) if is_featured else 0
         card_h = height + (Inches(0.15) if is_featured else 0)
 
-        card = add_elevated_card(slide, x, top + y_offset, col_w, card_h,
+        _card = add_elevated_card(slide, x, top + y_offset, col_w, card_h,
                                  fill=MS_WHITE, border=color,
                                  shadow="strong" if is_featured else "subtle")
 
@@ -2217,7 +2216,7 @@ def add_maturity_model(slide, levels, current_level=None,
         text_c = MS_WHITE if is_current else MS_DARK_BLUE
         desc_c = RGBColor(0xDD, 0xEE, 0xFF) if is_current else MS_TEXT_MUTED
 
-        card = add_elevated_card(slide, x + Inches(0.04), y, step_w - Inches(0.08),
+        _card = add_elevated_card(slide, x + Inches(0.04), y, step_w - Inches(0.08),
                                  step_h, fill=color, border=MS_MID_GRAY,
                                  shadow="medium" if is_current else "paper")
         # Level number
@@ -2307,7 +2306,7 @@ def create_standard_slide(prs, title, page_num=None, total=None, notes="",
     title_h = estimate_text_height(title, title_font_size, float(CONTENT_WIDTH) / 914400 - 0.2,
                                    padding_inches=0.1, min_lines=1)
     title_h = max(title_h, Inches(0.5))
-    tb = add_textbox(slide, title, CONTENT_LEFT, Inches(0.2), CONTENT_WIDTH, title_h,
+    _tb = add_textbox(slide, title, CONTENT_LEFT, Inches(0.2), CONTENT_WIDTH, title_h,
                 font_size=title_font_size, color=MS_BLUE, bold=True,
                 font_name=FONT_SEMIBOLD, shrink_to_fit=True)
     add_bottom_bar(slide, page_num, total)
@@ -2326,9 +2325,13 @@ def create_section_divider(prs, title, subtitle="", notes=""):
     add_rect(slide, Inches(0), Inches(0), Inches(0.12), SLIDE_HEIGHT, MS_BLUE)
     # Decorative circles (use slightly lighter shade for contrast on dark bg)
     c1 = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(10.5), Inches(-1.2), Inches(4.5), Inches(4.5))
-    c1.fill.solid(); c1.fill.fore_color.rgb = RGBColor(0x2E, 0x4A, 0x6E); c1.line.fill.background()
+    c1.fill.solid()
+    c1.fill.fore_color.rgb = RGBColor(0x2E, 0x4A, 0x6E)
+    c1.line.fill.background()
     c2 = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(10), Inches(5.8), Inches(1.5), Inches(1.5))
-    c2.fill.solid(); c2.fill.fore_color.rgb = RGBColor(0x2E, 0x4A, 0x6E); c2.line.fill.background()
+    c2.fill.solid()
+    c2.fill.fore_color.rgb = RGBColor(0x2E, 0x4A, 0x6E)
+    c2.line.fill.background()
     # Title - Light weight for elegant section dividers
     tb = add_textbox(slide, title, Inches(1.0), Inches(2.5), Inches(10), Inches(1.2),
                 font_size=44, color=MS_WHITE, bold=False,
@@ -2367,12 +2370,17 @@ def create_lead_slide(prs, title, subtitle="", meta="", notes="",
     # Level badge in decorative circles
     if level:
         c1 = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(9.5), Inches(1.5), Inches(4.5), Inches(4.5))
-        c1.fill.solid(); c1.fill.fore_color.rgb = MS_DARK_BLUE; c1.line.fill.background()
+        c1.fill.solid()
+        c1.fill.fore_color.rgb = MS_DARK_BLUE
+        c1.line.fill.background()
         c2 = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(10.2), Inches(2.2), Inches(3.1), Inches(3.1))
-        c2.fill.solid(); c2.fill.fore_color.rgb = MS_BLUE; c2.line.fill.background()
+        c2.fill.solid()
+        c2.fill.fore_color.rgb = MS_BLUE
+        c2.line.fill.background()
 
         # Large level text
-        tf = c2.text_frame; tf.word_wrap = True
+        tf = c2.text_frame
+        tf.word_wrap = True
         tf.paragraphs[0].space_after = Pt(0)
         p1 = tf.paragraphs[0]
         p1.alignment = PP_ALIGN.CENTER
@@ -2433,7 +2441,9 @@ def create_closing_slide(prs, title="Key Takeaways", takeaways=None,
     # Blue band left
     add_rect(slide, Inches(0), Inches(0), Inches(5.2), SLIDE_HEIGHT, MS_BLUE)
     c = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(-1.5), Inches(4.8), Inches(3.5), Inches(3.5))
-    c.fill.solid(); c.fill.fore_color.rgb = MS_DARK_BLUE; c.line.fill.background()
+    c.fill.solid()
+    c.fill.fore_color.rgb = MS_DARK_BLUE
+    c.line.fill.background()
     # Left title
     add_textbox(slide, title, Inches(0.6), Inches(0.6), Inches(4), title_height,
                 font_size=title_font_size, color=MS_WHITE, bold=True)
@@ -2823,7 +2833,6 @@ def add_timeline(slide, phases, left=CONTENT_LEFT, top=Inches(1.3),
         # Dotted connector line between boxes
         if i < n - 1:
             line_left = x + box_w
-            line_right = line_left + gap
             mid_y = connector_y
             conn = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE,
                                           line_left, mid_y, gap, Pt(2))
@@ -3081,8 +3090,6 @@ def add_hyperlink(run, url):
     for old in rPr.findall(qn('a:hlinkClick')):
         rPr.remove(old)
 
-    # Get the slide part for relationship management
-    slide_part = run._r.getroottree().getroot()
     # Walk up to find the slide part
     part = None
     el = run._r

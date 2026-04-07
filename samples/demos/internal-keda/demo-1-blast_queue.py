@@ -46,12 +46,12 @@ except ImportError:
 async def blast(hostname: str, queue_name: str, count: int) -> None:
     """Send 'count' JSON order messages to the specified Service Bus queue."""
 
-    print(f"")
+    print("")
     print(f"  ==> Connecting to: {hostname}")
     print(f"  ==> Queue        : {queue_name}")
     print(f"  ==> Messages     : {count}")
-    print(f"  ==> Auth         : DefaultAzureCredential (az login / Managed Identity)")
-    print(f"")
+    print("  ==> Auth         : DefaultAzureCredential (az login / Managed Identity)")
+    print("")
 
     credential = DefaultAzureCredential()
 
@@ -91,22 +91,22 @@ async def blast(hostname: str, queue_name: str, count: int) -> None:
                     batch_count += 1
                     sent_total += count - (sent_total)  # account for remainder
 
-        print(f"")
+        print("")
         print(f"  *** SUCCESS: {count} messages sent in {batch_count} batch(es) ***")
         print(f"  *** Destination : {hostname}/{queue_name}            ***")
-        print(f"  *** Watch KEDA  : watch -n 2 kubectl get pods -n keda-dotnet-sample ***")
-        print(f"")
+        print("  *** Watch KEDA  : watch -n 2 kubectl get pods -n keda-dotnet-sample ***")
+        print("")
 
     except Exception as exc:
-        print(f"")
-        print(f"  ERROR: Failed to send messages.")
+        print("")
+        print("  ERROR: Failed to send messages.")
         print(f"  Detail: {exc}")
-        print(f"")
-        print(f"  Troubleshooting checklist:")
-        print(f"    1. Run 'az login' if the DefaultAzureCredential fails with 401/403")
-        print(f"    2. Confirm your identity has 'Azure Service Bus Data Sender' on the namespace")
-        print(f"    3. Confirm --hostname includes the full .servicebus.windows.net suffix")
-        print(f"    4. Confirm Service Bus namespace is Standard SKU (not Basic)")
+        print("")
+        print("  Troubleshooting checklist:")
+        print("    1. Run 'az login' if the DefaultAzureCredential fails with 401/403")
+        print("    2. Confirm your identity has 'Azure Service Bus Data Sender' on the namespace")
+        print("    3. Confirm --hostname includes the full .servicebus.windows.net suffix")
+        print("    4. Confirm Service Bus namespace is Standard SKU (not Basic)")
         sys.exit(1)
     finally:
         await credential.close()
@@ -142,7 +142,7 @@ def main() -> None:
 
     if not args.hostname.endswith(".servicebus.windows.net"):
         print(f"WARNING: hostname '{args.hostname}' does not end with .servicebus.windows.net")
-        print(f"         Continuing anyway - verify this is correct.")
+        print("         Continuing anyway - verify this is correct.")
 
     if args.count < 1 or args.count > 10000:
         print(f"ERROR: --count must be between 1 and 10000 (got {args.count})")

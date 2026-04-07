@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 TransactionType = Literal[
     "debit",
@@ -31,7 +30,7 @@ class Transaction(BaseModel):
     amount: float
     currency: str = "USD"
     description: str
-    reference_id: Optional[str] = None
+    reference_id: str | None = None
     status: TransactionStatus = "pending"
     created_at: datetime
     # TODO: Decimal
@@ -47,7 +46,7 @@ class TransactionCreate(BaseModel):
     amount: float = Field(..., gt=0, description="Transaction amount, must be positive")
     currency: str = Field(default="USD", min_length=3, max_length=3)
     description: str = Field(..., min_length=1, max_length=255)
-    reference_id: Optional[str] = Field(
+    reference_id: str | None = Field(
         None,
         description="Caller-supplied idempotency reference",
     )

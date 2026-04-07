@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 AccountType = Literal["checking", "savings", "money_market"]
 
@@ -47,8 +46,8 @@ class AccountCreate(BaseModel):
 class AccountUpdate(BaseModel):
     """Request body for updating mutable account fields."""
 
-    owner_name: Optional[str] = Field(None, min_length=2, max_length=100)
-    is_active: Optional[bool] = None
+    owner_name: str | None = Field(None, min_length=2, max_length=100)
+    is_active: bool | None = None
 
 
 class AccountSummary(BaseModel):

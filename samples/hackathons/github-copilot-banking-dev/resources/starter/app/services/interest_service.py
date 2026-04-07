@@ -39,7 +39,7 @@ class InterestService:
                 interest=interest,
             )
             return interest
-        except:  # BUG 3: bare except catches everything including KeyboardInterrupt.
+        except Exception:  # BUG 3: bare except catches everything including KeyboardInterrupt.
             # ValueError, TypeError, and ZeroDivisionError are all silently swallowed.
             # Callers receive 0.0 and have no way to detect that the calculation failed.
             return 0.0
@@ -72,7 +72,7 @@ class InterestService:
                 interest=interest,
             )
             return interest
-        except:  # BUG 3 (repeated): same silent failure pattern
+        except Exception:  # BUG 3 (repeated): same silent failure pattern
             return 0.0
 
     def apply_monthly_interest(

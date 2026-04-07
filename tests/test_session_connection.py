@@ -100,7 +100,7 @@ class TestBuildSnapshot:
         assert sa.build_snapshot("nonexistent") is None
 
     def test_idle_session(self):
-        conn = sa._get_or_create("snap-1")
+        sa._get_or_create("snap-1")
         snap = sa.build_snapshot("snap-1")
         assert snap is not None
         assert snap["type"] == "session_snapshot"

@@ -25,7 +25,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from pptx import Presentation
-from pptx.util import Emu, Inches, Pt
+from pptx.util import Inches
 
 # ── Layout constants (imported from sibling pptx_utils.py) ────────────────────
 import importlib.util as _ilu
@@ -544,9 +544,9 @@ def check_content_margins(prs: Presentation) -> list[dict]:
     for slide_idx, slide in enumerate(prs.slides, 1):
         for shape in slide.shapes:
             left = shape.left or 0
-            top = shape.top or 0
+            _top = shape.top or 0
             w = shape.width or 0
-            h = shape.height or 0
+            _h = shape.height or 0
 
             # Skip background/decorative shapes
             if w >= SLIDE_WIDTH_EMU * 0.9:
@@ -689,36 +689,36 @@ def run_all_checks(pptx_path: str, expected_slides: int | None = None) -> dict:
 def format_report(report: dict) -> str:
     """Format the report as human-readable text."""
     lines = []
-    lines.append(f"## PPTX QA Report")
-    lines.append(f"")
+    lines.append("## PPTX QA Report")
+    lines.append("")
     lines.append(f"**Status:** {report['status']}")
     lines.append(f"**File:** {report['file']}")
     lines.append(f"**Slides:** {report.get('slide_count', '?')}")
     if report.get("expected_slides"):
         lines.append(f"**Expected:** {report['expected_slides']}")
-    lines.append(f"")
-    lines.append(f"### Summary")
+    lines.append("")
+    lines.append("### Summary")
     summary = report.get("summary", {})
     lines.append(f"- CRITICAL: {summary.get('CRITICAL', 0)}")
     lines.append(f"- MAJOR: {summary.get('MAJOR', 0)}")
     lines.append(f"- MINOR: {summary.get('MINOR', 0)}")
-    lines.append(f"")
+    lines.append("")
 
     if not report.get("issues"):
         lines.append("No issues found.")
     else:
-        lines.append(f"### Issues by Slide")
-        lines.append(f"")
+        lines.append("### Issues by Slide")
+        lines.append("")
         by_slide = report.get("issues_by_slide", {})
         for slide_num in sorted(by_slide.keys()):
             slide_issues = by_slide[slide_num]
             if slide_num == 0:
-                lines.append(f"#### General")
+                lines.append("#### General")
             else:
                 lines.append(f"#### Slide {slide_num}")
             for issue in slide_issues:
                 lines.append(f"- **[{issue['severity']}]** ({issue['check']}) {issue['message']}")
-            lines.append(f"")
+            lines.append("")
 
     return "\n".join(lines)
 

@@ -10,7 +10,6 @@ for file format conversion, handling output directory placement.
 """
 
 import argparse
-import os
 import subprocess
 import sys
 from pathlib import Path

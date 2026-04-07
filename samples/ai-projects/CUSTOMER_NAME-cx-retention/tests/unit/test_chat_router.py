@@ -7,9 +7,7 @@ session management, and feedback submission.
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 

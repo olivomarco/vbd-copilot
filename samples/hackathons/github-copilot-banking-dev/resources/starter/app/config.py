@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from typing import List
 
 
 class Settings:
@@ -22,7 +21,7 @@ class Settings:
     environment: str = os.environ.get("FINCORE_ENVIRONMENT", "development")
     log_level: str = os.environ.get("FINCORE_LOG_LEVEL", "INFO")
     jwt_expiry_minutes: int = int(os.environ.get("FINCORE_JWT_EXPIRY_MINUTES", "60"))
-    allowed_origins: List[str] = os.environ.get(
+    allowed_origins: list[str] = os.environ.get(
         "FINCORE_ALLOWED_ORIGINS",
         "http://localhost:3000,http://localhost:8000",
     ).split(",")

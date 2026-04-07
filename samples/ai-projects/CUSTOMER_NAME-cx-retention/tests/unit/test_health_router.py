@@ -6,9 +6,7 @@ with all services up, and readiness with degraded service.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 

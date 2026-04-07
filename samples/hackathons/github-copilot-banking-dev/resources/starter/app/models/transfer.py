@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -13,9 +11,9 @@ class TransferRequest(BaseModel):
     # TODO: Decimal
     amount: float = Field(..., gt=0)
     currency: str = Field(default="USD", min_length=3, max_length=3)
-    description: Optional[str] = Field(None, max_length=255)
+    description: str | None = Field(None, max_length=255)
     # reference_id is accepted but NOT checked for uniqueness - missing idempotency
-    reference_id: Optional[str] = Field(
+    reference_id: str | None = Field(
         None,
         description="Optional caller reference. Not currently checked for uniqueness.",
     )

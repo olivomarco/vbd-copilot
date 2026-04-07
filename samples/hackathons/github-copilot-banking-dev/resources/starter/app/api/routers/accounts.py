@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List
-
 import structlog
 from fastapi import APIRouter, Depends
 
@@ -14,11 +12,11 @@ logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 
-@router.get("/", response_model=List[AccountSummary], summary="List accounts")
+@router.get("/", response_model=list[AccountSummary], summary="List accounts")
 async def list_accounts(
     active_only: bool = True,
     current_user: dict = Depends(get_current_user),
-) -> List[AccountSummary]:
+) -> list[AccountSummary]:
     """Return all accounts visible to the authenticated user."""
     service = AccountService()
     return service.list_accounts(active_only=active_only)

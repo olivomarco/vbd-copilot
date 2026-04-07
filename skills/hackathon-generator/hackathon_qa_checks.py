@@ -22,7 +22,6 @@ import json
 import os
 import re
 import sys
-from pathlib import Path
 
 # Placeholder / TODO patterns
 PLACEHOLDER_RE = re.compile(
@@ -523,7 +522,7 @@ def check_solution_leakage_challenges(
             for block_start, block_content in _extract_code_blocks(text):
                 block_lines = block_content.splitlines()
                 commented_code = 0
-                total_lines = len([l for l in block_lines if l.strip()])
+                total_lines = len([line for line in block_lines if line.strip()])
                 for line in block_lines:
                     stripped = line.strip()
                     # Detect commented-out code: comment marker followed by

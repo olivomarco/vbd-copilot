@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, List
 
 import structlog
 
@@ -16,7 +15,7 @@ from app.services.account_service import AccountService
 
 logger = structlog.get_logger(__name__)
 
-_transactions: Dict[int, Transaction] = {}
+_transactions: dict[int, Transaction] = {}
 _next_id: int = 1
 
 DEBIT_TYPES = {"debit", "transfer_out", "fee"}
@@ -105,7 +104,7 @@ class TransactionService:
             raise TransactionNotFoundError(transaction_id)
         return transaction
 
-    def get_transactions(self, account_id: int) -> List[Transaction]:
+    def get_transactions(self, account_id: int) -> list[Transaction]:
         """Return all transactions for a given account, most recent first."""
         account_transactions = [
             t for t in _transactions.values() if t.account_id == account_id

@@ -25,7 +25,6 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
-from pathlib import Path
 
 # Placeholder / TODO patterns
 PLACEHOLDER_RE = re.compile(

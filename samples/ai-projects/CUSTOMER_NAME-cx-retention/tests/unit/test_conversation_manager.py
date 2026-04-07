@@ -6,9 +6,7 @@ retrieval, and GDPR deletion. All Cosmos DB operations are mocked.
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -45,7 +43,7 @@ class TestCreateSession:
         mock_cosmos_container: AsyncMock,
     ) -> None:
         """New session is created with correct fields."""
-        session = await patched_manager.get_or_create_session()
+        await patched_manager.get_or_create_session()
 
         mock_cosmos_container.create_item.assert_awaited_once()
         created_doc = mock_cosmos_container.create_item.call_args[0][0]
@@ -64,7 +62,7 @@ class TestCreateSession:
         mock_cosmos_container: AsyncMock,
     ) -> None:
         """New session includes the bill reference when provided."""
-        session = await patched_manager.get_or_create_session(bill_ref="BILL-001")
+        await patched_manager.get_or_create_session(bill_ref="BILL-001")
 
         created_doc = mock_cosmos_container.create_item.call_args[0][0]
         assert created_doc["billRef"] == "BILL-001"
@@ -109,7 +107,7 @@ class TestGetExistingSession:
         """Session not found falls back to creation."""
         mock_cosmos_container.read_item.side_effect = CosmosResourceNotFoundError(status_code=404, message="Not found")
 
-        session = await patched_manager.get_or_create_session(session_id="missing-id")
+        await patched_manager.get_or_create_session(session_id="missing-id")
 
         # Should have attempted read, then created a new session
         mock_cosmos_container.read_item.assert_awaited_once()

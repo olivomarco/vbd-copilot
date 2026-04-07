@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.models.account import Account, AccountCreate
-from app.models.transaction import Transaction, TransactionCreate
+from app.models.transaction import Transaction
 
 
 @pytest.fixture

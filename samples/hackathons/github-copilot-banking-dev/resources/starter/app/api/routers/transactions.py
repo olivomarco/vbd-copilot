@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List
-
 import structlog
 from fastapi import APIRouter, Depends
 
@@ -36,13 +34,13 @@ async def create_transaction(
 
 @router.get(
     "/{account_id}",
-    response_model=List[Transaction],
+    response_model=list[Transaction],
     summary="List transactions for an account",
 )
 async def get_transactions(
     account_id: int,
     current_user: dict = Depends(get_current_user),
-) -> List[Transaction]:
+) -> list[Transaction]:
     """Return all transactions for the specified account, newest first."""
     service = TransactionService()
     return service.get_transactions(account_id)

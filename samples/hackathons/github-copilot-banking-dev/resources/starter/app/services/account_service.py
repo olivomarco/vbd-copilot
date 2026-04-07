@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, List
 
 import structlog
 
@@ -9,7 +8,6 @@ from app.exceptions import (
     AccountClosedError,
     AccountNotFoundError,
     DuplicateAccountError,
-    InsufficientFundsError,
     ValidationError,
 )
 from app.models.account import Account, AccountCreate, AccountUpdate
@@ -17,7 +15,7 @@ from app.models.account import Account, AccountCreate, AccountUpdate
 logger = structlog.get_logger(__name__)
 
 # In-memory store. In production this would delegate to a SQLAlchemy repository.
-_store: Dict[int, Account] = {}
+_store: dict[int, Account] = {}
 _next_id: int = 1
 
 
@@ -32,7 +30,7 @@ class AccountService:
         # Missing: audit log of read access for sensitive accounts
         return account
 
-    def list_accounts(self, active_only: bool = True) -> List[Account]:
+    def list_accounts(self, active_only: bool = True) -> list[Account]:
         """Return all accounts, optionally filtering to active ones only."""
         accounts = list(_store.values())
         if active_only:
