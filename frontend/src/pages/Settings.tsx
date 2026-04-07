@@ -228,32 +228,6 @@ export function Settings() {
                 ${usage.total_cost_usd.toFixed(2)}
               </Text>
             </Card>
-            <Card
-              style={{
-                border: "1px solid var(--border)",
-                borderRadius: 10,
-                padding: "16px 20px",
-                textAlign: "center",
-              }}
-            >
-              <Text
-                size={200}
-                style={{
-                  display: "block",
-                  color: "var(--text-secondary)",
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                  fontSize: 10,
-                  letterSpacing: "0.04em",
-                  marginBottom: 6,
-                }}
-              >
-                Turns
-              </Text>
-              <Text size={700} weight="bold">
-                {usage.turn_count}
-              </Text>
-            </Card>
           </div>
 
           {/* By Agent breakdown */}
