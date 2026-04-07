@@ -90,12 +90,17 @@ class SessionConnection:
         self.subagent_correlations.clear()
         self._seq = 0
         self.response_buffer.clear()
-        # drain input queue
-        while not self.input_queue.empty():
-            try:
-                self.input_queue.get_nowait()
-            except asyncio.QueueEmpty:
-                break
+        # Drain input queue ONLY if no _user_input callback is actively
+        # waiting for a response.  When the lock is held a callback is
+        # blocked on ``input_queue.get()``; draining the queue would
+        # discard any response the user already pushed and leave the
+        # callback stuck until it times out.
+        if not self.ask_user_lock.locked():
+            while not self.input_queue.empty():
+                try:
+                    self.input_queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    break
 
     def cleanup(self) -> None:
         """Full cleanup when all clients disconnect."""
@@ -185,8 +190,17 @@ def remove_ws(session_id: str, ws: Any) -> bool:
         return True
     is_empty = conn.remove_ws(ws)
     if is_empty:
-        conn.cleanup()
-        _connections.pop(sid, None)
+        # If a ``_user_input`` callback is actively waiting for a response
+        # (lock held) or there is a pending question that hasn't resolved
+        # yet, keep the SessionConnection alive.  A new WebSocket may
+        # reconnect shortly (e.g. the watcher→workspace handoff) and
+        # needs to find the *same* input_queue so the waiting callback
+        # can receive the answer.
+        if conn.ask_user_lock.locked() or conn.pending_input is not None:
+            pass  # preserve connection for the reconnecting client
+        else:
+            conn.cleanup()
+            _connections.pop(sid, None)
     return is_empty
 
 

@@ -202,3 +202,119 @@ class TestPublicFunctionDelegation:
 
     def test_get_connection_returns_none(self):
         assert sa.get_connection("nonexistent") is None
+
+
+class TestConcurrentConnectionPreservation:
+    """Tests for the watcher→workspace WS handoff fix.
+
+    When a _user_input callback is waiting (ask_user_lock held) or
+    pending_input is set, the SessionConnection must NOT be destroyed
+    when all WebSockets disconnect.  This preserves the input_queue so
+    the callback can receive the user's answer from the reconnecting WS.
+    """
+
+    def test_remove_ws_preserves_connection_when_lock_held(self):
+        """Connection survives WS disconnect when ask_user_lock is held."""
+        loop = asyncio.new_event_loop()
+        try:
+            sa.add_ws("locked-1", "ws-watcher")
+            conn = sa.get_connection("locked-1")
+
+            # Simulate a _user_input callback holding the lock
+            loop.run_until_complete(conn.ask_user_lock.acquire())
+            try:
+                sa.remove_ws("locked-1", "ws-watcher")
+                # Connection must still exist
+                assert sa.get_connection("locked-1") is conn
+            finally:
+                conn.ask_user_lock.release()
+        finally:
+            loop.close()
+
+    def test_remove_ws_preserves_connection_when_pending_input(self):
+        """Connection survives WS disconnect when pending_input is set."""
+        sa.add_ws("pending-1", "ws-watcher")
+        conn = sa.get_connection("pending-1")
+        conn.pending_input = {"question": "What topic?"}
+
+        sa.remove_ws("pending-1", "ws-watcher")
+        # Connection must still exist
+        assert sa.get_connection("pending-1") is conn
+        assert conn.pending_input == {"question": "What topic?"}
+
+    def test_remove_ws_cleans_up_when_idle(self):
+        """Connection IS cleaned up when no lock and no pending input."""
+        sa.add_ws("idle-1", "ws-watcher")
+        assert sa.get_connection("idle-1") is not None
+
+        sa.remove_ws("idle-1", "ws-watcher")
+        assert sa.get_connection("idle-1") is None
+
+    def test_new_ws_reuses_preserved_connection(self):
+        """A new WS joining a preserved connection shares the same queue."""
+        sa.add_ws("reuse-1", "ws-watcher")
+        conn = sa.get_connection("reuse-1")
+        conn.pending_input = {"question": "Pick a topic"}
+
+        # Watcher disconnects — connection preserved
+        sa.remove_ws("reuse-1", "ws-watcher")
+        assert sa.get_connection("reuse-1") is conn
+
+        # Workspace WS connects — joins the SAME connection
+        is_first = sa.add_ws("reuse-1", "ws-workspace")
+        assert is_first is True  # first WS in the set (watcher was removed)
+        assert sa.get_connection("reuse-1") is conn
+        assert "ws-workspace" in conn.websockets
+
+    def test_push_response_reaches_preserved_queue(self):
+        """User response pushed to a preserved connection reaches the waiting pop."""
+        loop = asyncio.new_event_loop()
+        try:
+            sa.add_ws("queue-1", "ws-watcher")
+            conn = sa.get_connection("queue-1")
+            loop.run_until_complete(conn.ask_user_lock.acquire())
+
+            # Watcher disconnects — connection preserved
+            sa.remove_ws("queue-1", "ws-watcher")
+            assert sa.get_connection("queue-1") is conn
+
+            # Workspace connects
+            sa.add_ws("queue-1", "ws-workspace")
+            # Same connection, same queue
+            assert sa.get_connection("queue-1") is conn
+
+            # User pushes response
+            sa.push_user_response("My answer", "queue-1")
+
+            # The pop should find the response on the same queue
+            result = loop.run_until_complete(
+                sa.pop_user_response(timeout=1.0, session_id="queue-1")
+            )
+            assert result == "My answer"
+            conn.ask_user_lock.release()
+        finally:
+            loop.close()
+
+    def test_reset_turn_preserves_queue_when_lock_held(self):
+        """reset_turn does NOT drain the input_queue when ask_user_lock is held."""
+        loop = asyncio.new_event_loop()
+        try:
+            conn = sa.SessionConnection("rt-1")
+            conn.input_queue.put_nowait("pending-answer")
+            loop.run_until_complete(conn.ask_user_lock.acquire())
+            try:
+                conn.reset_turn()
+                # Queue must NOT be drained
+                assert not conn.input_queue.empty()
+                assert conn.input_queue.get_nowait() == "pending-answer"
+            finally:
+                conn.ask_user_lock.release()
+        finally:
+            loop.close()
+
+    def test_reset_turn_drains_queue_when_unlocked(self):
+        """reset_turn DOES drain the input_queue when ask_user_lock is NOT held."""
+        conn = sa.SessionConnection("rt-2")
+        conn.input_queue.put_nowait("stale-answer")
+        conn.reset_turn()
+        assert conn.input_queue.empty()

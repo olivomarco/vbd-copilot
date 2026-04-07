@@ -1337,7 +1337,12 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
 
     # Send session snapshot to reconnecting clients (replaces individual
     # pending_input / last_done replays with a single structured message).
-    if not is_first_ws:
+    # Also send when ``is_first_ws`` is True but the SessionConnection was
+    # preserved across a watcher→workspace handoff (pending_input is set).
+    # Without this the workspace WS would miss the pending question.
+    conn_check = get_connection(session_id)
+    should_snapshot = (not is_first_ws) or (conn_check is not None and conn_check.pending_input is not None)
+    if should_snapshot:
         snapshot = build_snapshot(session_id)
         if snapshot:
             try:
