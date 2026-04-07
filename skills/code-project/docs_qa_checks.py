@@ -31,35 +31,50 @@ REQUIRED_SECTIONS = [
     {
         "name": "Project Overview",
         "patterns": [
-            re.compile(r"^#+\s*(project\s+overview|overview|introduction|about)", re.IGNORECASE | re.MULTILINE),
+            re.compile(
+                r"^#+\s*(project\s+overview|overview|introduction|about)",
+                re.IGNORECASE | re.MULTILINE,
+            ),
         ],
         "severity": "MAJOR",
     },
     {
         "name": "Prerequisites",
         "patterns": [
-            re.compile(r"^#+\s*(prerequisites?|requirements?|what\s+you\s+need)", re.IGNORECASE | re.MULTILINE),
+            re.compile(
+                r"^#+\s*(prerequisites?|requirements?|what\s+you\s+need)",
+                re.IGNORECASE | re.MULTILINE,
+            ),
         ],
         "severity": "MAJOR",
     },
     {
         "name": "Environment Setup",
         "patterns": [
-            re.compile(r"^#+\s*(environment\s+setup|env\w*\s+setup|configuration|setup)", re.IGNORECASE | re.MULTILINE),
+            re.compile(
+                r"^#+\s*(environment\s+setup|env\w*\s+setup|configuration|setup)",
+                re.IGNORECASE | re.MULTILINE,
+            ),
         ],
         "severity": "MAJOR",
     },
     {
         "name": "Infrastructure Deployment",
         "patterns": [
-            re.compile(r"^#+\s*(infrastructure\s+deploy|infra\w*\s+deploy|deploy\w*\s+infra)", re.IGNORECASE | re.MULTILINE),
+            re.compile(
+                r"^#+\s*(infrastructure\s+deploy|infra\w*\s+deploy|deploy\w*\s+infra)",
+                re.IGNORECASE | re.MULTILINE,
+            ),
         ],
         "severity": "MAJOR",
     },
     {
         "name": "Application Deployment",
         "patterns": [
-            re.compile(r"^#+\s*(application\s+deploy|app\w*\s+deploy|deploy\w*\s+app)", re.IGNORECASE | re.MULTILINE),
+            re.compile(
+                r"^#+\s*(application\s+deploy|app\w*\s+deploy|deploy\w*\s+app)",
+                re.IGNORECASE | re.MULTILINE,
+            ),
         ],
         "severity": "MAJOR",
     },
@@ -80,21 +95,30 @@ REQUIRED_SECTIONS = [
     {
         "name": "Local Development",
         "patterns": [
-            re.compile(r"^#+\s*(local\s+dev|local\s+development|running\s+locally|develop\w*\s+local)", re.IGNORECASE | re.MULTILINE),
+            re.compile(
+                r"^#+\s*(local\s+dev|local\s+development|running\s+locally|develop\w*\s+local)",
+                re.IGNORECASE | re.MULTILINE,
+            ),
         ],
         "severity": "MAJOR",
     },
     {
         "name": "Demo Guide",
         "patterns": [
-            re.compile(r"^#+\s*(demo|demo\s+guide|customer\s+demo|how\s+to\s+demo)", re.IGNORECASE | re.MULTILINE),
+            re.compile(
+                r"^#+\s*(demo|demo\s+guide|customer\s+demo|how\s+to\s+demo)",
+                re.IGNORECASE | re.MULTILINE,
+            ),
         ],
         "severity": "MAJOR",
     },
     {
         "name": "Troubleshooting",
         "patterns": [
-            re.compile(r"^#+\s*(troubleshoot|common\s+issues|faq|known\s+issues)", re.IGNORECASE | re.MULTILINE),
+            re.compile(
+                r"^#+\s*(troubleshoot|common\s+issues|faq|known\s+issues)",
+                re.IGNORECASE | re.MULTILINE,
+            ),
         ],
         "severity": "MAJOR",
     },
@@ -106,14 +130,14 @@ PLACEHOLDER_RE = re.compile(
 )
 
 EMOJI_RE = re.compile(
-    "[\U0001F600-\U0001F64F"
-    "\U0001F300-\U0001F5FF"
-    "\U0001F680-\U0001F6FF"
-    "\U0001F900-\U0001F9FF"
-    "\U00002702-\U000027B0"
-    "\U0000FE00-\U0000FE0F"
-    "\U0000200D"
-    "\U00002600-\U000026FF"
+    "[\U0001f600-\U0001f64f"
+    "\U0001f300-\U0001f5ff"
+    "\U0001f680-\U0001f6ff"
+    "\U0001f900-\U0001f9ff"
+    "\U00002702-\U000027b0"
+    "\U0000fe00-\U0000fe0f"
+    "\U0000200d"
+    "\U00002600-\U000026ff"
     "]",
 )
 
@@ -132,7 +156,9 @@ def _collect_tree(project_dir: str, max_depth: int = 4) -> set[str]:
             dirs.clear()
             continue
         # Skip node_modules, __pycache__, .git
-        dirs[:] = [d for d in dirs if d not in ("node_modules", "__pycache__", ".git", ".venv")]
+        dirs[:] = [
+            d for d in dirs if d not in ("node_modules", "__pycache__", ".git", ".venv")
+        ]
         for f in files:
             relpath = os.path.relpath(os.path.join(root, f), project_dir)
             paths.add(relpath)
@@ -151,27 +177,33 @@ def check_readme_exists(project_dir: str) -> list[dict]:
     readme_path = os.path.join(project_dir, "README.md")
 
     if not os.path.exists(readme_path):
-        issues.append({
-            "file": "README.md",
-            "severity": "CRITICAL",
-            "check": "readme_exists",
-            "message": "README.md not found in project root",
-        })
+        issues.append(
+            {
+                "file": "README.md",
+                "severity": "CRITICAL",
+                "check": "readme_exists",
+                "message": "README.md not found in project root",
+            }
+        )
     elif os.path.getsize(readme_path) == 0:
-        issues.append({
-            "file": "README.md",
-            "severity": "CRITICAL",
-            "check": "readme_empty",
-            "message": "README.md exists but is empty",
-        })
+        issues.append(
+            {
+                "file": "README.md",
+                "severity": "CRITICAL",
+                "check": "readme_empty",
+                "message": "README.md exists but is empty",
+            }
+        )
     elif os.path.getsize(readme_path) < 500:
-        issues.append({
-            "file": "README.md",
-            "severity": "MAJOR",
-            "check": "readme_too_short",
-            "message": f"README.md is only {os.path.getsize(readme_path)} bytes - "
-                       "expected a comprehensive document",
-        })
+        issues.append(
+            {
+                "file": "README.md",
+                "severity": "MAJOR",
+                "check": "readme_too_short",
+                "message": f"README.md is only {os.path.getsize(readme_path)} bytes - "
+                "expected a comprehensive document",
+            }
+        )
 
     return issues
 
@@ -193,12 +225,14 @@ def check_required_sections(project_dir: str) -> list[dict]:
     for section in REQUIRED_SECTIONS:
         found = any(p.search(content) for p in section["patterns"])
         if not found:
-            issues.append({
-                "file": "README.md",
-                "severity": section["severity"],
-                "check": "required_section",
-                "message": f"Missing required section: {section['name']}",
-            })
+            issues.append(
+                {
+                    "file": "README.md",
+                    "severity": section["severity"],
+                    "check": "required_section",
+                    "message": f"Missing required section: {section['name']}",
+                }
+            )
 
     return issues
 
@@ -247,16 +281,21 @@ def check_path_references(project_dir: str) -> list[dict]:
             or normalized + "/" in tree
             or ref_path in tree
             # Check parent dirs
-            or any(t.startswith(normalized + "/") or t.startswith(normalized + os.sep) for t in tree)
+            or any(
+                t.startswith(normalized + "/") or t.startswith(normalized + os.sep)
+                for t in tree
+            )
         )
         if not exists and len(normalized.split("/")) > 1:
             # Only flag specific paths (not single filenames which might be abstract)
-            issues.append({
-                "file": "README.md",
-                "severity": "MINOR",
-                "check": "path_reference",
-                "message": f"Referenced path `{ref_path}` not found in project tree",
-            })
+            issues.append(
+                {
+                    "file": "README.md",
+                    "severity": "MINOR",
+                    "check": "path_reference",
+                    "message": f"Referenced path `{ref_path}` not found in project tree",
+                }
+            )
 
     return issues
 
@@ -277,12 +316,14 @@ def check_deploy_script_docs(project_dir: str) -> list[dict]:
         return issues
 
     if "deploy.sh" not in content:
-        issues.append({
-            "file": "README.md",
-            "severity": "MAJOR",
-            "check": "deploy_script_docs",
-            "message": "README does not mention deploy.sh script",
-        })
+        issues.append(
+            {
+                "file": "README.md",
+                "severity": "MAJOR",
+                "check": "deploy_script_docs",
+                "message": "README does not mention deploy.sh script",
+            }
+        )
         return issues
 
     # Check that flags are documented
@@ -293,12 +334,14 @@ def check_deploy_script_docs(project_dir: str) -> list[dict]:
     }
     for flag_name, flag_re in flag_patterns.items():
         if not flag_re.search(content):
-            issues.append({
-                "file": "README.md",
-                "severity": "MINOR",
-                "check": "deploy_flag_docs",
-                "message": f"README does not document deploy.sh flag: {flag_name}",
-            })
+            issues.append(
+                {
+                    "file": "README.md",
+                    "severity": "MINOR",
+                    "check": "deploy_flag_docs",
+                    "message": f"README does not document deploy.sh flag: {flag_name}",
+                }
+            )
 
     return issues
 
@@ -319,12 +362,14 @@ def check_validate_script_docs(project_dir: str) -> list[dict]:
         return issues
 
     if "validate.sh" not in content:
-        issues.append({
-            "file": "README.md",
-            "severity": "MAJOR",
-            "check": "validate_script_docs",
-            "message": "README does not mention validate.sh script",
-        })
+        issues.append(
+            {
+                "file": "README.md",
+                "severity": "MAJOR",
+                "check": "validate_script_docs",
+                "message": "README does not mention validate.sh script",
+            }
+        )
 
     return issues
 
@@ -346,12 +391,14 @@ def check_placeholders(project_dir: str) -> list[dict]:
     matches = PLACEHOLDER_RE.findall(content)
     if matches:
         unique = set(m.lower().strip() for m in matches)
-        issues.append({
-            "file": "README.md",
-            "severity": "MAJOR",
-            "check": "placeholders",
-            "message": f"Placeholder text found: {', '.join(sorted(unique))}",
-        })
+        issues.append(
+            {
+                "file": "README.md",
+                "severity": "MAJOR",
+                "check": "placeholders",
+                "message": f"Placeholder text found: {', '.join(sorted(unique))}",
+            }
+        )
 
     return issues
 
@@ -372,12 +419,14 @@ def check_emoji(project_dir: str) -> list[dict]:
 
     emoji_matches = EMOJI_RE.findall(content)
     if emoji_matches:
-        issues.append({
-            "file": "README.md",
-            "severity": "MINOR",
-            "check": "emoji",
-            "message": f"Found {len(emoji_matches)} emoji character(s) - remove for professional tone",
-        })
+        issues.append(
+            {
+                "file": "README.md",
+                "severity": "MINOR",
+                "check": "emoji",
+                "message": f"Found {len(emoji_matches)} emoji character(s) - remove for professional tone",
+            }
+        )
 
     return issues
 
@@ -398,12 +447,14 @@ def check_em_dashes(project_dir: str) -> list[dict]:
 
     em_dash_count = len(EM_DASH_RE.findall(content))
     if em_dash_count > 0:
-        issues.append({
-            "file": "README.md",
-            "severity": "MINOR",
-            "check": "em_dashes",
-            "message": f"Found {em_dash_count} em-dash(es) - use hyphens instead",
-        })
+        issues.append(
+            {
+                "file": "README.md",
+                "severity": "MINOR",
+                "check": "em_dashes",
+                "message": f"Found {em_dash_count} em-dash(es) - use hyphens instead",
+            }
+        )
 
     return issues
 
@@ -435,28 +486,33 @@ def check_demo_guide_quality(project_dir: str) -> list[dict]:
 
     # Check for code blocks (sample commands/responses)
     if "```" not in demo_content:
-        issues.append({
-            "file": "README.md",
-            "severity": "MAJOR",
-            "check": "demo_examples",
-            "message": "Demo guide section has no code blocks - "
-                       "should include sample commands, API calls, and expected outputs",
-        })
+        issues.append(
+            {
+                "file": "README.md",
+                "severity": "MAJOR",
+                "check": "demo_examples",
+                "message": "Demo guide section has no code blocks - "
+                "should include sample commands, API calls, and expected outputs",
+            }
+        )
 
     # Check minimum length
     word_count = len(demo_content.split())
     if word_count < 50:
-        issues.append({
-            "file": "README.md",
-            "severity": "MAJOR",
-            "check": "demo_guide_length",
-            "message": f"Demo guide is only {word_count} words - too short for a meaningful guide",
-        })
+        issues.append(
+            {
+                "file": "README.md",
+                "severity": "MAJOR",
+                "check": "demo_guide_length",
+                "message": f"Demo guide is only {word_count} words - too short for a meaningful guide",
+            }
+        )
 
     return issues
 
 
 # ── Main runner ───────────────────────────────────────────────────────────────
+
 
 def run_all_checks(project_dir: str, project_slug: str | None = None) -> dict:
     """Run all docs QA checks and return a structured report."""
@@ -466,12 +522,14 @@ def run_all_checks(project_dir: str, project_slug: str | None = None) -> dict:
             "status": "ERROR",
             "project_dir": project_dir,
             "project_slug": project_slug,
-            "issues": [{
-                "file": project_dir,
-                "severity": "CRITICAL",
-                "check": "dir_exists",
-                "message": f"Project directory does not exist: {project_dir}",
-            }],
+            "issues": [
+                {
+                    "file": project_dir,
+                    "severity": "CRITICAL",
+                    "check": "dir_exists",
+                    "message": f"Project directory does not exist: {project_dir}",
+                }
+            ],
             "summary": {"CRITICAL": 1, "MAJOR": 0, "MINOR": 0},
         }
 
@@ -494,12 +552,14 @@ def run_all_checks(project_dir: str, project_slug: str | None = None) -> dict:
             issues = check_fn()
             all_issues.extend(issues)
         except Exception as e:
-            all_issues.append({
-                "file": "runner",
-                "severity": "MINOR",
-                "check": check_name,
-                "message": f"Check failed with error: {e}",
-            })
+            all_issues.append(
+                {
+                    "file": "runner",
+                    "severity": "MINOR",
+                    "check": check_name,
+                    "message": f"Check failed with error: {e}",
+                }
+            )
 
     summary: dict[str, int] = defaultdict(int)
     for issue in all_issues:
@@ -509,7 +569,9 @@ def run_all_checks(project_dir: str, project_slug: str | None = None) -> dict:
     for issue in all_issues:
         by_file[issue["file"]].append(issue)
 
-    has_critical_or_major = summary.get("CRITICAL", 0) > 0 or summary.get("MAJOR", 0) > 0
+    has_critical_or_major = (
+        summary.get("CRITICAL", 0) > 0 or summary.get("MAJOR", 0) > 0
+    )
     status = "ISSUES_FOUND" if has_critical_or_major else "CLEAN"
 
     return {
@@ -580,7 +642,5 @@ if __name__ == "__main__":
         print(format_report(report))
 
     sys.exit(
-        0 if report["status"] == "CLEAN"
-        else 2 if report["status"] == "ERROR"
-        else 1
+        0 if report["status"] == "CLEAN" else 2 if report["status"] == "ERROR" else 1
     )

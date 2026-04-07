@@ -29,6 +29,7 @@ from app.models.schemas import (
 # pytest configuration
 # -----------------------------------------------------------------------
 
+
 def pytest_configure(config: Any) -> None:
     """Register custom markers."""
     config.addinivalue_line("markers", "asyncio: mark a test as async")
@@ -37,6 +38,7 @@ def pytest_configure(config: Any) -> None:
 # -----------------------------------------------------------------------
 # Azure credential
 # -----------------------------------------------------------------------
+
 
 @pytest.fixture
 def mock_credential() -> MagicMock:
@@ -50,6 +52,7 @@ def mock_credential() -> MagicMock:
 # -----------------------------------------------------------------------
 # Application settings
 # -----------------------------------------------------------------------
+
 
 @pytest.fixture
 def mock_settings() -> MagicMock:
@@ -78,6 +81,7 @@ def mock_settings() -> MagicMock:
 # Cosmos DB
 # -----------------------------------------------------------------------
 
+
 @pytest.fixture
 def mock_cosmos_container() -> AsyncMock:
     """Return a mocked Cosmos DB container proxy."""
@@ -105,6 +109,7 @@ def mock_cosmos_client(mock_cosmos_container: AsyncMock) -> AsyncMock:
 # AI Search
 # -----------------------------------------------------------------------
 
+
 @pytest.fixture
 def mock_search_client() -> AsyncMock:
     """Return a mocked Azure AI SearchClient."""
@@ -117,6 +122,7 @@ def mock_search_client() -> AsyncMock:
 # -----------------------------------------------------------------------
 # OpenAI
 # -----------------------------------------------------------------------
+
 
 @pytest.fixture
 def mock_openai_client() -> AsyncMock:
@@ -142,6 +148,7 @@ def mock_openai_client() -> AsyncMock:
 # HTTP (httpx) for billing API
 # -----------------------------------------------------------------------
 
+
 @pytest.fixture
 def mock_httpx_client() -> AsyncMock:
     """Return a mocked httpx.AsyncClient."""
@@ -155,6 +162,7 @@ def mock_httpx_client() -> AsyncMock:
 # -----------------------------------------------------------------------
 # Sample data fixtures
 # -----------------------------------------------------------------------
+
 
 @pytest.fixture
 def sample_line_items() -> list[LineItem]:
@@ -279,6 +287,7 @@ def sample_session_doc() -> dict:
 # -----------------------------------------------------------------------
 # FastAPI TestClient
 # -----------------------------------------------------------------------
+
 
 @pytest.fixture
 def test_app() -> FastAPI:

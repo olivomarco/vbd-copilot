@@ -22,10 +22,24 @@ logger = logging.getLogger(__name__)
 
 # Italian keywords that signal numerical comparison or complex reasoning
 _COMPLEX_KEYWORDS: set[str] = {
-    "confronto", "confronta", "differenza", "aumento", "diminuzione",
-    "rispetto", "precedente", "variazione", "calcolo", "calcola",
-    "dettaglio", "ripartizione", "scostamento", "percentuale",
-    "media", "totale", "somma", "tabella",
+    "confronto",
+    "confronta",
+    "differenza",
+    "aumento",
+    "diminuzione",
+    "rispetto",
+    "precedente",
+    "variazione",
+    "calcolo",
+    "calcola",
+    "dettaglio",
+    "ripartizione",
+    "scostamento",
+    "percentuale",
+    "media",
+    "totale",
+    "somma",
+    "tabella",
 }
 
 _KEYWORD_PATTERN = re.compile(

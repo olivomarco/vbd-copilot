@@ -32,9 +32,7 @@ HARDCODED_SECRET_RE = re.compile(
     re.IGNORECASE,
 )
 
-HARDCODED_IP_RE = re.compile(
-    r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
-)
+HARDCODED_IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 
 # IPs that are acceptable (well-known non-routable)
 ALLOWED_IPS = {"0.0.0.0", "127.0.0.1", "10.0.0.0", "255.255.255.255"}
@@ -54,17 +52,25 @@ SECURITY_PATTERNS = {
 }
 
 PERMISSION_PATTERNS = {
-    "role_assignment": re.compile(r"Microsoft\.Authorization/roleAssignments|roleAssignment", re.IGNORECASE),
+    "role_assignment": re.compile(
+        r"Microsoft\.Authorization/roleAssignments|roleAssignment", re.IGNORECASE
+    ),
     "principal_id": re.compile(r"principalId", re.IGNORECASE),
     "owner_or_contributor": re.compile(r"Owner|Contributor", re.IGNORECASE),
 }
 
 NETWORK_PATTERNS = {
-    "private_endpoint": re.compile(r"Microsoft\.Network/privateEndpoints|privateEndpoint", re.IGNORECASE),
-    "nsg": re.compile(r"Microsoft\.Network/networkSecurityGroups|securityRules", re.IGNORECASE),
+    "private_endpoint": re.compile(
+        r"Microsoft\.Network/privateEndpoints|privateEndpoint", re.IGNORECASE
+    ),
+    "nsg": re.compile(
+        r"Microsoft\.Network/networkSecurityGroups|securityRules", re.IGNORECASE
+    ),
     "firewall": re.compile(r"firewall|ipRules|networkAcls", re.IGNORECASE),
     "public_network_access": re.compile(r"publicNetworkAccess", re.IGNORECASE),
-    "vnet_integration": re.compile(r"virtualNetworkSubnetId|subnet|vnet", re.IGNORECASE),
+    "vnet_integration": re.compile(
+        r"virtualNetworkSubnetId|subnet|vnet", re.IGNORECASE
+    ),
 }
 
 COMPETITOR_RE = re.compile(
@@ -119,24 +125,28 @@ def check_files_exist(infra_dir: str) -> list[dict]:
     arm_files = find_arm_files(infra_dir)
 
     if not bicep_files and not arm_files:
-        issues.append({
-            "file": infra_dir,
-            "severity": "CRITICAL",
-            "check": "iac_files_exist",
-            "message": "No Bicep (.bicep) or ARM template (.json) files found in infra directory",
-        })
+        issues.append(
+            {
+                "file": infra_dir,
+                "severity": "CRITICAL",
+                "check": "iac_files_exist",
+                "message": "No Bicep (.bicep) or ARM template (.json) files found in infra directory",
+            }
+        )
         return issues
 
     # Check for a main entry point
     main_bicep = os.path.join(infra_dir, "main.bicep")
     main_json = os.path.join(infra_dir, "main.json")
     if not os.path.exists(main_bicep) and not os.path.exists(main_json):
-        issues.append({
-            "file": infra_dir,
-            "severity": "MAJOR",
-            "check": "main_entrypoint",
-            "message": "No main.bicep or main.json entry point found in infra root",
-        })
+        issues.append(
+            {
+                "file": infra_dir,
+                "severity": "MAJOR",
+                "check": "main_entrypoint",
+                "message": "No main.bicep or main.json entry point found in infra root",
+            }
+        )
 
     return issues
 
@@ -146,12 +156,14 @@ def check_bicep_syntax(infra_dir: str) -> list[dict]:
     issues = []
 
     if not shutil.which("az"):
-        issues.append({
-            "file": "runner",
-            "severity": "MINOR",
-            "check": "bicep_syntax",
-            "message": "az CLI not available - skipping Bicep syntax validation",
-        })
+        issues.append(
+            {
+                "file": "runner",
+                "severity": "MINOR",
+                "check": "bicep_syntax",
+                "message": "az CLI not available - skipping Bicep syntax validation",
+            }
+        )
         return issues
 
     for filepath in find_bicep_files(infra_dir):
@@ -164,27 +176,35 @@ def check_bicep_syntax(infra_dir: str) -> list[dict]:
                 timeout=15,
             )
             if result.returncode != 0:
-                error_msg = result.stderr.strip()[:300] if result.stderr else "Unknown error"
-                issues.append({
-                    "file": relpath,
-                    "severity": "CRITICAL",
-                    "check": "bicep_syntax",
-                    "message": f"Bicep build failed: {error_msg}",
-                })
+                error_msg = (
+                    result.stderr.strip()[:300] if result.stderr else "Unknown error"
+                )
+                issues.append(
+                    {
+                        "file": relpath,
+                        "severity": "CRITICAL",
+                        "check": "bicep_syntax",
+                        "message": f"Bicep build failed: {error_msg}",
+                    }
+                )
         except subprocess.TimeoutExpired:
-            issues.append({
-                "file": relpath,
-                "severity": "MINOR",
-                "check": "bicep_syntax",
-                "message": "Bicep build timed out after 30s",
-            })
+            issues.append(
+                {
+                    "file": relpath,
+                    "severity": "MINOR",
+                    "check": "bicep_syntax",
+                    "message": "Bicep build timed out after 30s",
+                }
+            )
         except Exception as e:
-            issues.append({
-                "file": relpath,
-                "severity": "MINOR",
-                "check": "bicep_syntax",
-                "message": f"Could not run Bicep build: {e}",
-            })
+            issues.append(
+                {
+                    "file": relpath,
+                    "severity": "MINOR",
+                    "check": "bicep_syntax",
+                    "message": f"Could not run Bicep build: {e}",
+                }
+            )
 
     return issues
 
@@ -203,13 +223,15 @@ def check_param_files(infra_dir: str) -> list[dict]:
                     arm_param_files.append(os.path.join(root, f))
 
         if not arm_param_files:
-            issues.append({
-                "file": infra_dir,
-                "severity": "MAJOR",
-                "check": "param_files_exist",
-                "message": "No parameter files found (.bicepparam or .parameters.json). "
-                           "At least one environment configuration is expected.",
-            })
+            issues.append(
+                {
+                    "file": infra_dir,
+                    "severity": "MAJOR",
+                    "check": "param_files_exist",
+                    "message": "No parameter files found (.bicepparam or .parameters.json). "
+                    "At least one environment configuration is expected.",
+                }
+            )
 
     return issues
 
@@ -229,13 +251,15 @@ def check_module_structure(infra_dir: str) -> list[dict]:
         if os.path.exists(main_path):
             size = os.path.getsize(main_path)
             if size > 10000:  # >10KB suggests it should be modularized
-                issues.append({
-                    "file": "main.bicep",
-                    "severity": "MAJOR",
-                    "check": "module_structure",
-                    "message": f"main.bicep is {size} bytes but no modules/ directory exists. "
-                               "Consider decomposing into modules (networking, security, compute, data, monitoring).",
-                })
+                issues.append(
+                    {
+                        "file": "main.bicep",
+                        "severity": "MAJOR",
+                        "check": "module_structure",
+                        "message": f"main.bicep is {size} bytes but no modules/ directory exists. "
+                        "Consider decomposing into modules (networking, security, compute, data, monitoring).",
+                    }
+                )
 
     return issues
 
@@ -261,23 +285,27 @@ def check_security_patterns(infra_dir: str) -> list[dict]:
 
     # Check for Key Vault usage
     if not SECURITY_PATTERNS["key_vault"].search(all_content):
-        issues.append({
-            "file": infra_dir,
-            "severity": "MAJOR",
-            "check": "key_vault_present",
-            "message": "No Key Vault resource or reference found. "
-                       "Secrets should be stored in Azure Key Vault, not in app settings or code.",
-        })
+        issues.append(
+            {
+                "file": infra_dir,
+                "severity": "MAJOR",
+                "check": "key_vault_present",
+                "message": "No Key Vault resource or reference found. "
+                "Secrets should be stored in Azure Key Vault, not in app settings or code.",
+            }
+        )
 
     # Check for managed identity
     if not SECURITY_PATTERNS["managed_identity"].search(all_content):
-        issues.append({
-            "file": infra_dir,
-            "severity": "MAJOR",
-            "check": "managed_identity_present",
-            "message": "No managed identity configuration found. "
-                       "Use managed identities (SystemAssigned or UserAssigned) instead of keys for Azure service auth.",
-        })
+        issues.append(
+            {
+                "file": infra_dir,
+                "severity": "MAJOR",
+                "check": "managed_identity_present",
+                "message": "No managed identity configuration found. "
+                "Use managed identities (SystemAssigned or UserAssigned) instead of keys for Azure service auth.",
+            }
+        )
 
     return issues
 
@@ -288,7 +316,9 @@ def check_hardcoded_secrets(infra_dir: str) -> list[dict]:
 
     for root, _dirs, files in os.walk(infra_dir):
         for f in files:
-            if not (f.endswith(".bicep") or f.endswith(".json") or f.endswith(".bicepparam")):
+            if not (
+                f.endswith(".bicep") or f.endswith(".json") or f.endswith(".bicepparam")
+            ):
                 continue
             filepath = os.path.join(root, f)
             relpath = os.path.relpath(filepath, infra_dir)
@@ -296,22 +326,30 @@ def check_hardcoded_secrets(infra_dir: str) -> list[dict]:
                 with open(filepath, "r", encoding="utf-8", errors="replace") as fh:
                     for line_num, line in enumerate(fh, 1):
                         if HARDCODED_SECRET_RE.search(line):
-                            issues.append({
-                                "file": relpath,
-                                "severity": "CRITICAL",
-                                "check": "hardcoded_secret",
-                                "message": f"Line {line_num}: Possible hardcoded secret/key/password",
-                            })
+                            issues.append(
+                                {
+                                    "file": relpath,
+                                    "severity": "CRITICAL",
+                                    "check": "hardcoded_secret",
+                                    "message": f"Line {line_num}: Possible hardcoded secret/key/password",
+                                }
+                            )
                         # Check for hardcoded IPs (excluding well-known ones)
                         ip_matches = HARDCODED_IP_RE.findall(line)
                         for ip in ip_matches:
-                            if ip not in ALLOWED_IPS and not ip.startswith("10.") and not ip.startswith("172."):
-                                issues.append({
-                                    "file": relpath,
-                                    "severity": "MINOR",
-                                    "check": "hardcoded_ip",
-                                    "message": f"Line {line_num}: Hardcoded IP address {ip} - consider parameterizing",
-                                })
+                            if (
+                                ip not in ALLOWED_IPS
+                                and not ip.startswith("10.")
+                                and not ip.startswith("172.")
+                            ):
+                                issues.append(
+                                    {
+                                        "file": relpath,
+                                        "severity": "MINOR",
+                                        "check": "hardcoded_ip",
+                                        "message": f"Line {line_num}: Hardcoded IP address {ip} - consider parameterizing",
+                                    }
+                                )
             except Exception:
                 pass
 
@@ -324,7 +362,9 @@ def check_placeholders(infra_dir: str) -> list[dict]:
 
     for root, _dirs, files in os.walk(infra_dir):
         for f in files:
-            if not (f.endswith(".bicep") or f.endswith(".json") or f.endswith(".bicepparam")):
+            if not (
+                f.endswith(".bicep") or f.endswith(".json") or f.endswith(".bicepparam")
+            ):
                 continue
             filepath = os.path.join(root, f)
             relpath = os.path.relpath(filepath, infra_dir)
@@ -334,12 +374,14 @@ def check_placeholders(infra_dir: str) -> list[dict]:
                 matches = PLACEHOLDER_RE.findall(content)
                 if matches:
                     unique = set(m.lower().strip() for m in matches)
-                    issues.append({
-                        "file": relpath,
-                        "severity": "MAJOR",
-                        "check": "placeholders",
-                        "message": f"Placeholder text found: {', '.join(sorted(unique))}",
-                    })
+                    issues.append(
+                        {
+                            "file": relpath,
+                            "severity": "MAJOR",
+                            "check": "placeholders",
+                            "message": f"Placeholder text found: {', '.join(sorted(unique))}",
+                        }
+                    )
             except Exception:
                 pass
 
@@ -352,7 +394,9 @@ def check_competitor_references(infra_dir: str) -> list[dict]:
 
     for root, _dirs, files in os.walk(infra_dir):
         for f in files:
-            if not (f.endswith(".bicep") or f.endswith(".json") or f.endswith(".bicepparam")):
+            if not (
+                f.endswith(".bicep") or f.endswith(".json") or f.endswith(".bicepparam")
+            ):
                 continue
             filepath = os.path.join(root, f)
             relpath = os.path.relpath(filepath, infra_dir)
@@ -360,12 +404,14 @@ def check_competitor_references(infra_dir: str) -> list[dict]:
                 with open(filepath, "r", encoding="utf-8", errors="replace") as fh:
                     content = fh.read()
                 if COMPETITOR_RE.search(content):
-                    issues.append({
-                        "file": relpath,
-                        "severity": "MAJOR",
-                        "check": "azure_mandate",
-                        "message": "Contains competitor cloud references (AWS/GCP). Azure mandate violation.",
-                    })
+                    issues.append(
+                        {
+                            "file": relpath,
+                            "severity": "MAJOR",
+                            "check": "azure_mandate",
+                            "message": "Contains competitor cloud references (AWS/GCP). Azure mandate violation.",
+                        }
+                    )
             except Exception:
                 pass
 
@@ -389,13 +435,15 @@ def check_resource_tags(infra_dir: str) -> list[dict]:
             pass
 
     if "tags" not in all_content.lower():
-        issues.append({
-            "file": infra_dir,
-            "severity": "MINOR",
-            "check": "resource_tags",
-            "message": "No resource tags found in Bicep files. "
-                       "Consider adding tags for cost tracking and governance.",
-        })
+        issues.append(
+            {
+                "file": infra_dir,
+                "severity": "MINOR",
+                "check": "resource_tags",
+                "message": "No resource tags found in Bicep files. "
+                "Consider adding tags for cost tracking and governance.",
+            }
+        )
 
     return issues
 
@@ -412,13 +460,15 @@ def check_outputs(infra_dir: str) -> list[dict]:
         with open(main_path, "r", encoding="utf-8", errors="replace") as f:
             content = f.read()
         if "output " not in content:
-            issues.append({
-                "file": "main.bicep",
-                "severity": "MINOR",
-                "check": "outputs_present",
-                "message": "main.bicep has no output declarations. "
-                           "Outputs are needed for downstream consumption (deploy scripts, app config).",
-            })
+            issues.append(
+                {
+                    "file": "main.bicep",
+                    "severity": "MINOR",
+                    "check": "outputs_present",
+                    "message": "main.bicep has no output declarations. "
+                    "Outputs are needed for downstream consumption (deploy scripts, app config).",
+                }
+            )
     except Exception:
         pass
 
@@ -445,26 +495,34 @@ def check_principal_permissions(infra_dir: str) -> list[dict]:
 
     # Expect role assignments when managed identities/principals are present.
     has_identity = SECURITY_PATTERNS["managed_identity"].search(all_content) is not None
-    has_role_assignment = PERMISSION_PATTERNS["role_assignment"].search(all_content) is not None
-    has_principal_ref = PERMISSION_PATTERNS["principal_id"].search(all_content) is not None
+    has_role_assignment = (
+        PERMISSION_PATTERNS["role_assignment"].search(all_content) is not None
+    )
+    has_principal_ref = (
+        PERMISSION_PATTERNS["principal_id"].search(all_content) is not None
+    )
 
     if has_identity and not has_role_assignment:
-        issues.append({
-            "file": infra_dir,
-            "severity": "MAJOR",
-            "check": "principal_permissions",
-            "message": "Managed identity is present but no role assignment resources were detected. "
-                       "Grant explicit RBAC permissions for each principal/identity.",
-        })
+        issues.append(
+            {
+                "file": infra_dir,
+                "severity": "MAJOR",
+                "check": "principal_permissions",
+                "message": "Managed identity is present but no role assignment resources were detected. "
+                "Grant explicit RBAC permissions for each principal/identity.",
+            }
+        )
 
     if has_role_assignment and not has_principal_ref:
-        issues.append({
-            "file": infra_dir,
-            "severity": "MAJOR",
-            "check": "principal_permissions",
-            "message": "Role assignment resource detected without clear principalId references. "
-                       "Verify each assignment is bound to the intended principal/managed identity.",
-        })
+        issues.append(
+            {
+                "file": infra_dir,
+                "severity": "MAJOR",
+                "check": "principal_permissions",
+                "message": "Role assignment resource detected without clear principalId references. "
+                "Verify each assignment is bound to the intended principal/managed identity.",
+            }
+        )
 
     # Flag potential broad roles for human review (heuristic).
     broad_role_hits = 0
@@ -473,15 +531,19 @@ def check_principal_permissions(infra_dir: str) -> list[dict]:
         try:
             with open(filepath, "r", encoding="utf-8", errors="replace") as fh:
                 for line_num, line in enumerate(fh, 1):
-                    if "roleDefinitionId" in line and PERMISSION_PATTERNS["owner_or_contributor"].search(line):
+                    if "roleDefinitionId" in line and PERMISSION_PATTERNS[
+                        "owner_or_contributor"
+                    ].search(line):
                         broad_role_hits += 1
-                        issues.append({
-                            "file": relpath,
-                            "severity": "MINOR",
-                            "check": "least_privilege",
-                            "message": f"Line {line_num}: Owner/Contributor role reference found. "
-                                       "Confirm least-privilege scoping is justified.",
-                        })
+                        issues.append(
+                            {
+                                "file": relpath,
+                                "severity": "MINOR",
+                                "check": "least_privilege",
+                                "message": f"Line {line_num}: Owner/Contributor role reference found. "
+                                "Confirm least-privilege scoping is justified.",
+                            }
+                        )
         except Exception:
             pass
 
@@ -510,43 +572,56 @@ def check_network_visibility(infra_dir: str) -> list[dict]:
         except Exception:
             pass
 
-    has_private_endpoint = NETWORK_PATTERNS["private_endpoint"].search(all_content) is not None
+    has_private_endpoint = (
+        NETWORK_PATTERNS["private_endpoint"].search(all_content) is not None
+    )
     has_nsg = NETWORK_PATTERNS["nsg"].search(all_content) is not None
     has_firewall = NETWORK_PATTERNS["firewall"].search(all_content) is not None
-    has_public_network_access = NETWORK_PATTERNS["public_network_access"].search(all_content) is not None
-    has_vnet_integration = NETWORK_PATTERNS["vnet_integration"].search(all_content) is not None
+    has_public_network_access = (
+        NETWORK_PATTERNS["public_network_access"].search(all_content) is not None
+    )
+    has_vnet_integration = (
+        NETWORK_PATTERNS["vnet_integration"].search(all_content) is not None
+    )
 
     if not has_private_endpoint and not has_firewall and not has_nsg:
-        issues.append({
-            "file": infra_dir,
-            "severity": "MAJOR",
-            "check": "network_visibility",
-            "message": "No private endpoints, firewall rules, or NSG rules detected. "
-                       "Define explicit network visibility and restrictions.",
-        })
+        issues.append(
+            {
+                "file": infra_dir,
+                "severity": "MAJOR",
+                "check": "network_visibility",
+                "message": "No private endpoints, firewall rules, or NSG rules detected. "
+                "Define explicit network visibility and restrictions.",
+            }
+        )
 
     if has_public_network_access and not has_private_endpoint and not has_firewall:
-        issues.append({
-            "file": infra_dir,
-            "severity": "MINOR",
-            "check": "network_visibility",
-            "message": "publicNetworkAccess is configured but no private endpoint/firewall controls were detected. "
-                       "Validate that exposed services are intentionally reachable.",
-        })
+        issues.append(
+            {
+                "file": infra_dir,
+                "severity": "MINOR",
+                "check": "network_visibility",
+                "message": "publicNetworkAccess is configured but no private endpoint/firewall controls were detected. "
+                "Validate that exposed services are intentionally reachable.",
+            }
+        )
 
     if not has_vnet_integration:
-        issues.append({
-            "file": infra_dir,
-            "severity": "MINOR",
-            "check": "network_visibility",
-            "message": "No clear VNet/subnet integration references found. "
-                       "Confirm whether network isolation is required for this solution.",
-        })
+        issues.append(
+            {
+                "file": infra_dir,
+                "severity": "MINOR",
+                "check": "network_visibility",
+                "message": "No clear VNet/subnet integration references found. "
+                "Confirm whether network isolation is required for this solution.",
+            }
+        )
 
     return issues
 
 
 # ── Main runner ───────────────────────────────────────────────────────────────
+
 
 def run_all_checks(infra_dir: str, project_slug: str | None = None) -> dict:
     """Run all infra QA checks and return a structured report."""
@@ -556,12 +631,14 @@ def run_all_checks(infra_dir: str, project_slug: str | None = None) -> dict:
             "status": "ERROR",
             "infra_dir": infra_dir,
             "project_slug": project_slug,
-            "issues": [{
-                "file": infra_dir,
-                "severity": "CRITICAL",
-                "check": "dir_exists",
-                "message": f"Infrastructure directory does not exist: {infra_dir}",
-            }],
+            "issues": [
+                {
+                    "file": infra_dir,
+                    "severity": "CRITICAL",
+                    "check": "dir_exists",
+                    "message": f"Infrastructure directory does not exist: {infra_dir}",
+                }
+            ],
             "summary": {"CRITICAL": 1, "MAJOR": 0, "MINOR": 0},
         }
 
@@ -587,12 +664,14 @@ def run_all_checks(infra_dir: str, project_slug: str | None = None) -> dict:
             issues = check_fn()
             all_issues.extend(issues)
         except Exception as e:
-            all_issues.append({
-                "file": "runner",
-                "severity": "MINOR",
-                "check": check_name,
-                "message": f"Check failed with error: {e}",
-            })
+            all_issues.append(
+                {
+                    "file": "runner",
+                    "severity": "MINOR",
+                    "check": check_name,
+                    "message": f"Check failed with error: {e}",
+                }
+            )
 
     summary: dict[str, int] = defaultdict(int)
     for issue in all_issues:
@@ -602,7 +681,9 @@ def run_all_checks(infra_dir: str, project_slug: str | None = None) -> dict:
     for issue in all_issues:
         by_file[issue["file"]].append(issue)
 
-    has_critical_or_major = summary.get("CRITICAL", 0) > 0 or summary.get("MAJOR", 0) > 0
+    has_critical_or_major = (
+        summary.get("CRITICAL", 0) > 0 or summary.get("MAJOR", 0) > 0
+    )
     status = "ISSUES_FOUND" if has_critical_or_major else "CLEAN"
 
     return {
@@ -673,7 +754,5 @@ if __name__ == "__main__":
         print(format_report(report))
 
     sys.exit(
-        0 if report["status"] == "CLEAN"
-        else 2 if report["status"] == "ERROR"
-        else 1
+        0 if report["status"] == "CLEAN" else 2 if report["status"] == "ERROR" else 1
     )

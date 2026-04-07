@@ -89,7 +89,9 @@ class SearchService:
         )
 
         async for result in search_results:
-            score = result.get("@search.reranker_score") or result.get("@search.score", 0.0)
+            score = result.get("@search.reranker_score") or result.get(
+                "@search.score", 0.0
+            )
             results.append(
                 SearchResult(
                     content=result.get("content", ""),
@@ -100,7 +102,9 @@ class SearchService:
                 )
             )
 
-        logger.info("Hybrid search returned %d results for query=%r", len(results), query[:60])
+        logger.info(
+            "Hybrid search returned %d results for query=%r", len(results), query[:60]
+        )
         return results
 
     async def health_check(self) -> bool:

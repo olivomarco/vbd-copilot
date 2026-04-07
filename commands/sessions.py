@@ -28,16 +28,23 @@ def handle_sessions(
         _list_sessions(event_store, console, current_session_id=current_session_id)
     elif parts[0] == "all":
         _list_sessions(
-            event_store, console, current_session_id=current_session_id,
+            event_store,
+            console,
+            current_session_id=current_session_id,
             show_all=True,
         )
     elif parts[0] == "end" and len(parts) > 1:
         return _end_session(
-            parts[1], event_store, console, current_session_id=current_session_id,
+            parts[1],
+            event_store,
+            console,
+            current_session_id=current_session_id,
         )
     elif parts[0] == "name":
         _name_session(
-            parts[1:], event_store, console,
+            parts[1:],
+            event_store,
+            console,
             current_session_id=current_session_id,
         )
     elif parts[0] == "cleanup":
@@ -64,8 +71,7 @@ def _list_sessions(
     sessions = q.list_sessions(store, limit=30)
     if not show_all:
         sessions = [
-            s for s in sessions
-            if s["status"] == "active" or s.get("resumable")
+            s for s in sessions if s["status"] == "active" or s.get("resumable")
         ]
     if not sessions:
         console.print("  [dim]No sessions found.[/dim]")
@@ -93,9 +99,14 @@ def _list_sessions(
         tokens = f"{s.get('total_input_tokens', 0)}/{s.get('total_output_tokens', 0)}"
         status_style = "green" if s["status"] == "active" else "dim"
         table.add_row(
-            marker, sid, nick,
-            s.get("agent", ""), s.get("model", ""),
-            started, str(s.get("turn_count", 0)), tokens,
+            marker,
+            sid,
+            nick,
+            s.get("agent", ""),
+            s.get("model", ""),
+            started,
+            str(s.get("turn_count", 0)),
+            tokens,
             f"[{status_style}]{s['status']}[/{status_style}]",
         )
 
@@ -147,8 +158,11 @@ def _show_session(session_id: str, store: EventStore, console: Console) -> None:
             tokens = f"{t.get('input_tokens', 0)}/{t.get('output_tokens', 0)}"
             cost = f"${t.get('estimated_cost_usd', 0):.4f}"
             table.add_row(
-                str(t.get("turn_number", "")), t.get("agent", ""),
-                prompt_preview, tokens, cost,
+                str(t.get("turn_number", "")),
+                t.get("agent", ""),
+                prompt_preview,
+                tokens,
+                cost,
                 str(t.get("tool_call_count", 0)),
             )
         console.print("  [bold]Turns[/bold]")
@@ -184,7 +198,9 @@ def _show_session_turn(
         console.print("  [yellow]Usage: /sessions <id> turn <number>[/yellow]")
 
 
-def _show_session_invocations(session_id: str, store: EventStore, console: Console) -> None:
+def _show_session_invocations(
+    session_id: str, store: EventStore, console: Console
+) -> None:
     full_id = _resolve_session_id(session_id, store)
     if not full_id:
         console.print(f"  [red]Session '{session_id}' not found.[/red]")
@@ -207,7 +223,10 @@ def _show_session_invocations(session_id: str, store: EventStore, console: Conso
         dur = f"{inv.get('duration_ms', 0)}ms"
         status_style = "green" if inv["status"] == "success" else "red"
         table.add_row(
-            iid, inv["type"], inv["name"], dur,
+            iid,
+            inv["type"],
+            inv["name"],
+            dur,
             f"[{status_style}]{inv['status']}[/{status_style}]",
         )
 
@@ -258,7 +277,10 @@ def _render_turn_detail(turn: dict, store: EventStore, console: Console) -> None
             dur = f"{inv.get('duration_ms', 0)}ms"
             status_style = "green" if inv["status"] == "success" else "red"
             table.add_row(
-                iid, inv["type"], inv["name"], dur,
+                iid,
+                inv["type"],
+                inv["name"],
+                dur,
                 f"[{status_style}]{inv['status']}[/{status_style}]",
             )
         console.print()

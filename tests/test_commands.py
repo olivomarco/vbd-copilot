@@ -25,15 +25,27 @@ def console():
 
 def _populate(store):
     store.start_session("session-001", agent="slide-conductor", model="gpt-4o")
-    t1 = store.start_turn(session_id="session-001", agent="slide-conductor", model="gpt-4o", user_prompt="make slides")
-    store.end_turn(t1, assistant_response="Done", input_tokens=1000, output_tokens=500, estimated_cost_usd=0.01)
-    store.record_invocation(turn_id=t1, session_id="session-001", inv_type="tool_call", name="bing_search")
+    t1 = store.start_turn(
+        session_id="session-001",
+        agent="slide-conductor",
+        model="gpt-4o",
+        user_prompt="make slides",
+    )
+    store.end_turn(
+        t1,
+        assistant_response="Done",
+        input_tokens=1000,
+        output_tokens=500,
+        estimated_cost_usd=0.01,
+    )
+    store.record_invocation(
+        turn_id=t1, session_id="session-001", inv_type="tool_call", name="bing_search"
+    )
     store.end_session("session-001", resumable=True)
     store.start_session("session-002", agent="demo-conductor", model="gpt-4o")
 
 
 class TestHandleSessions:
-
     def test_list_sessions(self, store, console):
         _populate(store)
         handle_sessions("", store, console, current_session_id="session-002")
@@ -75,8 +87,12 @@ class TestHandleSessions:
 
     def test_name_session(self, store, console):
         _populate(store)
-        handle_sessions("name session-001 my-slides", store, console,
-                        current_session_id="session-001")
+        handle_sessions(
+            "name session-001 my-slides",
+            store,
+            console,
+            current_session_id="session-001",
+        )
 
     def test_cleanup_sessions(self, store, console):
         _populate(store)
@@ -84,18 +100,20 @@ class TestHandleSessions:
 
     def test_end_session(self, store, console):
         _populate(store)
-        handle_sessions("end session-002", store, console,
-                                 current_session_id="session-002")
+        handle_sessions(
+            "end session-002", store, console, current_session_id="session-002"
+        )
         # If the ended session is the current one, returns a signal
         # Otherwise returns None
 
 
 class TestHandleUsage:
-
     def test_session_usage(self, store, console):
         _populate(store)
         handle_usage(
-            "", store, console,
+            "",
+            store,
+            console,
             session_id="session-002",
             current_agent="demo-conductor",
             current_model="gpt-4o",
@@ -106,7 +124,9 @@ class TestHandleUsage:
     def test_session_usage_no_limits(self, store, console):
         _populate(store)
         handle_usage(
-            "", store, console,
+            "",
+            store,
+            console,
             session_id="session-002",
             current_agent="demo-conductor",
             current_model="gpt-4o",

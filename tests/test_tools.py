@@ -100,12 +100,13 @@ class TestParseBingResults:
 
 
 class TestBingSearchHelpers:
-
     def test_bing_html_search_no_network(self, monkeypatch):
         """Without network, _bing_html_search should raise."""
         import urllib.request
+
         def failing_urlopen(*args, **kwargs):
             raise ConnectionError("no network")
+
         monkeypatch.setattr(urllib.request, "urlopen", failing_urlopen)
         with pytest.raises(ConnectionError):
             _bing_html_search("test", 5)
@@ -113,8 +114,10 @@ class TestBingSearchHelpers:
     def test_bing_api_search_no_network(self, monkeypatch):
         """Without network, _bing_api_search should raise."""
         import urllib.request
+
         def failing_urlopen(*args, **kwargs):
             raise ConnectionError("no network")
+
         monkeypatch.setattr(urllib.request, "urlopen", failing_urlopen)
         with pytest.raises(ConnectionError):
             _bing_api_search("test", 5, "fake-key")
@@ -125,8 +128,10 @@ class TestBingSearchHelpers:
 
     def test_fetch_url_no_network(self, monkeypatch):
         import urllib.request
+
         def failing_urlopen(*args, **kwargs):
             raise ConnectionError("no network")
+
         monkeypatch.setattr(urllib.request, "urlopen", failing_urlopen)
         with pytest.raises(ConnectionError):
             _fetch_url("https://example.com")
@@ -135,18 +140,24 @@ class TestBingSearchHelpers:
         """Verify the URL built for Bing HTML search."""
         captured_urls = []
         import urllib.request
+
         class FakeResponse:
             headers = MagicMock()
             headers.get_content_charset = MagicMock(return_value="utf-8")
+
             def read(self, max_bytes=None):
                 return b"<html></html>"
+
             def __enter__(self):
                 return self
+
             def __exit__(self, *args):
                 pass
+
         def capture_urlopen(req, **kwargs):
-            captured_urls.append(req.full_url if hasattr(req, 'full_url') else str(req))
+            captured_urls.append(req.full_url if hasattr(req, "full_url") else str(req))
             return FakeResponse()
+
         monkeypatch.setattr(urllib.request, "urlopen", capture_urlopen)
         _bing_html_search("azure aks", 3)
         assert len(captured_urls) == 1
@@ -156,21 +167,36 @@ class TestBingSearchHelpers:
     def test_bing_api_search_parses_response(self, monkeypatch):
         """Verify _bing_api_search parses API JSON correctly."""
         import urllib.request
-        api_response = json.dumps({
-            "webPages": {
-                "value": [
-                    {"name": "Result 1", "url": "https://example.com/1", "snippet": "Snippet 1"},
-                    {"name": "Result 2", "url": "https://example.com/2", "snippet": "Snippet 2"},
-                ]
+
+        api_response = json.dumps(
+            {
+                "webPages": {
+                    "value": [
+                        {
+                            "name": "Result 1",
+                            "url": "https://example.com/1",
+                            "snippet": "Snippet 1",
+                        },
+                        {
+                            "name": "Result 2",
+                            "url": "https://example.com/2",
+                            "snippet": "Snippet 2",
+                        },
+                    ]
+                }
             }
-        }).encode("utf-8")
+        ).encode("utf-8")
+
         class FakeResponse:
             def read(self):
                 return api_response
+
             def __enter__(self):
                 return self
+
             def __exit__(self, *args):
                 pass
+
         monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **kw: FakeResponse())
         results = _bing_api_search("test", 5, "fake-key")
         assert len(results) == 2
@@ -179,7 +205,6 @@ class TestBingSearchHelpers:
 
 
 class TestQaToolParamValidation:
-
     def test_pptx_qa_params(self):
         p = RunPptxQaChecksParams(pptx_path="/tmp/test.pptx", expected_slides=10)
         assert p.pptx_path == "/tmp/test.pptx"
@@ -191,7 +216,9 @@ class TestQaToolParamValidation:
         assert p.expected_demos == 0
 
     def test_demo_qa_params_full(self):
-        p = RunDemoQaChecksParams(guide_path="/tmp/g.md", companion_dir="/tmp/scripts", expected_demos=3)
+        p = RunDemoQaChecksParams(
+            guide_path="/tmp/g.md", companion_dir="/tmp/scripts", expected_demos=3
+        )
         assert p.companion_dir == "/tmp/scripts"
         assert p.expected_demos == 3
 

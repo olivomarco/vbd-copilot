@@ -33,6 +33,7 @@ def _reset_router():
 # _auto_approve
 # ---------------------------------------------------------------------------
 
+
 class TestAutoApprove:
     @pytest.mark.asyncio
     async def test_auto_approve_returns_approved(self):
@@ -43,6 +44,7 @@ class TestAutoApprove:
 # ---------------------------------------------------------------------------
 # _ensure_classifier
 # ---------------------------------------------------------------------------
+
 
 class TestEnsureClassifier:
     @pytest.mark.asyncio
@@ -80,6 +82,7 @@ class TestEnsureClassifier:
 # _classify_intent
 # ---------------------------------------------------------------------------
 
+
 class TestClassifyIntent:
     @pytest.mark.asyncio
     async def test_returns_known_agent_from_stream(self):
@@ -95,13 +98,18 @@ class TestClassifyIntent:
         mock_session.on = mock_on
         mock_session.send_and_wait = AsyncMock(return_value=None)
 
-        with patch("router._ensure_classifier", new_callable=AsyncMock, return_value=mock_session):
+        with patch(
+            "router._ensure_classifier",
+            new_callable=AsyncMock,
+            return_value=mock_session,
+        ):
+
             async def send_with_events(*args, **kwargs):
                 # Simulate streamed event
                 handler = events_captured[0]
                 event = SimpleNamespace(
                     type=SessionEventType.ASSISTANT_MESSAGE_DELTA,
-                    data=SimpleNamespace(delta_content="slide-conductor")
+                    data=SimpleNamespace(delta_content="slide-conductor"),
                 )
                 handler(event)
                 return None
@@ -118,13 +126,21 @@ class TestClassifyIntent:
         reply = SimpleNamespace(data=SimpleNamespace(content="none"))
         mock_session.send_and_wait = AsyncMock(return_value=reply)
 
-        with patch("router._ensure_classifier", new_callable=AsyncMock, return_value=mock_session):
+        with patch(
+            "router._ensure_classifier",
+            new_callable=AsyncMock,
+            return_value=mock_session,
+        ):
             result = await _classify_intent("Hello world")
         assert result is None
 
     @pytest.mark.asyncio
     async def test_returns_none_on_exception(self):
-        with patch("router._ensure_classifier", new_callable=AsyncMock, side_effect=Exception("boom")):
+        with patch(
+            "router._ensure_classifier",
+            new_callable=AsyncMock,
+            side_effect=Exception("boom"),
+        ):
             result = await _classify_intent("test prompt")
         assert result is None
         # Session should be reset
@@ -137,7 +153,11 @@ class TestClassifyIntent:
         reply = SimpleNamespace(data=SimpleNamespace(content="demo-conductor"))
         mock_session.send_and_wait = AsyncMock(return_value=reply)
 
-        with patch("router._ensure_classifier", new_callable=AsyncMock, return_value=mock_session):
+        with patch(
+            "router._ensure_classifier",
+            new_callable=AsyncMock,
+            return_value=mock_session,
+        ):
             result = await _classify_intent("Create demos")
         assert result == "demo-conductor"
 
@@ -146,6 +166,7 @@ class TestClassifyIntent:
 # route_to_agent
 # ---------------------------------------------------------------------------
 
+
 class TestRouteToAgent:
     @pytest.mark.asyncio
     async def test_routes_to_detected_agent(self):
@@ -153,7 +174,11 @@ class TestRouteToAgent:
         mock_session.rpc.agent.select = AsyncMock()
         mock_session.rpc.model.switch_to = AsyncMock()
 
-        with patch("router.detect_agent", new_callable=AsyncMock, return_value="slide-conductor"):
+        with patch(
+            "router.detect_agent",
+            new_callable=AsyncMock,
+            return_value="slide-conductor",
+        ):
             result = await route_to_agent(mock_session, "Build a deck")
         assert result == "slide-conductor"
         mock_session.rpc.agent.select.assert_called_once()

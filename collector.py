@@ -137,7 +137,14 @@ class EventCollector:
             "UPDATE turns SET "
             "input_tokens=?, output_tokens=?, cache_read_tokens=?, "
             "cache_write_tokens=?, estimated_cost_usd=? WHERE id=?",
-            (input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost, turn_id),
+            (
+                input_tokens,
+                output_tokens,
+                cache_read_tokens,
+                cache_write_tokens,
+                cost,
+                turn_id,
+            ),
         )
         self._store._commit()
 

@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 # Chat
 # ---------------------------------------------------------------------------
 
+
 class ChatRequest(BaseModel):
     """Incoming chat message from the user."""
 
@@ -54,6 +55,7 @@ class ChatStreamEvent(BaseModel):
 # Feedback
 # ---------------------------------------------------------------------------
 
+
 class FeedbackRequest(BaseModel):
     """Thumbs-up / thumbs-down feedback for an assistant message."""
 
@@ -70,6 +72,7 @@ class FeedbackRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Sessions
 # ---------------------------------------------------------------------------
+
 
 class MessageResponse(BaseModel):
     """A single message within a conversation."""
@@ -96,6 +99,7 @@ class SessionResponse(BaseModel):
 # Health
 # ---------------------------------------------------------------------------
 
+
 class HealthResponse(BaseModel):
     """Health-check response with per-service status."""
 
@@ -109,6 +113,7 @@ class HealthResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Billing data
 # ---------------------------------------------------------------------------
+
 
 class LineItem(BaseModel):
     """Single line item on an energy bill."""
@@ -140,6 +145,7 @@ class BillData(BaseModel):
 # AI Search
 # ---------------------------------------------------------------------------
 
+
 class SearchResult(BaseModel):
     """A single result from Azure AI Search."""
 
@@ -153,6 +159,7 @@ class SearchResult(BaseModel):
 # ---------------------------------------------------------------------------
 # Model routing
 # ---------------------------------------------------------------------------
+
 
 class ModelClassification(BaseModel):
     """Classification output that determines which LLM to use."""

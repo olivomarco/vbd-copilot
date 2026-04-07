@@ -49,14 +49,16 @@ def _build_system_prompt() -> str:
         desc = cfg.get("description", "")
         lines.append(f"- {name}: {desc}")
 
-    lines.extend([
-        "",
-        "Rules:",
-        "- Pick the single best-matching agent.",
-        "- If the message is general conversation, a greeting, or does not "
-        "clearly match any agent, reply none.",
-        "- Reply with the agent name only, no extra text.",
-    ])
+    lines.extend(
+        [
+            "",
+            "Rules:",
+            "- Pick the single best-matching agent.",
+            "- If the message is general conversation, a greeting, or does not "
+            "clearly match any agent, reply none.",
+            "- Reply with the agent name only, no extra text.",
+        ]
+    )
     return "\n".join(lines)
 
 
@@ -115,9 +117,7 @@ async def _classify_intent(prompt: str) -> str | None:
 
         unsubscribe = session.on(_on_event)
         try:
-            reply = await session.send_and_wait(
-                {"prompt": prompt}, timeout=15
-            )
+            reply = await session.send_and_wait({"prompt": prompt}, timeout=15)
         finally:
             unsubscribe()
 
@@ -173,7 +173,9 @@ async def route_to_agent(session: CopilotSession, prompt: str) -> str | None:
         )
 
         await session.rpc.agent.select(SessionAgentSelectParams(name=agent_name))
-        await session.rpc.model.switch_to(SessionModelSwitchToParams(model_id=DEFAULT_MODEL))
+        await session.rpc.model.switch_to(
+            SessionModelSwitchToParams(model_id=DEFAULT_MODEL)
+        )
         return agent_name
     else:
         current = await session.rpc.agent.get_current()

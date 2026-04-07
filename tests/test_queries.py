@@ -28,17 +28,40 @@ def store(tmp_path):
 def _populate_store(store):
     """Add sample data to the store."""
     store.start_session("s1", agent="slide-conductor", model="gpt-4o")
-    t1 = store.start_turn(session_id="s1", agent="slide-conductor", model="gpt-4o", user_prompt="make slides")
-    store.end_turn(t1, assistant_response="here are your slides", input_tokens=1000, output_tokens=500, estimated_cost_usd=0.01)
-    store.record_invocation(turn_id=t1, session_id="s1", inv_type="tool_call", name="bing_search")
+    t1 = store.start_turn(
+        session_id="s1",
+        agent="slide-conductor",
+        model="gpt-4o",
+        user_prompt="make slides",
+    )
+    store.end_turn(
+        t1,
+        assistant_response="here are your slides",
+        input_tokens=1000,
+        output_tokens=500,
+        estimated_cost_usd=0.01,
+    )
+    store.record_invocation(
+        turn_id=t1, session_id="s1", inv_type="tool_call", name="bing_search"
+    )
 
     store.start_session("s2", agent="demo-conductor", model="claude-sonnet-4.6")
-    t2 = store.start_turn(session_id="s2", agent="demo-conductor", model="claude-sonnet-4.6", user_prompt="make demos")
-    store.end_turn(t2, assistant_response="here are demos", input_tokens=2000, output_tokens=800, estimated_cost_usd=0.05)
+    t2 = store.start_turn(
+        session_id="s2",
+        agent="demo-conductor",
+        model="claude-sonnet-4.6",
+        user_prompt="make demos",
+    )
+    store.end_turn(
+        t2,
+        assistant_response="here are demos",
+        input_tokens=2000,
+        output_tokens=800,
+        estimated_cost_usd=0.05,
+    )
 
 
 class TestPeriodCutoff:
-
     def test_none_period(self):
         assert _period_cutoff(None) is None
 
@@ -63,7 +86,6 @@ class TestPeriodCutoff:
 
 
 class TestListSessions:
-
     def test_list_sessions(self, store):
         _populate_store(store)
         sessions = list_sessions(store)
@@ -81,7 +103,6 @@ class TestListSessions:
 
 
 class TestGetSessionDetail:
-
     def test_get_session_detail(self, store):
         _populate_store(store)
         detail = get_session_detail(store, "s1")
@@ -106,7 +127,6 @@ class TestGetSessionDetail:
 
 
 class TestGetTurnDetail:
-
     def test_get_turn_detail(self, store):
         _populate_store(store)
         turns = store.get_turns("s1")
@@ -119,7 +139,6 @@ class TestGetTurnDetail:
 
 
 class TestGetSessionInvocations:
-
     def test_invocations(self, store):
         _populate_store(store)
         invs = get_session_invocations(store, "s1")
@@ -128,7 +147,6 @@ class TestGetSessionInvocations:
 
 
 class TestGetInvocationDetail:
-
     def test_invocation_detail(self, store):
         _populate_store(store)
         invs = get_session_invocations(store, "s1")
@@ -141,7 +159,6 @@ class TestGetInvocationDetail:
 
 
 class TestGetResumableSessions:
-
     def test_resumable_sessions(self, store):
         store.start_session("s1")
         store.end_session("s1", resumable=True)
@@ -153,7 +170,6 @@ class TestGetResumableSessions:
 
 
 class TestUsageSummary:
-
     def test_usage_summary(self, store):
         _populate_store(store)
         usage = usage_summary(store)
@@ -186,7 +202,6 @@ class TestUsageSummary:
 
 
 class TestUsageByAgent:
-
     def test_by_agent(self, store):
         _populate_store(store)
         result = usage_by_agent(store)
@@ -197,7 +212,6 @@ class TestUsageByAgent:
 
 
 class TestUsageByModel:
-
     def test_by_model(self, store):
         _populate_store(store)
         result = usage_by_model(store)

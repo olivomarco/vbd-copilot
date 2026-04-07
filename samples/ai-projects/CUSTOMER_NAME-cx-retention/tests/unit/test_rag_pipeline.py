@@ -88,7 +88,9 @@ def pipeline(
     )
 
 
-async def _collect_tokens(pipeline: RAGPipeline, **kwargs) -> tuple[list[str], Optional[ModelClassification]]:  # type: ignore[no-untyped-def]
+async def _collect_tokens(
+    pipeline: RAGPipeline, **kwargs
+) -> tuple[list[str], Optional[ModelClassification]]:  # type: ignore[no-untyped-def]
     """Helper to collect all tokens from process_query."""
     tokens: list[str] = []
     classification = None

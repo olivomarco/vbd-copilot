@@ -93,9 +93,7 @@ class ConversationManager:
                 logger.debug("Session loaded: %s", session_id)
                 return session
             except CosmosResourceNotFoundError:
-                logger.info(
-                    "Session %s not found, creating new session", session_id
-                )
+                logger.info("Session %s not found, creating new session", session_id)
 
         # Create new session
         new_id = session_id or str(uuid.uuid4())
@@ -203,7 +201,9 @@ class ConversationManager:
         except Exception:
             logger.warning("Failed to update session message count for %s", session_id)
 
-        logger.debug("Message saved: id=%s session=%s role=%s", message_id, session_id, role)
+        logger.debug(
+            "Message saved: id=%s session=%s role=%s", message_id, session_id, role
+        )
         return message_id
 
     async def get_conversation_history(
@@ -301,7 +301,9 @@ class ConversationManager:
             )
             count += 1
 
-        logger.debug("Deleted %d items from %s for session %s", count, container_name, session_id)
+        logger.debug(
+            "Deleted %d items from %s for session %s", count, container_name, session_id
+        )
         return count
 
     # ------------------------------------------------------------------

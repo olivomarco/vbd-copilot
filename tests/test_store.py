@@ -14,7 +14,6 @@ def store(tmp_path):
 
 
 class TestSessionLifecycle:
-
     def test_start_and_get_session(self, store):
         store.start_session("s1", agent="slide-conductor", model="gpt-4o")
         session = store.get_session("s1")
@@ -95,13 +94,17 @@ class TestSessionLifecycle:
 
     def test_update_session_counters(self, store):
         store.start_session("s1")
-        store.update_session_counters("s1", turn_count_delta=1, input_tokens_delta=100, output_tokens_delta=50)
+        store.update_session_counters(
+            "s1", turn_count_delta=1, input_tokens_delta=100, output_tokens_delta=50
+        )
         session = store.get_session("s1")
         assert session["turn_count"] == 1
         assert session["total_input_tokens"] == 100
         assert session["total_output_tokens"] == 50
 
-        store.update_session_counters("s1", turn_count_delta=1, input_tokens_delta=200, output_tokens_delta=100)
+        store.update_session_counters(
+            "s1", turn_count_delta=1, input_tokens_delta=200, output_tokens_delta=100
+        )
         session = store.get_session("s1")
         assert session["turn_count"] == 2
         assert session["total_input_tokens"] == 300
@@ -121,7 +124,6 @@ class TestSessionLifecycle:
 
 
 class TestNickname:
-
     def test_set_and_get_nickname(self, store):
         store.start_session("s1")
         store.set_nickname("s1", "my-session")
@@ -166,7 +168,6 @@ class TestNickname:
 
 
 class TestResolvePrefix:
-
     def test_exact_match(self, store):
         store.start_session("abc123def456")
         assert store.resolve_prefix("sessions", "abc123def456") == "abc123def456"
@@ -193,10 +194,11 @@ class TestResolvePrefix:
 
 
 class TestTurnLifecycle:
-
     def test_start_and_get_turn(self, store):
         store.start_session("s1")
-        turn_id = store.start_turn(session_id="s1", agent="a1", model="m1", user_prompt="hello")
+        turn_id = store.start_turn(
+            session_id="s1", agent="a1", model="m1", user_prompt="hello"
+        )
         turn = store.get_turn(turn_id)
         assert turn is not None
         assert turn["session_id"] == "s1"
@@ -257,13 +259,15 @@ class TestTurnLifecycle:
 
 
 class TestInvocations:
-
     def test_record_and_get_invocation(self, store):
         store.start_session("s1")
         tid = store.start_turn(session_id="s1")
         inv_id = store.record_invocation(
-            turn_id=tid, session_id="s1", inv_type="tool_call", name="bing_search",
-            input_data='{"query": "test"}'
+            turn_id=tid,
+            session_id="s1",
+            inv_type="tool_call",
+            name="bing_search",
+            input_data='{"query": "test"}',
         )
         inv = store.get_invocation(inv_id)
         assert inv is not None
@@ -297,8 +301,12 @@ class TestInvocations:
     def test_get_invocations_for_turn(self, store):
         store.start_session("s1")
         tid = store.start_turn(session_id="s1")
-        store.record_invocation(turn_id=tid, session_id="s1", inv_type="tool_call", name="t1")
-        store.record_invocation(turn_id=tid, session_id="s1", inv_type="tool_call", name="t2")
+        store.record_invocation(
+            turn_id=tid, session_id="s1", inv_type="tool_call", name="t1"
+        )
+        store.record_invocation(
+            turn_id=tid, session_id="s1", inv_type="tool_call", name="t2"
+        )
         invs = store.get_invocations_for_turn(tid)
         assert len(invs) == 2
 
@@ -306,8 +314,12 @@ class TestInvocations:
         store.start_session("s1")
         t1 = store.start_turn(session_id="s1")
         t2 = store.start_turn(session_id="s1")
-        store.record_invocation(turn_id=t1, session_id="s1", inv_type="tool_call", name="a")
-        store.record_invocation(turn_id=t2, session_id="s1", inv_type="subagent", name="b")
+        store.record_invocation(
+            turn_id=t1, session_id="s1", inv_type="tool_call", name="a"
+        )
+        store.record_invocation(
+            turn_id=t2, session_id="s1", inv_type="subagent", name="b"
+        )
         invs = store.get_invocations_for_session("s1")
         assert len(invs) == 2
 
@@ -316,7 +328,6 @@ class TestInvocations:
 
 
 class TestCleanup:
-
     def test_cleanup_old_keeps_recent(self, store):
         store.start_session("s1")
         store.start_turn(session_id="s1")
@@ -332,7 +343,6 @@ class TestCleanup:
 
 
 class TestSubagentName:
-
     def test_record_invocation_with_subagent_name(self, store):
         """record_invocation should store subagent_name when provided."""
         store.start_session("s-sub1", agent="test")
@@ -364,7 +374,6 @@ class TestSubagentName:
 
 
 class TestSchemaIdempotency:
-
     def test_reopen_database(self, tmp_path):
         """Schema creation should be idempotent."""
         db = tmp_path / "test.db"

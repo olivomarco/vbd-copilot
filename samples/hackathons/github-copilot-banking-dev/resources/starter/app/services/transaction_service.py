@@ -28,9 +28,7 @@ class TransactionService:
     def __init__(self, account_service: AccountService | None = None) -> None:
         self.account_service = account_service or AccountService()
 
-    def validate_transaction(
-        self, account_id: int, amount: float, transaction_type: str
-    ) -> None:
+    def validate_transaction(self, account_id: int, amount: float, transaction_type: str) -> None:
         """Check that a transaction is permissible before it is committed.
 
         Validates account status and available funds for debit-type transactions.
@@ -106,7 +104,5 @@ class TransactionService:
 
     def get_transactions(self, account_id: int) -> list[Transaction]:
         """Return all transactions for a given account, most recent first."""
-        account_transactions = [
-            t for t in _transactions.values() if t.account_id == account_id
-        ]
+        account_transactions = [t for t in _transactions.values() if t.account_id == account_id]
         return sorted(account_transactions, key=lambda t: t.created_at, reverse=True)

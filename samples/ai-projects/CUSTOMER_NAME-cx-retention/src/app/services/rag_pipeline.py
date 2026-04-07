@@ -129,9 +129,7 @@ class RAGPipeline:
         for i, result in enumerate(search_results, 1):
             source = result.source_document or "documento"
             category = result.category or "generale"
-            parts.append(
-                f"[Fonte {i} - {category} ({source})]:\n{result.content}"
-            )
+            parts.append(f"[Fonte {i} - {category} ({source})]:\n{result.content}")
         return "\n\n".join(parts)
 
     @classmethod

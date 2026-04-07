@@ -221,7 +221,9 @@ class TestCircuitBreaker:
         assert client._cb_state == CircuitState.CLOSED
         assert client._cb_failure_count == 0
 
-    def test_failure_below_threshold_stays_closed(self, client: BillingAPIClient) -> None:
+    def test_failure_below_threshold_stays_closed(
+        self, client: BillingAPIClient
+    ) -> None:
         """Fewer than threshold failures keeps circuit CLOSED."""
         for _ in range(_CB_FAILURE_THRESHOLD - 1):
             client._on_failure()
@@ -288,7 +290,12 @@ class TestResponseParsing:
             "payment_status": "da pagare",
             "due_date": "2024-03-15",
             "line_items": [
-                {"description": "Quota fissa", "amount": 30.0, "unit": "EUR", "quantity": 1},
+                {
+                    "description": "Quota fissa",
+                    "amount": 30.0,
+                    "unit": "EUR",
+                    "quantity": 1,
+                },
                 {"description": "Energia", "amount": 80.0},
             ],
         }

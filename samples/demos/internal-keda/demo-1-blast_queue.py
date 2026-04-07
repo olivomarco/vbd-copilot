@@ -81,7 +81,9 @@ async def blast(hostname: str, queue_name: str, count: int) -> None:
                         await sender.send_messages(batch)
                         sent_total += len(batch)  # type: ignore[arg-type]
                         batch_count += 1
-                        print(f"  --> Batch {batch_count:02d} sent ({sent_total} messages so far)")
+                        print(
+                            f"  --> Batch {batch_count:02d} sent ({sent_total} messages so far)"
+                        )
                         batch = await sender.create_message_batch()
                         batch.add_message(ServiceBusMessage(body))
 
@@ -94,7 +96,9 @@ async def blast(hostname: str, queue_name: str, count: int) -> None:
         print("")
         print(f"  *** SUCCESS: {count} messages sent in {batch_count} batch(es) ***")
         print(f"  *** Destination : {hostname}/{queue_name}            ***")
-        print("  *** Watch KEDA  : watch -n 2 kubectl get pods -n keda-dotnet-sample ***")
+        print(
+            "  *** Watch KEDA  : watch -n 2 kubectl get pods -n keda-dotnet-sample ***"
+        )
         print("")
 
     except Exception as exc:
@@ -104,8 +108,12 @@ async def blast(hostname: str, queue_name: str, count: int) -> None:
         print("")
         print("  Troubleshooting checklist:")
         print("    1. Run 'az login' if the DefaultAzureCredential fails with 401/403")
-        print("    2. Confirm your identity has 'Azure Service Bus Data Sender' on the namespace")
-        print("    3. Confirm --hostname includes the full .servicebus.windows.net suffix")
+        print(
+            "    2. Confirm your identity has 'Azure Service Bus Data Sender' on the namespace"
+        )
+        print(
+            "    3. Confirm --hostname includes the full .servicebus.windows.net suffix"
+        )
         print("    4. Confirm Service Bus namespace is Standard SKU (not Basic)")
         sys.exit(1)
     finally:
@@ -141,7 +149,9 @@ def main() -> None:
         sys.exit(1)
 
     if not args.hostname.endswith(".servicebus.windows.net"):
-        print(f"WARNING: hostname '{args.hostname}' does not end with .servicebus.windows.net")
+        print(
+            f"WARNING: hostname '{args.hostname}' does not end with .servicebus.windows.net"
+        )
         print("         Continuing anyway - verify this is correct.")
 
     if args.count < 1 or args.count > 10000:

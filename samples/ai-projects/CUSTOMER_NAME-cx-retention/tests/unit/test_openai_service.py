@@ -21,8 +21,10 @@ from app.services.openai_service import (
 @pytest.fixture
 def service(mock_settings: MagicMock, mock_credential: MagicMock) -> OpenAIService:
     """Create an OpenAIService with mocked dependencies."""
-    with patch("app.services.openai_service.get_bearer_token_provider") as mock_token, \
-         patch("app.services.openai_service.AsyncAzureOpenAI") as mock_oai_cls:
+    with (
+        patch("app.services.openai_service.get_bearer_token_provider") as mock_token,
+        patch("app.services.openai_service.AsyncAzureOpenAI") as mock_oai_cls,
+    ):
         mock_token.return_value = lambda: "fake-bearer"
         mock_client = AsyncMock()
         mock_oai_cls.return_value = mock_client
@@ -58,9 +60,7 @@ class TestStreamChat:
             for c in chunks:
                 yield c
 
-        service._client.chat.completions.create = AsyncMock(
-            return_value=mock_stream()
-        )
+        service._client.chat.completions.create = AsyncMock(return_value=mock_stream())
 
         tokens = []
         async for token in service.stream_chat(
@@ -72,15 +72,16 @@ class TestStreamChat:
         assert tokens == ["Buon", "giorno", ", come ", "posso ", "aiutarla?"]
 
     @pytest.mark.asyncio
-    async def test_stream_chat_correct_params_mini(self, service: OpenAIService) -> None:
+    async def test_stream_chat_correct_params_mini(
+        self, service: OpenAIService
+    ) -> None:
         """Verify temperature and max_tokens for gpt-4o-mini."""
+
         async def mock_stream():  # type: ignore[no-untyped-def]
             return
             yield
 
-        service._client.chat.completions.create = AsyncMock(
-            return_value=mock_stream()
-        )
+        service._client.chat.completions.create = AsyncMock(return_value=mock_stream())
 
         messages = [{"role": "user", "content": "Test"}]
         async for _ in service.stream_chat(
@@ -99,13 +100,12 @@ class TestStreamChat:
     @pytest.mark.asyncio
     async def test_stream_chat_correct_params_4o(self, service: OpenAIService) -> None:
         """Verify temperature for gpt-4o deployment."""
+
         async def mock_stream():  # type: ignore[no-untyped-def]
             return
             yield
 
-        service._client.chat.completions.create = AsyncMock(
-            return_value=mock_stream()
-        )
+        service._client.chat.completions.create = AsyncMock(return_value=mock_stream())
 
         messages = [{"role": "user", "content": "Test"}]
         async for _ in service.stream_chat(
@@ -125,13 +125,12 @@ class TestStreamChat:
         self, service: OpenAIService
     ) -> None:
         """Unknown deployment name falls back to 0.3 temperature."""
+
         async def mock_stream():  # type: ignore[no-untyped-def]
             return
             yield
 
-        service._client.chat.completions.create = AsyncMock(
-            return_value=mock_stream()
-        )
+        service._client.chat.completions.create = AsyncMock(return_value=mock_stream())
 
         messages = [{"role": "user", "content": "Test"}]
         async for _ in service.stream_chat(
@@ -172,9 +171,7 @@ class TestStreamChat:
             yield chunk_empty
             yield chunk_valid
 
-        service._client.chat.completions.create = AsyncMock(
-            return_value=mock_stream()
-        )
+        service._client.chat.completions.create = AsyncMock(return_value=mock_stream())
 
         tokens = []
         async for token in service.stream_chat(

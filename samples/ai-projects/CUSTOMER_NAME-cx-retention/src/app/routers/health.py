@@ -71,6 +71,7 @@ async def readiness(request: Request) -> HealthResponse:
 
     if not all_healthy:
         from fastapi.responses import JSONResponse
+
         return JSONResponse(  # type: ignore[return-value]
             status_code=503,
             content=response.model_dump(),

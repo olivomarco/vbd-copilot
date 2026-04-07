@@ -20,7 +20,11 @@ def main():
     parser.add_argument("--headless", action="store_true", help="Run in headless mode")
     parser.add_argument("--convert-to", dest="format", help="Target format (e.g., pdf)")
     parser.add_argument("input_file", help="Input file to convert")
-    parser.add_argument("--outdir", default=None, help="Output directory (defaults to input file directory)")
+    parser.add_argument(
+        "--outdir",
+        default=None,
+        help="Output directory (defaults to input file directory)",
+    )
     args = parser.parse_args()
 
     input_path = Path(args.input_file).resolve()

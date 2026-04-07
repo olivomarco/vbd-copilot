@@ -10,6 +10,9 @@ else
     echo "⚠️  No local venv found, relying on system packages"
 fi
 
+echo "── ruff format ──"
+ruff format --check .
+
 echo "── ruff check ──"
 ruff check .
 

@@ -54,19 +54,21 @@ print(f"Spark version: {spark.version}")
 # ---------------------------------------------------------------------------
 # Cell 2 - Define shared schema
 # ---------------------------------------------------------------------------
-sales_schema = StructType([
-    StructField("OrderID",  StringType(), False),
-    StructField("SalesRep", StringType(), False),
-    StructField("Region",   StringType(), False),
-    StructField("Amount",   DoubleType(), False),
-])
+sales_schema = StructType(
+    [
+        StructField("OrderID", StringType(), False),
+        StructField("SalesRep", StringType(), False),
+        StructField("Region", StringType(), False),
+        StructField("Amount", DoubleType(), False),
+    ]
+)
 
 # ---------------------------------------------------------------------------
 # Cell 3 - Load NorthSalesData table
 # ---------------------------------------------------------------------------
 north_data = [
     ("N001", "Alice", "North", 52000.0),
-    ("N002", "Bob",   "North", 47000.0),
+    ("N002", "Bob", "North", 47000.0),
     ("N003", "Carol", "North", 61000.0),
 ]
 
@@ -80,8 +82,8 @@ print(f"NorthSalesData created - row count: {count_north}")
 # Cell 4 - Load SouthSalesData table
 # ---------------------------------------------------------------------------
 south_data = [
-    ("S001", "Dave",  "South", 39000.0),
-    ("S002", "Eve",   "South", 44500.0),
+    ("S001", "Dave", "South", 39000.0),
+    ("S002", "Eve", "South", 44500.0),
     ("S003", "Frank", "South", 58000.0),
 ]
 
@@ -100,7 +102,9 @@ spark.table("NorthSalesData").show()
 print("\n--- SouthSalesData preview ---")
 spark.table("SouthSalesData").show()
 
-print("\nSetup complete. Proceed with manual OneLake security configuration in the Fabric portal.")
+print(
+    "\nSetup complete. Proceed with manual OneLake security configuration in the Fabric portal."
+)
 
 # ---------------------------------------------------------------------------
 # Cell 6 - SQL endpoint validation queries (copy-paste into SQL analytics endpoint)
@@ -124,6 +128,7 @@ SELECT 'SouthSalesData', COUNT(*) FROM SouthSalesData;
 print("Validation queries for SQL analytics endpoint:")
 print(VALIDATION_QUERIES)
 
+
 # ---------------------------------------------------------------------------
 # Cell 7 - Cleanup helper (run ONLY to reset demo environment)
 # ---------------------------------------------------------------------------
@@ -136,5 +141,6 @@ def cleanup_demo_tables():
     # spark.sql("DROP TABLE IF EXISTS NorthSalesData")
     # spark.sql("DROP TABLE IF EXISTS SouthSalesData")
     print("Cleanup helper loaded. Uncomment drop statements to execute.")
+
 
 cleanup_demo_tables()

@@ -89,6 +89,7 @@ class TestHybridSearch:
         service: SearchService,
     ) -> None:
         """No results from search returns empty list."""
+
         async def mock_search_iter():  # type: ignore[no-untyped-def]
             return
             yield  # Make this an async generator
@@ -141,6 +142,7 @@ class TestHybridSearch:
         mock_openai_svc: AsyncMock,
     ) -> None:
         """Verify openai_service.embed() is called with the query."""
+
         async def mock_search_iter():  # type: ignore[no-untyped-def]
             return
             yield
@@ -159,6 +161,7 @@ class TestHybridSearch:
         service: SearchService,
     ) -> None:
         """Verify search uses the default top=5 parameter."""
+
         async def mock_search_iter():  # type: ignore[no-untyped-def]
             return
             yield
@@ -192,6 +195,7 @@ class TestHybridSearch:
         service: SearchService,
     ) -> None:
         """Custom top parameter is passed through to search."""
+
         async def mock_search_iter():  # type: ignore[no-untyped-def]
             return
             yield
@@ -212,6 +216,7 @@ class TestSearchServiceHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_success(self, service: SearchService) -> None:
         """Healthy AI Search returns True."""
+
         async def mock_search_iter():  # type: ignore[no-untyped-def]
             return
             yield

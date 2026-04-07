@@ -91,7 +91,9 @@ class TestEnvelope:
         assert env2["seq"] == 2
 
     def test_with_correlation_id(self):
-        env = sa._envelope(None, "tool_started", {"tool": "t"}, correlation_id="corr-abc")
+        env = sa._envelope(
+            None, "tool_started", {"tool": "t"}, correlation_id="corr-abc"
+        )
         assert env["correlationId"] == "corr-abc"
 
 
@@ -193,7 +195,9 @@ class TestPublicFunctionDelegation:
         assert not conn.input_queue.empty()
 
         loop = asyncio.new_event_loop()
-        result = loop.run_until_complete(sa.pop_user_response(timeout=1.0, session_id="s7"))
+        result = loop.run_until_complete(
+            sa.pop_user_response(timeout=1.0, session_id="s7")
+        )
         loop.close()
         assert result == "hello"
 

@@ -29,7 +29,10 @@ from pptx.util import Inches
 
 # ── Layout constants (imported from sibling pptx_utils.py) ────────────────────
 import importlib.util as _ilu
-_spec = _ilu.spec_from_file_location("pptx_utils", Path(__file__).with_name("pptx_utils.py"))
+
+_spec = _ilu.spec_from_file_location(
+    "pptx_utils", Path(__file__).with_name("pptx_utils.py")
+)
 _mod = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
 
@@ -41,9 +44,11 @@ CONTENT_WIDTH_EMU = _mod.CONTENT_WIDTH
 CONTENT_BOTTOM_EMU = _mod.CONTENT_BOTTOM
 
 # Tolerances
-OVERFLOW_TOLERANCE_EMU = Inches(0.15)  # shapes may exceed by up to 0.15" (decorative bleed)
-MIN_MARGIN_EMU = Inches(0.3)          # minimum margin from any slide edge for content shapes
-OVERLAP_THRESHOLD_EMU = Inches(0.5)   # shapes overlapping by more than this are flagged
+OVERFLOW_TOLERANCE_EMU = Inches(
+    0.15
+)  # shapes may exceed by up to 0.15" (decorative bleed)
+MIN_MARGIN_EMU = Inches(0.3)  # minimum margin from any slide edge for content shapes
+OVERLAP_THRESHOLD_EMU = Inches(0.5)  # shapes overlapping by more than this are flagged
 
 # Font sanity range
 MIN_FONT_PT = 8
@@ -62,24 +67,29 @@ def emu_to_inches(emu: int) -> float:
 
 # ── Individual check functions ────────────────────────────────────────────────
 
+
 def check_slide_count(prs: Presentation, expected: int | None) -> list[dict]:
     """Check actual vs expected slide count."""
     issues = []
     actual = len(prs.slides)
     if expected is not None and actual != expected:
-        issues.append({
-            "slide": 0,
-            "severity": "CRITICAL" if abs(actual - expected) > 2 else "MAJOR",
-            "check": "slide_count",
-            "message": f"Expected {expected} slides, got {actual}",
-        })
+        issues.append(
+            {
+                "slide": 0,
+                "severity": "CRITICAL" if abs(actual - expected) > 2 else "MAJOR",
+                "check": "slide_count",
+                "message": f"Expected {expected} slides, got {actual}",
+            }
+        )
     if actual == 0:
-        issues.append({
-            "slide": 0,
-            "severity": "CRITICAL",
-            "check": "slide_count",
-            "message": "Presentation has zero slides",
-        })
+        issues.append(
+            {
+                "slide": 0,
+                "severity": "CRITICAL",
+                "check": "slide_count",
+                "message": "Presentation has zero slides",
+            }
+        )
     return issues
 
 
@@ -108,8 +118,14 @@ def check_shape_overflow(prs: Presentation) -> list[dict]:
 
 
 def _check_shape_bounds(
-    shape, slide_idx: int, sw: int, sh: int, tol: int,
-    issues: list[dict], offset_x: int, offset_y: int
+    shape,
+    slide_idx: int,
+    sw: int,
+    sh: int,
+    tol: int,
+    issues: list[dict],
+    offset_x: int,
+    offset_y: int,
 ):
     """Recursively check shape bounds, accounting for group offsets."""
     if hasattr(shape, "shapes"):
@@ -124,20 +140,23 @@ def _check_shape_bounds(
         ch_off_x, ch_off_y = 0, 0
         try:
             from pptx.oxml.ns import qn as _qn
-            grpSpPr = shape._element.find(_qn('p:grpSpPr'))
+
+            grpSpPr = shape._element.find(_qn("p:grpSpPr"))
             if grpSpPr is not None:
-                xfrm = grpSpPr.find(_qn('a:xfrm'))
+                xfrm = grpSpPr.find(_qn("a:xfrm"))
                 if xfrm is not None:
-                    chOff = xfrm.find(_qn('a:chOff'))
+                    chOff = xfrm.find(_qn("a:chOff"))
                     if chOff is not None:
-                        ch_off_x = int(chOff.get('x', 0))
-                        ch_off_y = int(chOff.get('y', 0))
+                        ch_off_x = int(chOff.get("x", 0))
+                        ch_off_y = int(chOff.get("y", 0))
         except Exception:
             pass
         child_offset_x = offset_x + grp_off_x - ch_off_x
         child_offset_y = offset_y + grp_off_y - ch_off_y
         for child in shape.shapes:
-            _check_shape_bounds(child, slide_idx, sw, sh, tol, issues, child_offset_x, child_offset_y)
+            _check_shape_bounds(
+                child, slide_idx, sw, sh, tol, issues, child_offset_x, child_offset_y
+            )
         return
 
     left = (shape.left or 0) + offset_x
@@ -153,7 +172,11 @@ def _check_shape_bounds(
     if shape.has_text_frame:
         shape_text = shape.text_frame.text[:60]
 
-    label = shape_name or shape_text or f"shape@({emu_to_inches(left)},{emu_to_inches(top)})"
+    label = (
+        shape_name
+        or shape_text
+        or f"shape@({emu_to_inches(left)},{emu_to_inches(top)})"
+    )
 
     # Skip known decorative elements that intentionally bleed off-slide:
     # - Ovals on slide 1 (lead slide's concentric circle badge)
@@ -166,37 +189,43 @@ def _check_shape_bounds(
     # Check right overflow
     if right > sw + tol:
         overflow_in = emu_to_inches(right - sw)
-        issues.append({
-            "slide": slide_idx,
-            "severity": "CRITICAL" if overflow_in > 0.5 else "MAJOR",
-            "check": "shape_overflow_right",
-            "message": (
-                f"Shape '{label}' overflows right edge by {overflow_in}\" "
-                f"(right={emu_to_inches(right)}\", slide_w={emu_to_inches(sw)}\")"
-            ),
-        })
+        issues.append(
+            {
+                "slide": slide_idx,
+                "severity": "CRITICAL" if overflow_in > 0.5 else "MAJOR",
+                "check": "shape_overflow_right",
+                "message": (
+                    f"Shape '{label}' overflows right edge by {overflow_in}\" "
+                    f'(right={emu_to_inches(right)}", slide_w={emu_to_inches(sw)}")'
+                ),
+            }
+        )
 
     # Check bottom overflow
     if bottom > sh + tol:
         overflow_in = emu_to_inches(bottom - sh)
-        issues.append({
-            "slide": slide_idx,
-            "severity": "CRITICAL" if overflow_in > 0.5 else "MAJOR",
-            "check": "shape_overflow_bottom",
-            "message": (
-                f"Shape '{label}' overflows bottom edge by {overflow_in}\" "
-                f"(bottom={emu_to_inches(bottom)}\", slide_h={emu_to_inches(sh)}\")"
-            ),
-        })
+        issues.append(
+            {
+                "slide": slide_idx,
+                "severity": "CRITICAL" if overflow_in > 0.5 else "MAJOR",
+                "check": "shape_overflow_bottom",
+                "message": (
+                    f"Shape '{label}' overflows bottom edge by {overflow_in}\" "
+                    f'(bottom={emu_to_inches(bottom)}", slide_h={emu_to_inches(sh)}")'
+                ),
+            }
+        )
 
     # Check left/top negative overflow (off-screen left/top)
     if left < -tol and width > Inches(0.5):
-        issues.append({
-            "slide": slide_idx,
-            "severity": "MAJOR",
-            "check": "shape_overflow_left",
-            "message": f"Shape '{label}' extends {emu_to_inches(-left)}\" off left edge",
-        })
+        issues.append(
+            {
+                "slide": slide_idx,
+                "severity": "MAJOR",
+                "check": "shape_overflow_left",
+                "message": f"Shape '{label}' extends {emu_to_inches(-left)}\" off left edge",
+            }
+        )
 
 
 def check_empty_text_frames(prs: Presentation) -> list[dict]:
@@ -241,15 +270,17 @@ def check_empty_text_frames(prs: Presentation) -> list[dict]:
                 if "textbox" not in name_lower:
                     continue
 
-                issues.append({
-                    "slide": slide_idx,
-                    "severity": "MINOR",
-                    "check": "empty_text_frame",
-                    "message": (
-                        f"Empty text frame '{name}' "
-                        f"({emu_to_inches(w)}\" x {emu_to_inches(h)}\")"
-                    ),
-                })
+                issues.append(
+                    {
+                        "slide": slide_idx,
+                        "severity": "MINOR",
+                        "check": "empty_text_frame",
+                        "message": (
+                            f"Empty text frame '{name}' "
+                            f'({emu_to_inches(w)}" x {emu_to_inches(h)}")'
+                        ),
+                    }
+                )
     return issues
 
 
@@ -262,27 +293,31 @@ def check_placeholder_text(prs: Presentation) -> list[dict]:
                 text = shape.text_frame.text
                 matches = PLACEHOLDER_RE.findall(text)
                 if matches:
-                    issues.append({
-                        "slide": slide_idx,
-                        "severity": "CRITICAL",
-                        "check": "placeholder_text",
-                        "message": (
-                            f"Placeholder text found: {matches[:3]} "
-                            f"in '{text[:80]}...'"
-                        ),
-                    })
+                    issues.append(
+                        {
+                            "slide": slide_idx,
+                            "severity": "CRITICAL",
+                            "check": "placeholder_text",
+                            "message": (
+                                f"Placeholder text found: {matches[:3]} "
+                                f"in '{text[:80]}...'"
+                            ),
+                        }
+                    )
 
         # Also check speaker notes
         if slide.has_notes_slide:
             notes_text = slide.notes_slide.notes_text_frame.text
             matches = PLACEHOLDER_RE.findall(notes_text)
             if matches:
-                issues.append({
-                    "slide": slide_idx,
-                    "severity": "MAJOR",
-                    "check": "placeholder_in_notes",
-                    "message": f"Placeholder text in speaker notes: {matches[:3]}",
-                })
+                issues.append(
+                    {
+                        "slide": slide_idx,
+                        "severity": "MAJOR",
+                        "check": "placeholder_in_notes",
+                        "message": f"Placeholder text in speaker notes: {matches[:3]}",
+                    }
+                )
     return issues
 
 
@@ -298,22 +333,26 @@ def check_speaker_notes(prs: Presentation) -> list[dict]:
             notes_len = len(notes_text)
 
         if not has_notes:
-            issues.append({
-                "slide": slide_idx,
-                "severity": "MAJOR",
-                "check": "missing_notes",
-                "message": "No speaker notes on this slide",
-            })
+            issues.append(
+                {
+                    "slide": slide_idx,
+                    "severity": "MAJOR",
+                    "check": "missing_notes",
+                    "message": "No speaker notes on this slide",
+                }
+            )
         elif notes_len < 50:
-            issues.append({
-                "slide": slide_idx,
-                "severity": "MINOR",
-                "check": "short_notes",
-                "message": (
-                    f"Speaker notes are very short ({notes_len} chars) - "
-                    f"expected full presenter transcript"
-                ),
-            })
+            issues.append(
+                {
+                    "slide": slide_idx,
+                    "severity": "MINOR",
+                    "check": "short_notes",
+                    "message": (
+                        f"Speaker notes are very short ({notes_len} chars) - "
+                        f"expected full presenter transcript"
+                    ),
+                }
+            )
     return issues
 
 
@@ -329,25 +368,29 @@ def check_font_sizes(prs: Presentation) -> list[dict]:
                     if run.font.size is not None:
                         pt = run.font.size.pt
                         if pt < MIN_FONT_PT:
-                            issues.append({
-                                "slide": slide_idx,
-                                "severity": "MAJOR",
-                                "check": "font_too_small",
-                                "message": (
-                                    f"Font size {pt}pt is below minimum ({MIN_FONT_PT}pt): "
-                                    f"'{run.text[:40]}'"
-                                ),
-                            })
+                            issues.append(
+                                {
+                                    "slide": slide_idx,
+                                    "severity": "MAJOR",
+                                    "check": "font_too_small",
+                                    "message": (
+                                        f"Font size {pt}pt is below minimum ({MIN_FONT_PT}pt): "
+                                        f"'{run.text[:40]}'"
+                                    ),
+                                }
+                            )
                         elif pt > MAX_FONT_PT:
-                            issues.append({
-                                "slide": slide_idx,
-                                "severity": "MINOR",
-                                "check": "font_too_large",
-                                "message": (
-                                    f"Font size {pt}pt exceeds maximum ({MAX_FONT_PT}pt): "
-                                    f"'{run.text[:40]}'"
-                                ),
-                            })
+                            issues.append(
+                                {
+                                    "slide": slide_idx,
+                                    "severity": "MINOR",
+                                    "check": "font_too_large",
+                                    "message": (
+                                        f"Font size {pt}pt exceeds maximum ({MAX_FONT_PT}pt): "
+                                        f"'{run.text[:40]}'"
+                                    ),
+                                }
+                            )
     return issues
 
 
@@ -386,7 +429,9 @@ def check_text_overflow_heuristic(prs: Presentation) -> list[dict]:
             avg_font = sum(font_sizes) / len(font_sizes) if font_sizes else 14
 
             # Approximate chars per line and line height
-            avg_char_width_in = avg_font * 0.007  # rough: 1pt font ~ 0.007" avg char width
+            avg_char_width_in = (
+                avg_font * 0.007
+            )  # rough: 1pt font ~ 0.007" avg char width
             chars_per_line = max(1, int(emu_to_inches(box_w) / avg_char_width_in))
             line_height_in = avg_font * 1.5 / 72  # 1.5x line spacing
 
@@ -405,16 +450,18 @@ def check_text_overflow_heuristic(prs: Presentation) -> list[dict]:
             if estimated_height > available_height * 1.3:  # 30% overflow threshold
                 overflow_pct = int((estimated_height / available_height - 1) * 100)
                 shape_name = getattr(shape, "name", "") or "unnamed"
-                issues.append({
-                    "slide": slide_idx,
-                    "severity": "MAJOR" if overflow_pct > 50 else "MINOR",
-                    "check": "text_overflow_heuristic",
-                    "message": (
-                        f"Text likely overflows '{shape_name}' by ~{overflow_pct}% "
-                        f"(~{int(total_lines)} lines in {available_height}\" height, "
-                        f"font ~{avg_font:.0f}pt)"
-                    ),
-                })
+                issues.append(
+                    {
+                        "slide": slide_idx,
+                        "severity": "MAJOR" if overflow_pct > 50 else "MINOR",
+                        "check": "text_overflow_heuristic",
+                        "message": (
+                            f"Text likely overflows '{shape_name}' by ~{overflow_pct}% "
+                            f'(~{int(total_lines)} lines in {available_height}" height, '
+                            f"font ~{avg_font:.0f}pt)"
+                        ),
+                    }
+                )
     return issues
 
 
@@ -450,21 +497,30 @@ def check_shape_overlap(prs: Presentation) -> list[dict]:
             has_text = shape.has_text_frame and shape.text_frame.text.strip()
             shape_type_name = getattr(shape, "name", "") or ""
             is_background = not has_text and (
-                "Rectangle" in shape_type_name or "Oval" in shape_type_name
-                or "Group" in shape_type_name or not shape_type_name
+                "Rectangle" in shape_type_name
+                or "Oval" in shape_type_name
+                or "Group" in shape_type_name
+                or not shape_type_name
             )
 
-            content_shapes.append({
-                "left": left, "top": top, "right": left + w,
-                "bottom": top + h, "name": shape_type_name,
-                "text": shape.text_frame.text[:30].strip() if shape.has_text_frame else "",
-                "has_text": bool(has_text),
-                "is_background": is_background,
-            })
+            content_shapes.append(
+                {
+                    "left": left,
+                    "top": top,
+                    "right": left + w,
+                    "bottom": top + h,
+                    "name": shape_type_name,
+                    "text": shape.text_frame.text[:30].strip()
+                    if shape.has_text_frame
+                    else "",
+                    "has_text": bool(has_text),
+                    "is_background": is_background,
+                }
+            )
 
         # O(n^2) overlap check - fine for typical slide shape counts (< 30)
         for i, a in enumerate(content_shapes):
-            for b in content_shapes[i + 1:]:
+            for b in content_shapes[i + 1 :]:
                 # Skip intentional layering: background card + text child on top
                 if a["is_background"] and b["has_text"] and not a["has_text"]:
                     continue
@@ -480,23 +536,29 @@ def check_shape_overlap(prs: Presentation) -> list[dict]:
 
                 if ox > OVERLAP_THRESHOLD_EMU and oy > OVERLAP_THRESHOLD_EMU:
                     overlap_area = emu_to_inches(ox) * emu_to_inches(oy)
-                    a_area = emu_to_inches(a["right"] - a["left"]) * emu_to_inches(a["bottom"] - a["top"])
-                    b_area = emu_to_inches(b["right"] - b["left"]) * emu_to_inches(b["bottom"] - b["top"])
+                    a_area = emu_to_inches(a["right"] - a["left"]) * emu_to_inches(
+                        a["bottom"] - a["top"]
+                    )
+                    b_area = emu_to_inches(b["right"] - b["left"]) * emu_to_inches(
+                        b["bottom"] - b["top"]
+                    )
                     min_area = min(a_area, b_area)
 
                     if min_area > 0 and overlap_area / min_area > 0.3:
                         a_label = a["text"] or a["name"] or "shape"
                         b_label = b["text"] or b["name"] or "shape"
-                        issues.append({
-                            "slide": slide_idx,
-                            "severity": "MAJOR",
-                            "check": "shape_overlap",
-                            "message": (
-                                f"Text-bearing shapes overlap: '{a_label}' and '{b_label}' "
-                                f"by {overlap_area:.1f} sq in "
-                                f"({int(overlap_area / min_area * 100)}% of smaller shape)"
-                            ),
-                        })
+                        issues.append(
+                            {
+                                "slide": slide_idx,
+                                "severity": "MAJOR",
+                                "check": "shape_overlap",
+                                "message": (
+                                    f"Text-bearing shapes overlap: '{a_label}' and '{b_label}' "
+                                    f"by {overlap_area:.1f} sq in "
+                                    f"({int(overlap_area / min_area * 100)}% of smaller shape)"
+                                ),
+                            }
+                        )
     return issues
 
 
@@ -516,23 +578,34 @@ def check_closing_slide_cta_count(prs: Presentation) -> list[dict]:
     for shape in last_slide.shapes:
         if shape.has_text_frame:
             text = shape.text_frame.text.lower()
-            if any(kw in text for kw in ["http", "learn more", "get started",
-                                          "aka.ms", "github.com", "learn.microsoft"]):
+            if any(
+                kw in text
+                for kw in [
+                    "http",
+                    "learn more",
+                    "get started",
+                    "aka.ms",
+                    "github.com",
+                    "learn.microsoft",
+                ]
+            ):
                 left = shape.left or 0
                 if left > Inches(5.0):  # CTA area is in the right half
                     cta_shapes.append(shape)
 
     # Count distinct CTA groups (shapes at similar x positions)
     if len(cta_shapes) > 6:  # 2 shapes per CTA card (icon + text) x 3 = 6
-        issues.append({
-            "slide": len(prs.slides),
-            "severity": "MAJOR",
-            "check": "closing_cta_overflow",
-            "message": (
-                f"Closing slide appears to have too many CTA items "
-                f"({len(cta_shapes)} link shapes detected, max recommended is 3 CTA cards)"
-            ),
-        })
+        issues.append(
+            {
+                "slide": len(prs.slides),
+                "severity": "MAJOR",
+                "check": "closing_cta_overflow",
+                "message": (
+                    f"Closing slide appears to have too many CTA items "
+                    f"({len(cta_shapes)} link shapes detected, max recommended is 3 CTA cards)"
+                ),
+            }
+        )
     return issues
 
 
@@ -564,28 +637,32 @@ def check_content_margins(prs: Presentation) -> list[dict]:
                 continue
 
             if left < min_margin and left > 0:
-                issues.append({
-                    "slide": slide_idx,
-                    "severity": "MINOR",
-                    "check": "margin_too_small_left",
-                    "message": (
-                        f"Shape '{shape.text_frame.text[:30]}' has only "
-                        f"{emu_to_inches(left)}\" left margin (min: {emu_to_inches(min_margin)}\")"
-                    ),
-                })
+                issues.append(
+                    {
+                        "slide": slide_idx,
+                        "severity": "MINOR",
+                        "check": "margin_too_small_left",
+                        "message": (
+                            f"Shape '{shape.text_frame.text[:30]}' has only "
+                            f'{emu_to_inches(left)}" left margin (min: {emu_to_inches(min_margin)}")'
+                        ),
+                    }
+                )
 
             right = left + w
             right_margin = SLIDE_WIDTH_EMU - right
             if 0 < right_margin < min_margin:
-                issues.append({
-                    "slide": slide_idx,
-                    "severity": "MINOR",
-                    "check": "margin_too_small_right",
-                    "message": (
-                        f"Shape '{shape.text_frame.text[:30]}' has only "
-                        f"{emu_to_inches(right_margin)}\" right margin"
-                    ),
-                })
+                issues.append(
+                    {
+                        "slide": slide_idx,
+                        "severity": "MINOR",
+                        "check": "margin_too_small_right",
+                        "message": (
+                            f"Shape '{shape.text_frame.text[:30]}' has only "
+                            f'{emu_to_inches(right_margin)}" right margin'
+                        ),
+                    }
+                )
 
     return issues
 
@@ -601,26 +678,31 @@ def check_slide_text_density(prs: Presentation) -> list[dict]:
 
         if total_chars == 0 and slide_idx > 1:
             # Allow slide 1 (title) to have minimal text
-            issues.append({
-                "slide": slide_idx,
-                "severity": "MAJOR",
-                "check": "empty_slide",
-                "message": "Slide has no visible text content at all",
-            })
+            issues.append(
+                {
+                    "slide": slide_idx,
+                    "severity": "MAJOR",
+                    "check": "empty_slide",
+                    "message": "Slide has no visible text content at all",
+                }
+            )
         elif total_chars > 2000:
-            issues.append({
-                "slide": slide_idx,
-                "severity": "MINOR",
-                "check": "text_density_high",
-                "message": (
-                    f"Slide has {total_chars} characters of text - "
-                    f"consider splitting into multiple slides"
-                ),
-            })
+            issues.append(
+                {
+                    "slide": slide_idx,
+                    "severity": "MINOR",
+                    "check": "text_density_high",
+                    "message": (
+                        f"Slide has {total_chars} characters of text - "
+                        f"consider splitting into multiple slides"
+                    ),
+                }
+            )
     return issues
 
 
 # ── Main runner ───────────────────────────────────────────────────────────────
+
 
 def run_all_checks(pptx_path: str, expected_slides: int | None = None) -> dict:
     """Run all QA checks and return a structured report."""
@@ -655,12 +737,14 @@ def run_all_checks(pptx_path: str, expected_slides: int | None = None) -> dict:
             issues = check_fn()
             all_issues.extend(issues)
         except Exception as e:
-            all_issues.append({
-                "slide": 0,
-                "severity": "MINOR",
-                "check": check_name,
-                "message": f"Check failed with error: {e}",
-            })
+            all_issues.append(
+                {
+                    "slide": 0,
+                    "severity": "MINOR",
+                    "check": check_name,
+                    "message": f"Check failed with error: {e}",
+                }
+            )
 
     # Summarize
     summary = defaultdict(int)
@@ -717,7 +801,9 @@ def format_report(report: dict) -> str:
             else:
                 lines.append(f"#### Slide {slide_num}")
             for issue in slide_issues:
-                lines.append(f"- **[{issue['severity']}]** ({issue['check']}) {issue['message']}")
+                lines.append(
+                    f"- **[{issue['severity']}]** ({issue['check']}) {issue['message']}"
+                )
             lines.append("")
 
     return "\n".join(lines)
@@ -726,10 +812,12 @@ def format_report(report: dict) -> str:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PPTX QA checks")
     parser.add_argument("pptx_path", help="Path to .pptx file")
-    parser.add_argument("--expected-slides", type=int, default=None,
-                        help="Expected number of slides")
-    parser.add_argument("--json", action="store_true",
-                        help="Output JSON instead of text")
+    parser.add_argument(
+        "--expected-slides", type=int, default=None, help="Expected number of slides"
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="Output JSON instead of text"
+    )
     args = parser.parse_args()
 
     report = run_all_checks(args.pptx_path, args.expected_slides)
@@ -740,5 +828,6 @@ if __name__ == "__main__":
     else:
         print(format_report(report))
 
-    sys.exit(0 if report["status"] == "CLEAN" else
-             2 if report["status"] == "ERROR" else 1)
+    sys.exit(
+        0 if report["status"] == "CLEAN" else 2 if report["status"] == "ERROR" else 1
+    )

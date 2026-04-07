@@ -36,6 +36,7 @@ import server_adapter
 # Fixture: clear the module-level _connections registry between tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def _clear_connections():
     """Ensure a clean connection registry for every test."""
@@ -49,6 +50,7 @@ def _clear_connections():
 # ===================================================================
 # 1. SessionConnection lifecycle
 # ===================================================================
+
 
 class TestSessionConnectionInit:
     def test_defaults(self):
@@ -65,12 +67,12 @@ class TestSessionConnectionInit:
     def test_add_remove_ws(self):
         conn = SessionConnection("s1")
         ws1, ws2 = object(), object()
-        assert conn.add_ws(ws1) is True   # first connection
+        assert conn.add_ws(ws1) is True  # first connection
         assert conn.add_ws(ws2) is False  # second connection
         assert ws1 in conn.websockets
         assert ws2 in conn.websockets
         assert conn.remove_ws(ws1) is False  # still has ws2
-        assert conn.remove_ws(ws2) is True   # empty now
+        assert conn.remove_ws(ws2) is True  # empty now
 
     def test_reset_turn_clears_per_turn_state(self):
         conn = SessionConnection("s1")
@@ -118,6 +120,7 @@ class TestSessionConnectionInit:
 # 2. Connection registry
 # ===================================================================
 
+
 class TestConnectionRegistry:
     def test_get_connection_returns_none_for_unknown(self):
         assert get_connection("nonexistent") is None
@@ -164,6 +167,7 @@ class TestConnectionRegistry:
 # 3. Cancel flag (backward compat)
 # ===================================================================
 
+
 class TestCancelFlag:
     def test_set_cancel_flag_with_session(self):
         add_ws("s4", object())
@@ -186,6 +190,7 @@ class TestCancelFlag:
 # 4. Envelope protocol
 # ===================================================================
 
+
 class TestEnvelope:
     def test_envelope_structure(self):
         conn = SessionConnection("env-test")
@@ -200,7 +205,9 @@ class TestEnvelope:
 
     def test_envelope_with_correlation_id(self):
         conn = SessionConnection("env-corr")
-        env = _envelope(conn, "tool_started", {"tool": "search"}, correlation_id="corr-abc")
+        env = _envelope(
+            conn, "tool_started", {"tool": "search"}, correlation_id="corr-abc"
+        )
         assert env["correlationId"] == "corr-abc"
 
     def test_envelope_seq_increments(self):
@@ -233,6 +240,7 @@ class TestEnvelope:
 # ===================================================================
 # 5. Snapshot
 # ===================================================================
+
 
 class TestBuildSnapshot:
     def test_snapshot_active_session(self):
@@ -286,6 +294,7 @@ class TestBuildSnapshot:
 # 6. Pending input / user response flow
 # ===================================================================
 
+
 class TestUserResponseFlow:
     @pytest.mark.asyncio
     async def test_push_pop_user_response(self):
@@ -320,6 +329,7 @@ class TestUserResponseFlow:
 # 7. ws_reset delegates to SessionConnection
 # ===================================================================
 
+
 class TestWsReset:
     def test_ws_reset_delegates(self):
         add_ws("reset-1", object())
@@ -349,6 +359,7 @@ class TestWsReset:
 # 8. Response buffer
 # ===================================================================
 
+
 class TestResponseBuffer:
     def test_response_buffer_accumulates(self):
         conn = SessionConnection("buf-1")
@@ -377,6 +388,7 @@ class TestResponseBuffer:
 # 9. emit_state_changed
 # ===================================================================
 
+
 class TestEmitStateChanged:
     @pytest.mark.asyncio
     async def test_emit_state_changed_with_connection(self):
@@ -402,6 +414,7 @@ class TestEmitStateChanged:
 # ===================================================================
 # 10. Heartbeat start / stop
 # ===================================================================
+
 
 class TestHeartbeat:
     @pytest.mark.asyncio
@@ -433,6 +446,7 @@ class TestHeartbeat:
 # 11. Envelope shapes for heartbeat and state_changed
 # ===================================================================
 
+
 class TestPhase3EnvelopeShapes:
     def test_heartbeat_envelope_shape(self):
         """Heartbeat envelopes should have the correct structure."""
@@ -447,11 +461,15 @@ class TestPhase3EnvelopeShapes:
     def test_state_changed_envelope_shape(self):
         """session_state_changed envelopes should include status and reason."""
         conn = SessionConnection("sc-test")
-        env = _envelope(conn, "session_state_changed", {
-            "session_id": "sc-test",
-            "status": "ended",
-            "reason": "session_deleted",
-        })
+        env = _envelope(
+            conn,
+            "session_state_changed",
+            {
+                "session_id": "sc-test",
+                "status": "ended",
+                "reason": "session_deleted",
+            },
+        )
         assert env["v"] == 1
         assert env["type"] == "session_state_changed"
         assert env["data"]["status"] == "ended"
@@ -461,6 +479,7 @@ class TestPhase3EnvelopeShapes:
 # ===================================================================
 # 12. Snapshot during response accumulation
 # ===================================================================
+
 
 class TestSnapshotDuringResponse:
     def test_snapshot_during_response(self):
@@ -483,8 +502,10 @@ class TestSnapshotDuringResponse:
 
 # --- Helpers -----------------------------------------------------------
 
+
 class _FakeSessionEventType:
     """Minimal stand-in for SessionEventType with all event types we need."""
+
     ASSISTANT_MESSAGE_DELTA = "ASSISTANT_MESSAGE_DELTA"
     ASSISTANT_STREAMING_DELTA = "ASSISTANT_STREAMING_DELTA"
     TOOL_EXECUTION_START = "TOOL_EXECUTION_START"
@@ -540,41 +561,50 @@ def handler_env():
 
 # --- Tests for each new event type ---
 
+
 class TestVerboseEventForwarding:
     """Tests that each new verbose/debug event type is correctly forwarded."""
 
     def test_reasoning_delta(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.ASSISTANT_REASONING_DELTA,
-            delta_content="thinking about this...",
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.ASSISTANT_REASONING_DELTA,
+                delta_content="thinking about this...",
+            )
+        )
         assert len(sent) == 1
         assert sent[0]["type"] == "reasoning_delta"
         assert sent[0]["data"]["content"] == "thinking about this..."
 
     def test_reasoning_delta_empty_skipped(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.ASSISTANT_REASONING_DELTA,
-            delta_content="",
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.ASSISTANT_REASONING_DELTA,
+                delta_content="",
+            )
+        )
         assert len(sent) == 0
 
     def test_reasoning_delta_none_skipped(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.ASSISTANT_REASONING_DELTA,
-            delta_content=None,
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.ASSISTANT_REASONING_DELTA,
+                delta_content=None,
+            )
+        )
         assert len(sent) == 0
 
     def test_tool_partial_result(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.TOOL_EXECUTION_PARTIAL_RESULT,
-            partial_output="partial data here",
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.TOOL_EXECUTION_PARTIAL_RESULT,
+                partial_output="partial data here",
+            )
+        )
         assert len(sent) == 1
         assert sent[0]["type"] == "tool_partial_result"
         assert sent[0]["data"]["content"] == "partial data here"
@@ -582,46 +612,56 @@ class TestVerboseEventForwarding:
     def test_tool_partial_result_truncated_at_2000(self, handler_env):
         handler, sent, sid = handler_env
         long_output = "x" * 3000
-        handler(_make_event(
-            _FakeSessionEventType.TOOL_EXECUTION_PARTIAL_RESULT,
-            partial_output=long_output,
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.TOOL_EXECUTION_PARTIAL_RESULT,
+                partial_output=long_output,
+            )
+        )
         assert len(sent[0]["data"]["content"]) == 2000
 
     def test_tool_progress(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.TOOL_EXECUTION_PROGRESS,
-            progress_message="Searching files...",
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.TOOL_EXECUTION_PROGRESS,
+                progress_message="Searching files...",
+            )
+        )
         assert len(sent) == 1
         assert sent[0]["type"] == "tool_progress"
         assert sent[0]["data"]["message"] == "Searching files..."
 
     def test_assistant_intent(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.ASSISTANT_INTENT,
-            intent="I will search the codebase",
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.ASSISTANT_INTENT,
+                intent="I will search the codebase",
+            )
+        )
         assert len(sent) == 1
         assert sent[0]["type"] == "assistant_intent"
         assert sent[0]["data"]["intent"] == "I will search the codebase"
 
     def test_assistant_intent_empty_skipped(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.ASSISTANT_INTENT,
-            intent="",
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.ASSISTANT_INTENT,
+                intent="",
+            )
+        )
         assert len(sent) == 0
 
     def test_assistant_reasoning(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.ASSISTANT_REASONING,
-            reasoning_text="The user wants to refactor the auth module",
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.ASSISTANT_REASONING,
+                reasoning_text="The user wants to refactor the auth module",
+            )
+        )
         assert len(sent) == 1
         assert sent[0]["type"] == "assistant_reasoning"
         assert sent[0]["data"]["text"] == "The user wants to refactor the auth module"
@@ -629,81 +669,99 @@ class TestVerboseEventForwarding:
     def test_assistant_reasoning_truncated_at_2000(self, handler_env):
         handler, sent, sid = handler_env
         long_text = "y" * 3000
-        handler(_make_event(
-            _FakeSessionEventType.ASSISTANT_REASONING,
-            reasoning_text=long_text,
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.ASSISTANT_REASONING,
+                reasoning_text=long_text,
+            )
+        )
         assert len(sent[0]["data"]["text"]) == 2000
 
     def test_assistant_reasoning_empty_skipped(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.ASSISTANT_REASONING,
-            reasoning_text="",
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.ASSISTANT_REASONING,
+                reasoning_text="",
+            )
+        )
         assert len(sent) == 0
 
     def test_session_handoff(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.SESSION_HANDOFF,
-            agent_name="slide-builder",
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.SESSION_HANDOFF,
+                agent_name="slide-builder",
+            )
+        )
         assert len(sent) == 1
         assert sent[0]["type"] == "session_handoff"
         assert sent[0]["data"]["agent"] == "slide-builder"
 
     def test_compaction_start(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.SESSION_COMPACTION_START,
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.SESSION_COMPACTION_START,
+            )
+        )
         assert len(sent) == 1
         assert sent[0]["type"] == "compaction_start"
         assert sent[0]["data"] == {}
 
     def test_compaction_complete(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.SESSION_COMPACTION_COMPLETE,
-            post_compaction_tokens=4096,
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.SESSION_COMPACTION_COMPLETE,
+                post_compaction_tokens=4096,
+            )
+        )
         assert len(sent) == 1
         assert sent[0]["type"] == "compaction_complete"
         assert sent[0]["data"]["post_tokens"] == 4096
 
     def test_compaction_complete_none_defaults_to_zero(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.SESSION_COMPACTION_COMPLETE,
-            post_compaction_tokens=None,
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.SESSION_COMPACTION_COMPLETE,
+                post_compaction_tokens=None,
+            )
+        )
         assert sent[0]["data"]["post_tokens"] == 0
 
     def test_turn_started(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.ASSISTANT_TURN_START,
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.ASSISTANT_TURN_START,
+            )
+        )
         assert len(sent) == 1
         assert sent[0]["type"] == "turn_started"
         assert sent[0]["data"] == {}
 
     def test_turn_ended(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.ASSISTANT_TURN_END,
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.ASSISTANT_TURN_END,
+            )
+        )
         assert len(sent) == 1
         assert sent[0]["type"] == "turn_ended"
         assert sent[0]["data"] == {}
 
     def test_subagent_deselected(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.SUBAGENT_DESELECTED,
-            agent_name="qa-reviewer",
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.SUBAGENT_DESELECTED,
+                agent_name="qa-reviewer",
+            )
+        )
         assert len(sent) == 1
         assert sent[0]["type"] == "subagent_deselected"
         assert sent[0]["data"]["agent"] == "qa-reviewer"
@@ -713,11 +771,13 @@ class TestVerboseEventForwarding:
 # 14. hasattr guards — events missing from SessionEventType
 # ===================================================================
 
+
 class _MinimalSessionEventType:
     """SessionEventType WITHOUT the new verbose attributes.
 
     Simulates an older SDK where these event types don't exist.
     """
+
     ASSISTANT_MESSAGE_DELTA = "ASSISTANT_MESSAGE_DELTA"
     ASSISTANT_STREAMING_DELTA = "ASSISTANT_STREAMING_DELTA"
     TOOL_EXECUTION_START = "TOOL_EXECUTION_START"
@@ -764,29 +824,36 @@ class TestHasattrGuards:
 # 15. Existing delta handling still works
 # ===================================================================
 
+
 class TestExistingDeltaStillWorks:
     """Verify ASSISTANT_MESSAGE_DELTA forwarding was not broken."""
 
     def test_message_delta_forwarded(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.ASSISTANT_MESSAGE_DELTA,
-            delta_content="Hello world",
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.ASSISTANT_MESSAGE_DELTA,
+                delta_content="Hello world",
+            )
+        )
         assert len(sent) == 1
         assert sent[0]["type"] == "delta"
         assert sent[0]["data"]["content"] == "Hello world"
 
     def test_message_delta_accumulates_response_buffer(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.ASSISTANT_MESSAGE_DELTA,
-            delta_content="chunk1",
-        ))
-        handler(_make_event(
-            _FakeSessionEventType.ASSISTANT_MESSAGE_DELTA,
-            delta_content="chunk2",
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.ASSISTANT_MESSAGE_DELTA,
+                delta_content="chunk1",
+            )
+        )
+        handler(
+            _make_event(
+                _FakeSessionEventType.ASSISTANT_MESSAGE_DELTA,
+                delta_content="chunk2",
+            )
+        )
         conn = get_connection(sid)
         assert conn.get_response_text() == "chunk1chunk2"
 
@@ -802,10 +869,12 @@ class TestExistingDeltaStillWorks:
 
     def test_streaming_delta_forwarded(self, handler_env):
         handler, sent, sid = handler_env
-        handler(_make_event(
-            _FakeSessionEventType.ASSISTANT_STREAMING_DELTA,
-            delta_content="streaming chunk",
-        ))
+        handler(
+            _make_event(
+                _FakeSessionEventType.ASSISTANT_STREAMING_DELTA,
+                delta_content="streaming chunk",
+            )
+        )
         assert len(sent) == 1
         assert sent[0]["type"] == "delta"
         assert sent[0]["data"]["content"] == "streaming chunk"

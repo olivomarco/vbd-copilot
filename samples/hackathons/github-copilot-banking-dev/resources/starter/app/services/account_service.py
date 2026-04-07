@@ -112,9 +112,7 @@ class AccountService:
                 f"balance must be zero (current: {account.balance})"
             )
 
-        updated = account.model_copy(
-            update={"is_active": False, "updated_at": datetime.utcnow()}
-        )
+        updated = account.model_copy(update={"is_active": False, "updated_at": datetime.utcnow()})
         _store[account_id] = updated
 
         # Missing: audit log entry for account closure (gap for challenge-06)

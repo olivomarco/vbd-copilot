@@ -19,9 +19,14 @@ from typing import Any
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggest, AutoSuggestFromHistory, Suggestion
 from prompt_toolkit.buffer import Buffer
-from prompt_toolkit.completion import (CompleteEvent, Completer, Completion,
-                                       NestedCompleter, WordCompleter,
-                                       merge_completers)
+from prompt_toolkit.completion import (
+    CompleteEvent,
+    Completer,
+    Completion,
+    NestedCompleter,
+    WordCompleter,
+    merge_completers,
+)
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
@@ -72,25 +77,21 @@ class AgentRunTracker:
 class _CommandAwareAutoSuggest(AutoSuggest):
     """Inline ghost-text suggestions from commands/agents, then history."""
 
-    def __init__(
-        self, slash_commands: list[str], agent_names: list[str]
-    ) -> None:
+    def __init__(self, slash_commands: list[str], agent_names: list[str]) -> None:
         self._slash = sorted(slash_commands)
         self._agents = sorted(f"@{n}" for n in agent_names)
         self._history = AutoSuggestFromHistory()
 
-    def get_suggestion(
-        self, buffer: Buffer, document: Document
-    ) -> Suggestion | None:
+    def get_suggestion(self, buffer: Buffer, document: Document) -> Suggestion | None:
         text = document.text_before_cursor
         if text.startswith("/"):
             for cmd in self._slash:
                 if cmd.startswith(text) and cmd != text:
-                    return Suggestion(cmd[len(text):] + " ")
+                    return Suggestion(cmd[len(text) :] + " ")
         elif text.startswith("@"):
             for agent in self._agents:
                 if agent.startswith(text) and agent != text:
-                    return Suggestion(agent[len(text):] + " ")
+                    return Suggestion(agent[len(text) :] + " ")
         return self._history.get_suggestion(buffer, document)
 
 
@@ -148,7 +149,7 @@ BANNER_ART = [
 MS_LOGO = [
     [("████", "#f25022"), ("  ", ""), ("████", "#7fba00")],
     [("████", "#f25022"), ("  ", ""), ("████", "#7fba00")],
-    [("    ", ""),         ("  ", ""), ("    ", "")],
+    [("    ", ""), ("  ", ""), ("    ", "")],
     [("████", "#00a4ef"), ("  ", ""), ("████", "#ffb900")],
     [("████", "#00a4ef"), ("  ", ""), ("████", "#ffb900")],
     [("  Microsoft  ", "dim")],
@@ -163,12 +164,18 @@ COMPACT_ART = [
 
 # ── Workflow info ─────────────────────────────────────────────────────────────
 WORKFLOWS = [
-    ("slide-conductor",      "Research -> Plan -> Build PPTX -> QA -> Deliver"),
-    ("demo-conductor",       "Research -> Plan -> Build -> Validate -> Review -> Deliver"),
-    ("hackathon-conductor",  "Research -> Plan -> Build Challenges -> Coach Materials -> QA -> Deliver"),
-    ("ai-brainstorming",     "Discover -> Research -> Ideate -> Prioritize -> Roadmap"),
-    ("ai-solution-architect", "Discover -> Plan -> Build Docs -> QA -> Review -> Deliver"),
-    ("ai-implementor",       "Plan -> Build (8 WPs) -> Review (4 specialists) -> Deliver"),
+    ("slide-conductor", "Research -> Plan -> Build PPTX -> QA -> Deliver"),
+    ("demo-conductor", "Research -> Plan -> Build -> Validate -> Review -> Deliver"),
+    (
+        "hackathon-conductor",
+        "Research -> Plan -> Build Challenges -> Coach Materials -> QA -> Deliver",
+    ),
+    ("ai-brainstorming", "Discover -> Research -> Ideate -> Prioritize -> Roadmap"),
+    (
+        "ai-solution-architect",
+        "Discover -> Plan -> Build Docs -> QA -> Review -> Deliver",
+    ),
+    ("ai-implementor", "Plan -> Build (8 WPs) -> Review (4 specialists) -> Deliver"),
 ]
 
 # ── Content levels ────────────────────────────────────────────────────────────
@@ -180,13 +187,15 @@ CONTENT_LEVELS = [
 ]
 
 # ── prompt_toolkit style ─────────────────────────────────────────────────────
-PT_STYLE = PTStyle.from_dict({
-    "":             "#e0e0e0",
-    "prompt":       "#00aaff bold",
-    "agent-name":   "#00d4ff",
-    "bottom-toolbar": "noreverse bg:default #0066ee",
-    "bottom-toolbar.text": "noreverse bg:default #0066ee",
-})
+PT_STYLE = PTStyle.from_dict(
+    {
+        "": "#e0e0e0",
+        "prompt": "#00aaff bold",
+        "agent-name": "#00d4ff",
+        "bottom-toolbar": "noreverse bg:default #0066ee",
+        "bottom-toolbar.text": "noreverse bg:default #0066ee",
+    }
+)
 
 # ── History file ──────────────────────────────────────────────────────────────
 HISTORY_DIR = Path.home() / ".csa-copilot"
@@ -269,29 +278,35 @@ class CopilotUI:
 
         agent_names = {n: None for n in ROUTABLE_AGENTS}
         slash_dict = {
-            "/new":      agent_names,
-            "/agent":    agent_names,
-            "/agents":   None,
-            "/model":    {"claude-sonnet-4.6": None, "claude-opus-4.6": None},
-            "/resume":   None,
-            "/compact":  None,
+            "/new": agent_names,
+            "/agent": agent_names,
+            "/agents": None,
+            "/model": {"claude-sonnet-4.6": None, "claude-opus-4.6": None},
+            "/resume": None,
+            "/compact": None,
             "/sessions": {"all": None, "end": None, "name": None, "cleanup": None},
-            "/usage":    {
-                "all": None, "today": None, "week": None, "month": None,
-                "--agent": None, "--model": None, "--period": None,
+            "/usage": {
+                "all": None,
+                "today": None,
+                "week": None,
+                "month": None,
+                "--agent": None,
+                "--model": None,
+                "--period": None,
             },
-            "/samples":  None,
+            "/samples": None,
             "/tutorial": None,
-            "/debug":    None,
-            "/clear":    None,
-            "/help":     None,
-            "/quit":     None,
+            "/debug": None,
+            "/clear": None,
+            "/help": None,
+            "/quit": None,
         }
         slash_completer = NestedCompleter.from_nested_dict(slash_dict)
         mention_completer = _AtMentionCompleter(list(ROUTABLE_AGENTS))
         completer = merge_completers([slash_completer, mention_completer])
         auto_suggest = _CommandAwareAutoSuggest(
-            list(slash_dict.keys()), list(ROUTABLE_AGENTS),
+            list(slash_dict.keys()),
+            list(ROUTABLE_AGENTS),
         )
         return completer, auto_suggest
 
@@ -320,14 +335,16 @@ class CopilotUI:
                     f"<agent-name>  [{self.current_agent}]</agent-name> "
                     f"<prompt>\u25b6 </prompt>"
                 )
-            return HTML(f'<style fg="#0066ee">{sep}</style>\n<prompt>  \u25b6 </prompt>')
+            return HTML(
+                f'<style fg="#0066ee">{sep}</style>\n<prompt>  \u25b6 </prompt>'
+            )
 
         if self.current_agent:
             return HTML(
                 f"<agent-name>  [{self.current_agent}]</agent-name> "
                 f"<prompt>\u25b6 </prompt>"
             )
-        return HTML('<prompt>  \u25b6 </prompt>')
+        return HTML("<prompt>  \u25b6 </prompt>")
 
     # ── User input ────────────────────────────────────────────────────────
 
@@ -402,7 +419,18 @@ class CopilotUI:
 
     async def _baking_pulse(self) -> None:
         """Full-width spinner bar showing agent, model, and elapsed time."""
-        spinner = ["\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834", "\u2826", "\u2827", "\u2807", "\u280f"]
+        spinner = [
+            "\u280b",
+            "\u2819",
+            "\u2839",
+            "\u2838",
+            "\u283c",
+            "\u2834",
+            "\u2826",
+            "\u2827",
+            "\u2807",
+            "\u280f",
+        ]
         i = 0
         BG = "\033[48;2;0;20;50m"
         FG = "\033[38;2;120;180;220m"
@@ -453,7 +481,9 @@ class CopilotUI:
 
                 agent = self._tracker.agent if self._tracker else "copilot"
                 model = self._tracker.model if self._tracker else ""
-                elapsed = int(time.time() - self._tracker.start_time) if self._tracker else 0
+                elapsed = (
+                    int(time.time() - self._tracker.start_time) if self._tracker else 0
+                )
                 m, s = divmod(elapsed, 60)
 
                 left_text = f"  {spin}  {agent}  \u00b7  ctrl+c to interrupt  "
@@ -468,12 +498,14 @@ class CopilotUI:
                 pad_len = max(0, term_width - len(left_text) - len(right_text))
 
                 line = (
-                    f"\r{ERASE}{BG}{FG}  {spin}  {BOLD}{agent}{NORM}"
-                    f"{FG_DIM}  \u00b7  {FG}ctrl+c to interrupt  "
-                    f"{' ' * pad_len}"
-                    f"{FG_DIM}{right_text}{RESET}"
-                ) if right_text else (
-                    f"\r{ERASE}{BG}{FG}{left_text}{RESET}"
+                    (
+                        f"\r{ERASE}{BG}{FG}  {spin}  {BOLD}{agent}{NORM}"
+                        f"{FG_DIM}  \u00b7  {FG}ctrl+c to interrupt  "
+                        f"{' ' * pad_len}"
+                        f"{FG_DIM}{right_text}{RESET}"
+                    )
+                    if right_text
+                    else (f"\r{ERASE}{BG}{FG}{left_text}{RESET}")
                 )
                 sys.stdout.write(line)
                 sys.stdout.flush()
@@ -507,9 +539,7 @@ class CopilotUI:
         try:
             sys.stdout.write("\033[0m")
             sys.stdout.flush()
-            result = await self.prompt_session.prompt_async(
-                self._get_prompt_message
-            )
+            result = await self.prompt_session.prompt_async(self._get_prompt_message)
             return result
         except EOFError:
             return None
@@ -654,7 +684,9 @@ class CopilotUI:
                 sep = self._separator(width, label)
                 c.print(f"[#0066ee]{sep}[/#0066ee]")
                 if agent_label:
-                    c.print(f"  [#00d4ff][{agent_label}][/#00d4ff] [bold #00aaff]\u25b6[/bold #00aaff] {user_text}")
+                    c.print(
+                        f"  [#00d4ff][{agent_label}][/#00d4ff] [bold #00aaff]\u25b6[/bold #00aaff] {user_text}"
+                    )
                 else:
                     c.print(f"  [bold #00aaff]\u25b6[/bold #00aaff] {user_text}")
             elif kind == "response":
@@ -754,8 +786,11 @@ class CopilotUI:
 
     def _print_full_banner(self) -> None:
         table = Table(
-            show_header=False, show_edge=False, box=None,
-            padding=(0, 3), expand=False,
+            show_header=False,
+            show_edge=False,
+            box=None,
+            padding=(0, 3),
+            expand=False,
         )
         table.add_column()
         table.add_column(width=12, justify="center")
@@ -785,8 +820,10 @@ class CopilotUI:
 
         content = Group(table, Text(""), version_line)
         panel = Panel(
-            content, border_style="#0055dd",
-            padding=(1, 3), expand=False,
+            content,
+            border_style="#0055dd",
+            padding=(1, 3),
+            expand=False,
         )
         self.console.print()
         self.console.print(panel)
@@ -817,8 +854,10 @@ class CopilotUI:
 
         content = Group(art_block, logo_line, Text(""), subtitle)
         panel = Panel(
-            content, border_style="#0055dd",
-            padding=(1, 2), expand=False,
+            content,
+            border_style="#0055dd",
+            padding=(1, 2),
+            expand=False,
         )
         self.console.print()
         self.console.print(panel)
@@ -927,7 +966,9 @@ class CopilotUI:
                 tracker.tool_count += 1
             if self._collector:
                 args_raw = getattr(d, "arguments", None)
-                args_str = json.dumps(args_raw, ensure_ascii=False) if args_raw else "{}"
+                args_str = (
+                    json.dumps(args_raw, ensure_ascii=False) if args_raw else "{}"
+                )
                 inv_id = self._collector.on_tool_start(str(tool), args_str)
                 if inv_id:
                     self._pending_invocations[str(tool)] = inv_id
@@ -958,7 +999,9 @@ class CopilotUI:
                 if inv_id:
                     output_raw = getattr(d, "output", None)
                     output_str = str(output_raw)[:2000] if output_raw else None
-                    self._collector.on_tool_end(inv_id, output=output_str, status="success")
+                    self._collector.on_tool_end(
+                        inv_id, output=output_str, status="success"
+                    )
             if self.debug_mode:
                 self._clear_baking_line()
                 duration = getattr(d, "duration", None)
@@ -1010,7 +1053,7 @@ class CopilotUI:
 
         if etype == SessionEventType.SUBAGENT_FAILED:
             name = getattr(d, "agent_name", "?") or "?"
-            err  = getattr(d, "message", "") or ""
+            err = getattr(d, "message", "") or ""
             if self._collector:
                 inv_id = self._pending_invocations.pop(f"subagent:{name}", None)
                 if inv_id:
@@ -1027,10 +1070,10 @@ class CopilotUI:
             return
 
         if etype == SessionEventType.ASSISTANT_USAGE:
-            in_t  = int(getattr(d, "input_tokens",       0) or 0)
-            out_t = int(getattr(d, "output_tokens",      0) or 0)
-            cr_t  = int(getattr(d, "cache_read_tokens",  0) or 0)
-            cw_t  = int(getattr(d, "cache_write_tokens", 0) or 0)
+            in_t = int(getattr(d, "input_tokens", 0) or 0)
+            out_t = int(getattr(d, "output_tokens", 0) or 0)
+            cr_t = int(getattr(d, "cache_read_tokens", 0) or 0)
+            cw_t = int(getattr(d, "cache_write_tokens", 0) or 0)
             model = getattr(d, "model", None) or ""
             if in_t:
                 self._last_input_tokens = in_t
@@ -1150,7 +1193,9 @@ class CopilotUI:
         if not files:
             return
         self.console.print()
-        self.console.print(Rule(style="#0055dd", title="[bold white]Output Files[/bold white]"))
+        self.console.print(
+            Rule(style="#0055dd", title="[bold white]Output Files[/bold white]")
+        )
         for f in sorted(files):
             suffix = f.suffix.lower()
             if suffix == ".pptx":
@@ -1168,20 +1213,32 @@ class CopilotUI:
 
     def print_help(self) -> None:
         table = Table(
-            show_header=True, header_style="bold cyan",
-            box=box.SIMPLE, padding=(0, 2), expand=True,
+            show_header=True,
+            header_style="bold cyan",
+            box=box.SIMPLE,
+            padding=(0, 2),
+            expand=True,
         )
         table.add_column("Command", style="cyan", no_wrap=True)
         table.add_column("Description")
 
-        table.add_row("/new [agent]", "Start a new session (optionally pre-selecting an agent)")
-        table.add_row("/resume [id|name]", "Resume a previous session (list resumable or resume by ID/name)")
+        table.add_row(
+            "/new [agent]", "Start a new session (optionally pre-selecting an agent)"
+        )
+        table.add_row(
+            "/resume [id|name]",
+            "Resume a previous session (list resumable or resume by ID/name)",
+        )
         table.add_row("/agent <name>", "Switch to a specific agent mid-session")
         table.add_row("/agents", "List all available agents with details")
         table.add_row("/model <id>", "Switch the LLM model")
         table.add_row("/compact", "Manually compact context window (free memory)")
-        table.add_row("/debug", "Toggle debug mode (shows tool I/O, subagent flow, token usage)")
-        table.add_row("/sessions", "List active and resumable sessions (\u25b6 marks current)")
+        table.add_row(
+            "/debug", "Toggle debug mode (shows tool I/O, subagent flow, token usage)"
+        )
+        table.add_row(
+            "/sessions", "List active and resumable sessions (\u25b6 marks current)"
+        )
         table.add_row("/sessions all", "List all sessions including killed ones")
         table.add_row("/sessions <id>", "Show session details and turns")
         table.add_row("/sessions end <id>", "End (kill) an active session")
@@ -1209,8 +1266,7 @@ class CopilotUI:
         self.console.print("  [bold white]Conductors[/bold white]")
         for name, desc in WORKFLOWS:
             self.console.print(
-                f"    [cyan bold]>> {name:<22}[/cyan bold] "
-                f"[dim]-[/dim] {desc}"
+                f"    [cyan bold]>> {name:<22}[/cyan bold] [dim]-[/dim] {desc}"
             )
 
         # ── Content levels ────────────────────────────────────────────────
@@ -1230,8 +1286,10 @@ class CopilotUI:
         from agents import ALL_AGENT_CONFIGS
 
         table = Table(
-            show_header=True, header_style="bold cyan",
-            box=box.SIMPLE, padding=(0, 2),
+            show_header=True,
+            header_style="bold cyan",
+            box=box.SIMPLE,
+            padding=(0, 2),
         )
         table.add_column("Agent", style="cyan", no_wrap=True)
         table.add_column("Description")
@@ -1374,7 +1432,9 @@ class CopilotUI:
         )
         c.print(f"  {dots}", justify="center")
         c.print()
-        c.print("  [dim]\u2190/\u2192  navigate pages   \u00b7   q  quit tutorial[/dim]")
+        c.print(
+            "  [dim]\u2190/\u2192  navigate pages   \u00b7   q  quit tutorial[/dim]"
+        )
 
     def _build_tutorial_pages(self) -> list:
         # ── Page 1: Welcome ───────────────────────────────────────────
@@ -1409,8 +1469,14 @@ class CopilotUI:
         conductors = Table(show_header=False, box=box.SIMPLE, padding=(0, 2))
         conductors.add_column("Agent", style="bold cyan", width=22)
         conductors.add_column("Pipeline")
-        conductors.add_row("Slide Conductor", "Pre-Research -> Clarify -> Deep Research -> Plan -> Build PPTX -> QA -> Deliver")
-        conductors.add_row("Demo Conductor", "Pre-Research -> Clarify -> Deep Research -> Plan -> Build -> Review -> Deliver")
+        conductors.add_row(
+            "Slide Conductor",
+            "Pre-Research -> Clarify -> Deep Research -> Plan -> Build PPTX -> QA -> Deliver",
+        )
+        conductors.add_row(
+            "Demo Conductor",
+            "Pre-Research -> Clarify -> Deep Research -> Plan -> Build -> Review -> Deliver",
+        )
 
         p2 = Panel(
             Group(
@@ -1434,9 +1500,18 @@ class CopilotUI:
         ai_pipe = Table(show_header=False, box=box.SIMPLE, padding=(0, 2))
         ai_pipe.add_column("Agent", style="bold yellow", width=22)
         ai_pipe.add_column("Pipeline")
-        ai_pipe.add_row("AI Brainstorming", "Discover -> Research -> Ideate 10+ ideas -> Prioritize -> Roadmap")
-        ai_pipe.add_row("AI Solution Architect", "Discover -> Plan -> Build 5 docs -> QA -> Review -> Deliver")
-        ai_pipe.add_row("AI Implementor", "Plan 8 work packages -> Build -> 4 specialist reviews -> Deliver")
+        ai_pipe.add_row(
+            "AI Brainstorming",
+            "Discover -> Research -> Ideate 10+ ideas -> Prioritize -> Roadmap",
+        )
+        ai_pipe.add_row(
+            "AI Solution Architect",
+            "Discover -> Plan -> Build 5 docs -> QA -> Review -> Deliver",
+        )
+        ai_pipe.add_row(
+            "AI Implementor",
+            "Plan 8 work packages -> Build -> 4 specialist reviews -> Deliver",
+        )
 
         p3b = Panel(
             Group(
@@ -1480,13 +1555,22 @@ class CopilotUI:
         )
 
         # ── Page 6: Content Levels ────────────────────────────────────
-        levels = Table(show_header=True, header_style="bold cyan", box=box.SIMPLE, padding=(0, 2))
+        levels = Table(
+            show_header=True, header_style="bold cyan", box=box.SIMPLE, padding=(0, 2)
+        )
         levels.add_column("Level", style="bold white")
         levels.add_column("Audience")
         levels.add_column("Slides (1h)")
         levels.add_column("Demo Style")
-        levels.add_row("L100", "Business / Executive", "25-35", "No code, portal clicks")
-        levels.add_row("L200", "Technical decision makers", "25-35", "CLI commands, pre-built samples")
+        levels.add_row(
+            "L100", "Business / Executive", "25-35", "No code, portal clicks"
+        )
+        levels.add_row(
+            "L200",
+            "Technical decision makers",
+            "25-35",
+            "CLI commands, pre-built samples",
+        )
         levels.add_row("L300", "Practitioners", "25-35", "Code samples, SDK calls")
         levels.add_row("L400", "Experts", "25-35", "Live coding, internals")
 
@@ -1577,7 +1661,10 @@ class CopilotUI:
         hack_pipe = Table(show_header=False, box=box.SIMPLE, padding=(0, 2))
         hack_pipe.add_column("Agent", style="bold green", width=22)
         hack_pipe.add_column("Pipeline")
-        hack_pipe.add_row("Hackathon Conductor", "Research -> Plan Challenges -> Build Setup -> Build Challenges -> Coach Materials -> QA -> Deliver")
+        hack_pipe.add_row(
+            "Hackathon Conductor",
+            "Research -> Plan Challenges -> Build Setup -> Build Challenges -> Coach Materials -> QA -> Deliver",
+        )
 
         p_hack = Panel(
             Group(

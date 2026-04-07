@@ -18,6 +18,7 @@ from server import app, _safe_outputs_path, _classify_output_category
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def _reset_globals(tmp_path):
     """Inject test doubles into server module-level globals."""
@@ -65,6 +66,7 @@ def client():
 # _safe_outputs_path
 # ---------------------------------------------------------------------------
 
+
 class TestSafeOutputsPath:
     def test_empty_path_rejected(self):
         with pytest.raises(Exception):
@@ -94,6 +96,7 @@ class TestSafeOutputsPath:
 # _classify_output_category
 # ---------------------------------------------------------------------------
 
+
 class TestClassifyOutputCategory:
     def test_slides_category(self):
         p = Path("/some/path/outputs/slides/deck.pptx")
@@ -111,6 +114,7 @@ class TestClassifyOutputCategory:
 # ---------------------------------------------------------------------------
 # Turn invocations
 # ---------------------------------------------------------------------------
+
 
 class TestTurnInvocations:
     def test_get_turn_invocations_found(self, client, _reset_globals):
@@ -142,6 +146,7 @@ class TestTurnInvocations:
 # Session status
 # ---------------------------------------------------------------------------
 
+
 class TestSessionStatus:
     def test_status_not_found(self, client, _reset_globals):
         store = _reset_globals
@@ -166,9 +171,11 @@ class TestSessionStatus:
             "resumable": 1,
         }
         store.get_turns.return_value = []
-        with patch("server_adapter.get_connection", return_value=None), \
-             patch("server_adapter.get_pending_input", return_value=None), \
-             patch("server_adapter.get_output_files", return_value=[]):
+        with (
+            patch("server_adapter.get_connection", return_value=None),
+            patch("server_adapter.get_pending_input", return_value=None),
+            patch("server_adapter.get_output_files", return_value=[]),
+        ):
             resp = client.get("/sessions/sess-001/status")
         assert resp.status_code == 200
         data = resp.json()
@@ -189,9 +196,11 @@ class TestSessionStatus:
         store.get_turns.return_value = [
             {"id": "t1", "output_files": json.dumps(["/path/to/file.pptx"])}
         ]
-        with patch("server_adapter.get_connection", return_value=None), \
-             patch("server_adapter.get_pending_input", return_value=None), \
-             patch("server_adapter.get_output_files", return_value=[]):
+        with (
+            patch("server_adapter.get_connection", return_value=None),
+            patch("server_adapter.get_pending_input", return_value=None),
+            patch("server_adapter.get_output_files", return_value=[]),
+        ):
             resp = client.get("/sessions/sess-001/status")
         assert resp.status_code == 200
         data = resp.json()
@@ -201,6 +210,7 @@ class TestSessionStatus:
 # ---------------------------------------------------------------------------
 # Session events
 # ---------------------------------------------------------------------------
+
 
 class TestSessionEvents:
     def test_events_session_not_found(self, client, _reset_globals):
@@ -369,6 +379,7 @@ class TestSessionEvents:
 # Usage with filters
 # ---------------------------------------------------------------------------
 
+
 class TestUsageEndpoint:
     def test_usage_with_period_filter(self, client, _reset_globals):
         with patch("queries.usage_summary", return_value={"total_cost": 1.5}) as mock:
@@ -390,6 +401,7 @@ class TestUsageEndpoint:
 # ---------------------------------------------------------------------------
 # Grouped outputs
 # ---------------------------------------------------------------------------
+
 
 class TestGroupedOutputs:
     def test_empty_grouped_outputs(self, client):
@@ -478,6 +490,7 @@ class TestGroupedOutputs:
 # Delete output
 # ---------------------------------------------------------------------------
 
+
 class TestDeleteOutput:
     def test_delete_file(self, client):
         f = server_mod._outputs_dir / "slides" / "old.pptx"
@@ -497,7 +510,9 @@ class TestDeleteOutput:
         assert not d.exists()
 
     def test_delete_not_found(self, client):
-        resp = client.delete("/outputs", params={"path": str(server_mod._outputs_dir / "nope.txt")})
+        resp = client.delete(
+            "/outputs", params={"path": str(server_mod._outputs_dir / "nope.txt")}
+        )
         assert resp.status_code == 404
 
     def test_delete_path_traversal_blocked(self, client):
@@ -509,6 +524,7 @@ class TestDeleteOutput:
 # ---------------------------------------------------------------------------
 # Delete grouped output
 # ---------------------------------------------------------------------------
+
 
 class TestDeleteGroupedOutput:
     def test_delete_grouped_hackathon(self, client):
@@ -556,7 +572,9 @@ class TestDeleteGroupedOutput:
 
     def test_delete_grouped_hackathon_not_found(self, client):
         (server_mod._outputs_dir / "hackathons").mkdir(parents=True)
-        resp = client.delete("/outputs/grouped", params={"id": "hackathons/nonexistent"})
+        resp = client.delete(
+            "/outputs/grouped", params={"id": "hackathons/nonexistent"}
+        )
         assert resp.status_code == 404
 
     def test_delete_grouped_demos_not_found(self, client):
@@ -569,6 +587,7 @@ class TestDeleteGroupedOutput:
 # File download
 # ---------------------------------------------------------------------------
 
+
 class TestFileDownload:
     def test_download_file(self, client):
         f = server_mod._outputs_dir / "slides" / "deck.pptx"
@@ -579,7 +598,10 @@ class TestFileDownload:
         assert "attachment" in resp.headers.get("content-disposition", "")
 
     def test_download_not_found(self, client):
-        resp = client.get("/file/download", params={"path": str(server_mod._outputs_dir / "nope.pptx")})
+        resp = client.get(
+            "/file/download",
+            params={"path": str(server_mod._outputs_dir / "nope.pptx")},
+        )
         assert resp.status_code == 404
 
     def test_download_generator_script_blocked(self, client):
@@ -593,6 +615,7 @@ class TestFileDownload:
 # ---------------------------------------------------------------------------
 # ZIP export
 # ---------------------------------------------------------------------------
+
 
 class TestZipExport:
     def test_zip_single_file(self, client):
@@ -611,7 +634,9 @@ class TestZipExport:
         f = server_mod._outputs_dir / "slides" / "deck.pptx"
         f.parent.mkdir(parents=True)
         f.write_bytes(b"PK\x03\x04fake")
-        resp = client.post("/outputs/zip", json={"paths": [str(f)], "name": "my-export"})
+        resp = client.post(
+            "/outputs/zip", json={"paths": [str(f)], "name": "my-export"}
+        )
         assert resp.status_code == 200
         assert "my-export" in resp.headers["content-disposition"]
 
@@ -626,11 +651,15 @@ class TestZipExport:
     def test_zip_skips_generator_scripts(self, client):
         import zipfile
         import io
+
         d = server_mod._outputs_dir / "slides"
         d.mkdir(parents=True)
         (d / "deck.pptx").write_bytes(b"PK\x03\x04fake")
         (d / "generate_deck.py").write_text("# code")
-        resp = client.post("/outputs/zip", json={"paths": [str(d / "deck.pptx"), str(d / "generate_deck.py")]})
+        resp = client.post(
+            "/outputs/zip",
+            json={"paths": [str(d / "deck.pptx"), str(d / "generate_deck.py")]},
+        )
         assert resp.status_code == 200
         zf = zipfile.ZipFile(io.BytesIO(resp.content))
         names = zf.namelist()
@@ -642,6 +671,7 @@ class TestZipExport:
 # ---------------------------------------------------------------------------
 # Output metadata
 # ---------------------------------------------------------------------------
+
 
 class TestOutputMetadata:
     def test_metadata_for_pptx(self, client):
@@ -667,7 +697,10 @@ class TestOutputMetadata:
         assert data.get("planFile") == "plans/my-deck-complete.md"
 
     def test_metadata_not_found(self, client):
-        resp = client.get("/outputs/metadata", params={"path": str(server_mod._outputs_dir / "nope.txt")})
+        resp = client.get(
+            "/outputs/metadata",
+            params={"path": str(server_mod._outputs_dir / "nope.txt")},
+        )
         assert resp.status_code == 404
 
     def test_metadata_markdown_file(self, client):
@@ -691,6 +724,7 @@ class TestOutputMetadata:
 # ---------------------------------------------------------------------------
 # Verbose logging middleware
 # ---------------------------------------------------------------------------
+
 
 class TestLoggingMiddleware:
     def test_request_succeeds_without_verbose(self, client):
@@ -720,6 +754,7 @@ class TestLoggingMiddleware:
 # Events edge cases — detail not found after resolve, bad output_files JSON
 # ---------------------------------------------------------------------------
 
+
 class TestSessionEventsEdge:
     def test_events_detail_not_found_after_resolve(self, client, _reset_globals):
         store = _reset_globals
@@ -735,15 +770,22 @@ class TestSessionEventsEdge:
         store.get_session.return_value = {"id": "sess-001", "status": "active"}
         store.get_turns.return_value = [
             {
-                "id": "t1", "turn_number": 1, "agent": "slides",
-                "user_prompt": "q", "started_at": "2024-01-01T00:00:00",
-                "input_tokens": 0, "output_tokens": 0, "output_files": "[]",
+                "id": "t1",
+                "turn_number": 1,
+                "agent": "slides",
+                "user_prompt": "q",
+                "started_at": "2024-01-01T00:00:00",
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "output_files": "[]",
             }
         ]
         store.get_invocations_for_turn.return_value = [
             {
-                "type": "tool_call", "name": "bash",
-                "input": "{}", "output": "ok",
+                "type": "tool_call",
+                "name": "bash",
+                "input": "{}",
+                "output": "ok",
                 "started_at": "2024-01-01T00:00:01",
                 "ended_at": "2024-01-01T00:00:02",
                 "duration_ms": 1000,
@@ -762,9 +804,13 @@ class TestSessionEventsEdge:
         store.get_session.return_value = {"id": "sess-001", "status": "active"}
         store.get_turns.return_value = [
             {
-                "id": "t1", "turn_number": 1, "agent": "slides",
-                "user_prompt": "q", "started_at": "2024-01-01T00:00:00",
-                "input_tokens": 0, "output_tokens": 0,
+                "id": "t1",
+                "turn_number": 1,
+                "agent": "slides",
+                "user_prompt": "q",
+                "started_at": "2024-01-01T00:00:00",
+                "input_tokens": 0,
+                "output_tokens": 0,
                 "output_files": "NOT VALID JSON",
             }
         ]
@@ -779,9 +825,14 @@ class TestSessionEventsEdge:
         store.get_session.return_value = {"id": "sess-001", "status": "active"}
         store.get_turns.return_value = [
             {
-                "id": "t1", "turn_number": 1, "agent": "slides",
-                "user_prompt": "q", "started_at": "2024-01-01T00:00:00",
-                "input_tokens": 0, "output_tokens": 0, "output_files": "[]",
+                "id": "t1",
+                "turn_number": 1,
+                "agent": "slides",
+                "user_prompt": "q",
+                "started_at": "2024-01-01T00:00:00",
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "output_files": "[]",
             }
         ]
         store.get_invocations_for_turn.return_value = []
@@ -794,16 +845,24 @@ class TestSessionEventsEdge:
 # Status edge cases
 # ---------------------------------------------------------------------------
 
+
 class TestSessionStatusEdge:
     def test_status_with_pending_input(self, client, _reset_globals):
         store = _reset_globals
         store.resolve_prefix.return_value = "sess-001"
         store.get_session.return_value = {
-            "id": "sess-001", "status": "active", "turn_count": 1, "resumable": 0,
+            "id": "sess-001",
+            "status": "active",
+            "turn_count": 1,
+            "resumable": 0,
         }
-        with patch("server_adapter.get_connection", return_value=None), \
-             patch("server_adapter.get_pending_input", return_value={"question": "what?"}), \
-             patch("server_adapter.get_output_files", return_value=[]):
+        with (
+            patch("server_adapter.get_connection", return_value=None),
+            patch(
+                "server_adapter.get_pending_input", return_value={"question": "what?"}
+            ),
+            patch("server_adapter.get_output_files", return_value=[]),
+        ):
             resp = client.get("/sessions/sess-001/status")
         data = resp.json()
         assert data["pending_input"] == {"question": "what?"}
@@ -813,14 +872,17 @@ class TestSessionStatusEdge:
         store = _reset_globals
         store.resolve_prefix.return_value = "sess-001"
         store.get_session.return_value = {
-            "id": "sess-001", "status": "ended", "turn_count": 1, "resumable": 0,
+            "id": "sess-001",
+            "status": "ended",
+            "turn_count": 1,
+            "resumable": 0,
         }
-        store.get_turns.return_value = [
-            {"id": "t1", "output_files": "NOT JSON"}
-        ]
-        with patch("server_adapter.get_connection", return_value=None), \
-             patch("server_adapter.get_pending_input", return_value=None), \
-             patch("server_adapter.get_output_files", return_value=[]):
+        store.get_turns.return_value = [{"id": "t1", "output_files": "NOT JSON"}]
+        with (
+            patch("server_adapter.get_connection", return_value=None),
+            patch("server_adapter.get_pending_input", return_value=None),
+            patch("server_adapter.get_output_files", return_value=[]),
+        ):
             resp = client.get("/sessions/sess-001/status")
         assert resp.status_code == 200
         assert resp.json()["output_files"] == []
@@ -830,6 +892,7 @@ class TestSessionStatusEdge:
 # End session with session_map entry
 # ---------------------------------------------------------------------------
 
+
 class TestEndSessionExtended:
     def test_end_session_with_session_map(self, client, _reset_globals):
         store = _reset_globals
@@ -837,8 +900,10 @@ class TestEndSessionExtended:
         mock_session = MagicMock()
         mock_session._event_handlers = {}
         server_mod._session_map["sess-001"] = mock_session
-        with patch("server_adapter.unregister_event_handler"), \
-             patch("server_adapter.emit_state_changed"):
+        with (
+            patch("server_adapter.unregister_event_handler"),
+            patch("server_adapter.emit_state_changed"),
+        ):
             resp = client.delete("/sessions/sess-001")
         assert resp.status_code == 200
         assert "sess-001" not in server_mod._session_map
@@ -847,6 +912,7 @@ class TestEndSessionExtended:
 # ---------------------------------------------------------------------------
 # Outputs with various file types
 # ---------------------------------------------------------------------------
+
 
 class TestOutputsExtended:
     def test_list_outputs_python_file(self, client):
@@ -907,6 +973,7 @@ class TestOutputsExtended:
 # ---------------------------------------------------------------------------
 # Grouped outputs edge cases
 # ---------------------------------------------------------------------------
+
 
 class TestGroupedOutputsEdge:
     def test_grouped_demos_no_companion_dir(self, client):

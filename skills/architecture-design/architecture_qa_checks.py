@@ -48,14 +48,14 @@ PLACEHOLDER_RE = re.compile(
 )
 
 EMOJI_RE = re.compile(
-    "[\U0001F600-\U0001F64F"
-    "\U0001F300-\U0001F5FF"
-    "\U0001F680-\U0001F6FF"
-    "\U0001F900-\U0001F9FF"
-    "\U00002702-\U000027B0"
-    "\U0000FE00-\U0000FE0F"
-    "\U0000200D"
-    "\U00002600-\U000026FF"
+    "[\U0001f600-\U0001f64f"
+    "\U0001f300-\U0001f5ff"
+    "\U0001f680-\U0001f6ff"
+    "\U0001f900-\U0001f9ff"
+    "\U00002702-\U000027b0"
+    "\U0000fe00-\U0000fe0f"
+    "\U0000200d"
+    "\U00002600-\U000026ff"
     "]",
 )
 
@@ -64,25 +64,30 @@ EM_DASH_RE = re.compile(r"\u2014")
 
 # ── Check functions ───────────────────────────────────────────────────────────
 
+
 def check_expected_files(docs_dir: str) -> list[dict]:
     """Verify all expected architecture files exist and are non-empty."""
     issues = []
     for filename in EXPECTED_FILES:
         filepath = os.path.join(docs_dir, filename)
         if not os.path.exists(filepath):
-            issues.append({
-                "file": filename,
-                "severity": "CRITICAL",
-                "check": "file_exists",
-                "message": f"Expected file missing: {filename}",
-            })
+            issues.append(
+                {
+                    "file": filename,
+                    "severity": "CRITICAL",
+                    "check": "file_exists",
+                    "message": f"Expected file missing: {filename}",
+                }
+            )
         elif os.path.getsize(filepath) == 0:
-            issues.append({
-                "file": filename,
-                "severity": "CRITICAL",
-                "check": "file_exists",
-                "message": f"File is empty (0 bytes): {filename}",
-            })
+            issues.append(
+                {
+                    "file": filename,
+                    "severity": "CRITICAL",
+                    "check": "file_exists",
+                    "message": f"File is empty (0 bytes): {filename}",
+                }
+            )
     return issues
 
 
@@ -98,67 +103,81 @@ def check_drawio_valid(docs_dir: str) -> list[dict]:
             with open(filepath, "r", encoding="utf-8") as f:
                 content = f.read()
         except Exception as e:
-            issues.append({
-                "file": filename,
-                "severity": "CRITICAL",
-                "check": "drawio_readable",
-                "message": f"Cannot read file: {e}",
-            })
+            issues.append(
+                {
+                    "file": filename,
+                    "severity": "CRITICAL",
+                    "check": "drawio_readable",
+                    "message": f"Cannot read file: {e}",
+                }
+            )
             continue
 
         # Must be valid XML
         try:
             root = ET.fromstring(content)
         except ET.ParseError as e:
-            issues.append({
-                "file": filename,
-                "severity": "CRITICAL",
-                "check": "drawio_xml",
-                "message": f"Invalid XML: {e}",
-            })
+            issues.append(
+                {
+                    "file": filename,
+                    "severity": "CRITICAL",
+                    "check": "drawio_xml",
+                    "message": f"Invalid XML: {e}",
+                }
+            )
             continue
 
         # Root element should be <mxfile> or <mxGraphModel>
         if root.tag not in ("mxfile", "mxGraphModel"):
-            issues.append({
-                "file": filename,
-                "severity": "CRITICAL",
-                "check": "drawio_structure",
-                "message": f"Root element is <{root.tag}>, expected <mxfile> or <mxGraphModel>",
-            })
+            issues.append(
+                {
+                    "file": filename,
+                    "severity": "CRITICAL",
+                    "check": "drawio_structure",
+                    "message": f"Root element is <{root.tag}>, expected <mxfile> or <mxGraphModel>",
+                }
+            )
             continue
 
         # Should contain at least one diagram/page
         diagrams = root.findall(".//diagram")
         if root.tag == "mxfile" and len(diagrams) == 0:
-            issues.append({
-                "file": filename,
-                "severity": "CRITICAL",
-                "check": "drawio_structure",
-                "message": "No <diagram> elements found in <mxfile>",
-            })
+            issues.append(
+                {
+                    "file": filename,
+                    "severity": "CRITICAL",
+                    "check": "drawio_structure",
+                    "message": "No <diagram> elements found in <mxfile>",
+                }
+            )
             continue
 
         # Should contain mxCell elements (actual shapes/content)
         cells = root.findall(".//mxCell")
         graph_models = root.findall(".//mxGraphModel")
         if len(cells) == 0 and len(graph_models) == 0:
-            issues.append({
-                "file": filename,
-                "severity": "MAJOR",
-                "check": "drawio_content",
-                "message": "Diagram has no visible cells or graph models - may be empty",
-            })
+            issues.append(
+                {
+                    "file": filename,
+                    "severity": "MAJOR",
+                    "check": "drawio_content",
+                    "message": "Diagram has no visible cells or graph models - may be empty",
+                }
+            )
 
         # Check for reasonable number of shapes (at least a few components)
-        user_cells = [c for c in cells if c.get("vertex") == "1" or c.get("edge") == "1"]
+        user_cells = [
+            c for c in cells if c.get("vertex") == "1" or c.get("edge") == "1"
+        ]
         if 0 < len(user_cells) < 3:
-            issues.append({
-                "file": filename,
-                "severity": "MAJOR",
-                "check": "drawio_content",
-                "message": f"Diagram has only {len(user_cells)} shapes/edges - likely too sparse",
-            })
+            issues.append(
+                {
+                    "file": filename,
+                    "severity": "MAJOR",
+                    "check": "drawio_content",
+                    "message": f"Diagram has only {len(user_cells)} shapes/edges - likely too sparse",
+                }
+            )
 
     return issues
 
@@ -179,22 +198,26 @@ def check_md_structure(docs_dir: str) -> list[dict]:
 
         # Must have a top-level heading
         if not re.search(r"^#\s+", content, re.MULTILINE):
-            issues.append({
-                "file": filename,
-                "severity": "MAJOR",
-                "check": "md_structure",
-                "message": "Missing top-level heading (# Title)",
-            })
+            issues.append(
+                {
+                    "file": filename,
+                    "severity": "MAJOR",
+                    "check": "md_structure",
+                    "message": "Missing top-level heading (# Title)",
+                }
+            )
 
         # Must have at least one section heading
         sections = re.findall(r"^##\s+", content, re.MULTILINE)
         if len(sections) < 2:
-            issues.append({
-                "file": filename,
-                "severity": "MAJOR",
-                "check": "md_structure",
-                "message": f"Only {len(sections)} section headings - expected at least 2",
-            })
+            issues.append(
+                {
+                    "file": filename,
+                    "severity": "MAJOR",
+                    "check": "md_structure",
+                    "message": f"Only {len(sections)} section headings - expected at least 2",
+                }
+            )
 
     return issues
 
@@ -225,12 +248,14 @@ def check_md_length(docs_dir: str) -> list[dict]:
         expected = min_words.get(filename, 150)
         if word_count < expected:
             severity = "CRITICAL" if word_count < expected // 2 else "MAJOR"
-            issues.append({
-                "file": filename,
-                "severity": severity,
-                "check": "md_length",
-                "message": f"Only {word_count} words (expected at least {expected})",
-            })
+            issues.append(
+                {
+                    "file": filename,
+                    "severity": severity,
+                    "check": "md_length",
+                    "message": f"Only {word_count} words (expected at least {expected})",
+                }
+            )
 
     return issues
 
@@ -253,15 +278,17 @@ def check_placeholders(docs_dir: str) -> list[dict]:
 
         for line_num, line in enumerate(content.splitlines(), 1):
             for match in PLACEHOLDER_RE.finditer(line):
-                issues.append({
-                    "file": filename,
-                    "severity": "CRITICAL",
-                    "check": "placeholder_text",
-                    "message": (
-                        f"Placeholder text '{match.group()}' at line {line_num}: "
-                        f"{line.strip()[:100]}"
-                    ),
-                })
+                issues.append(
+                    {
+                        "file": filename,
+                        "severity": "CRITICAL",
+                        "check": "placeholder_text",
+                        "message": (
+                            f"Placeholder text '{match.group()}' at line {line_num}: "
+                            f"{line.strip()[:100]}"
+                        ),
+                    }
+                )
     return issues
 
 
@@ -281,15 +308,17 @@ def check_emoji(docs_dir: str) -> list[dict]:
 
         for line_num, line in enumerate(content.splitlines(), 1):
             for match in EMOJI_RE.finditer(line):
-                issues.append({
-                    "file": filename,
-                    "severity": "MAJOR",
-                    "check": "emoji",
-                    "message": (
-                        f"Emoji character U+{ord(match.group()):04X} at line {line_num}: "
-                        f"{line.strip()[:100]}"
-                    ),
-                })
+                issues.append(
+                    {
+                        "file": filename,
+                        "severity": "MAJOR",
+                        "check": "emoji",
+                        "message": (
+                            f"Emoji character U+{ord(match.group()):04X} at line {line_num}: "
+                            f"{line.strip()[:100]}"
+                        ),
+                    }
+                )
     return issues
 
 
@@ -309,12 +338,14 @@ def check_em_dashes(docs_dir: str) -> list[dict]:
 
         for line_num, line in enumerate(content.splitlines(), 1):
             for match in EM_DASH_RE.finditer(line):
-                issues.append({
-                    "file": filename,
-                    "severity": "MAJOR",
-                    "check": "em_dash",
-                    "message": f"Em-dash at line {line_num}: {line.strip()[:100]}",
-                })
+                issues.append(
+                    {
+                        "file": filename,
+                        "severity": "MAJOR",
+                        "check": "em_dash",
+                        "message": f"Em-dash at line {line_num}: {line.strip()[:100]}",
+                    }
+                )
     return issues
 
 
@@ -342,15 +373,17 @@ def check_azure_references(docs_dir: str) -> list[dict]:
         # Check for competitor cloud references
         for line_num, line in enumerate(content.splitlines(), 1):
             for match in competitor_re.finditer(line):
-                issues.append({
-                    "file": filename,
-                    "severity": "CRITICAL",
-                    "check": "azure_mandate",
-                    "message": (
-                        f"Non-Azure cloud reference '{match.group()}' at line {line_num}: "
-                        f"{line.strip()[:100]}"
-                    ),
-                })
+                issues.append(
+                    {
+                        "file": filename,
+                        "severity": "CRITICAL",
+                        "check": "azure_mandate",
+                        "message": (
+                            f"Non-Azure cloud reference '{match.group()}' at line {line_num}: "
+                            f"{line.strip()[:100]}"
+                        ),
+                    }
+                )
 
     # Check that solution-design.md mentions Azure at least once
     arch_path = os.path.join(docs_dir, "solution-design.md")
@@ -359,12 +392,14 @@ def check_azure_references(docs_dir: str) -> list[dict]:
             with open(arch_path, "r", encoding="utf-8", errors="replace") as f:
                 content = f.read()
             if not azure_re.search(content):
-                issues.append({
-                    "file": "solution-design.md",
-                    "severity": "CRITICAL",
-                    "check": "azure_mandate",
-                    "message": "Solution design does not mention any Azure/Microsoft services",
-                })
+                issues.append(
+                    {
+                        "file": "solution-design.md",
+                        "severity": "CRITICAL",
+                        "check": "azure_mandate",
+                        "message": "Solution design does not mention any Azure/Microsoft services",
+                    }
+                )
         except Exception:
             pass
 
@@ -382,12 +417,14 @@ def check_executive_brief(docs_dir: str) -> list[dict]:
         with open(filepath, "r", encoding="utf-8", errors="replace") as f:
             content = f.read()
     except Exception as e:
-        issues.append({
-            "file": "executive-brief.md",
-            "severity": "CRITICAL",
-            "check": "executive_brief_readable",
-            "message": f"Cannot read file: {e}",
-        })
+        issues.append(
+            {
+                "file": "executive-brief.md",
+                "severity": "CRITICAL",
+                "check": "executive_brief_readable",
+                "message": f"Cannot read file: {e}",
+            }
+        )
         return issues
 
     content_lower = content.lower()
@@ -400,12 +437,14 @@ def check_executive_brief(docs_dir: str) -> list[dict]:
     ]
     for keyword, description in required_concepts:
         if keyword not in content_lower:
-            issues.append({
-                "file": "executive-brief.md",
-                "severity": "MAJOR",
-                "check": "executive_brief_sections",
-                "message": f"Missing expected content: {description}",
-            })
+            issues.append(
+                {
+                    "file": "executive-brief.md",
+                    "severity": "MAJOR",
+                    "check": "executive_brief_sections",
+                    "message": f"Missing expected content: {description}",
+                }
+            )
 
     return issues
 
@@ -421,12 +460,14 @@ def check_data_assessment(docs_dir: str) -> list[dict]:
         with open(filepath, "r", encoding="utf-8", errors="replace") as f:
             content = f.read()
     except Exception as e:
-        issues.append({
-            "file": "data-assessment.md",
-            "severity": "CRITICAL",
-            "check": "data_assessment_readable",
-            "message": f"Cannot read file: {e}",
-        })
+        issues.append(
+            {
+                "file": "data-assessment.md",
+                "severity": "CRITICAL",
+                "check": "data_assessment_readable",
+                "message": f"Cannot read file: {e}",
+            }
+        )
         return issues
 
     content_lower = content.lower()
@@ -438,12 +479,14 @@ def check_data_assessment(docs_dir: str) -> list[dict]:
     ]
     for keyword, description in required_concepts:
         if keyword not in content_lower:
-            issues.append({
-                "file": "data-assessment.md",
-                "severity": "MAJOR",
-                "check": "data_assessment_sections",
-                "message": f"Missing expected content: {description}",
-            })
+            issues.append(
+                {
+                    "file": "data-assessment.md",
+                    "severity": "MAJOR",
+                    "check": "data_assessment_sections",
+                    "message": f"Missing expected content: {description}",
+                }
+            )
 
     return issues
 
@@ -459,12 +502,14 @@ def check_responsible_ai(docs_dir: str) -> list[dict]:
         with open(filepath, "r", encoding="utf-8", errors="replace") as f:
             content = f.read()
     except Exception as e:
-        issues.append({
-            "file": "responsible-ai.md",
-            "severity": "CRITICAL",
-            "check": "responsible_ai_readable",
-            "message": f"Cannot read file: {e}",
-        })
+        issues.append(
+            {
+                "file": "responsible-ai.md",
+                "severity": "CRITICAL",
+                "check": "responsible_ai_readable",
+                "message": f"Cannot read file: {e}",
+            }
+        )
         return issues
 
     content_lower = content.lower()
@@ -476,12 +521,14 @@ def check_responsible_ai(docs_dir: str) -> list[dict]:
     ]
     for keyword, description in required_concepts:
         if keyword not in content_lower:
-            issues.append({
-                "file": "responsible-ai.md",
-                "severity": "MAJOR",
-                "check": "responsible_ai_sections",
-                "message": f"Missing expected content: {description}",
-            })
+            issues.append(
+                {
+                    "file": "responsible-ai.md",
+                    "severity": "MAJOR",
+                    "check": "responsible_ai_sections",
+                    "message": f"Missing expected content: {description}",
+                }
+            )
 
     return issues
 
@@ -496,13 +543,18 @@ def check_cross_references(docs_dir: str) -> list[dict]:
         try:
             with open(arch_path, "r", encoding="utf-8", errors="replace") as f:
                 content = f.read()
-            if "architecture-diagram" not in content.lower() and "drawio" not in content.lower():
-                issues.append({
-                    "file": "solution-design.md",
-                    "severity": "MINOR",
-                    "check": "cross_reference",
-                    "message": "Does not reference the architecture-diagram.drawio file",
-                })
+            if (
+                "architecture-diagram" not in content.lower()
+                and "drawio" not in content.lower()
+            ):
+                issues.append(
+                    {
+                        "file": "solution-design.md",
+                        "severity": "MINOR",
+                        "check": "cross_reference",
+                        "message": "Does not reference the architecture-diagram.drawio file",
+                    }
+                )
         except Exception:
             pass
 
@@ -510,6 +562,7 @@ def check_cross_references(docs_dir: str) -> list[dict]:
 
 
 # ── Main runner ───────────────────────────────────────────────────────────────
+
 
 def run_all_checks(docs_dir: str, project_slug: str | None = None) -> dict:
     """Run all architecture QA checks and return a structured report."""
@@ -519,12 +572,14 @@ def run_all_checks(docs_dir: str, project_slug: str | None = None) -> dict:
             "status": "ERROR",
             "docs_dir": docs_dir,
             "project_slug": project_slug,
-            "issues": [{
-                "file": docs_dir,
-                "severity": "CRITICAL",
-                "check": "dir_exists",
-                "message": f"Documentation directory does not exist: {docs_dir}",
-            }],
+            "issues": [
+                {
+                    "file": docs_dir,
+                    "severity": "CRITICAL",
+                    "check": "dir_exists",
+                    "message": f"Documentation directory does not exist: {docs_dir}",
+                }
+            ],
             "summary": {"CRITICAL": 1, "MAJOR": 0, "MINOR": 0},
         }
 
@@ -550,12 +605,14 @@ def run_all_checks(docs_dir: str, project_slug: str | None = None) -> dict:
             issues = check_fn()
             all_issues.extend(issues)
         except Exception as e:
-            all_issues.append({
-                "file": "runner",
-                "severity": "MINOR",
-                "check": check_name,
-                "message": f"Check failed with error: {e}",
-            })
+            all_issues.append(
+                {
+                    "file": "runner",
+                    "severity": "MINOR",
+                    "check": check_name,
+                    "message": f"Check failed with error: {e}",
+                }
+            )
 
     # Summarize
     summary: dict[str, int] = defaultdict(int)
@@ -566,7 +623,9 @@ def run_all_checks(docs_dir: str, project_slug: str | None = None) -> dict:
     for issue in all_issues:
         by_file[issue["file"]].append(issue)
 
-    has_critical_or_major = summary.get("CRITICAL", 0) > 0 or summary.get("MAJOR", 0) > 0
+    has_critical_or_major = (
+        summary.get("CRITICAL", 0) > 0 or summary.get("MAJOR", 0) > 0
+    )
     status = "ISSUES_FOUND" if has_critical_or_major else "CLEAN"
 
     return {
@@ -644,7 +703,5 @@ if __name__ == "__main__":
         print(format_report(report))
 
     sys.exit(
-        0 if report["status"] == "CLEAN"
-        else 2 if report["status"] == "ERROR"
-        else 1
+        0 if report["status"] == "CLEAN" else 2 if report["status"] == "ERROR" else 1
     )

@@ -10,9 +10,9 @@ from pathlib import Path
 
 from agents.models import AgentConfig
 
-#DEFAULT_MODEL = "claude-opus-4.6"
+# DEFAULT_MODEL = "claude-opus-4.6"
 DEFAULT_MODEL = "claude-sonnet-4.6"
-#DEFAULT_MODEL = "gpt-5.4"
+# DEFAULT_MODEL = "gpt-5.4"
 DEFAULT_TIMEOUT = 14400  # 4 hours
 
 
@@ -43,9 +43,7 @@ class AgentCatalog:
                 self._routable[agent.name] = agent
 
         # Load every skill subdirectory unconditionally.
-        self._skill_dirs = sorted(
-            str(p) for p in skills_dir.iterdir() if p.is_dir()
-        )
+        self._skill_dirs = sorted(str(p) for p in skills_dir.iterdir() if p.is_dir())
 
     # -- Lookups ---------------------------------------------------------------
 

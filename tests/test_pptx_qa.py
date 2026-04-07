@@ -32,6 +32,7 @@ PLACEHOLDER_RE = _mod.PLACEHOLDER_RE
 
 # ── Helpers to build mock presentations ───────────────────────────────────────
 
+
 def _make_prs(slide_count: int = 3):
     """Create a mock Presentation with N slides, each having basic shapes."""
     prs = MagicMock()
@@ -40,7 +41,9 @@ def _make_prs(slide_count: int = 3):
         slide = MagicMock()
         slide.has_notes_slide = True
         notes_frame = MagicMock()
-        notes_frame.text = f"Speaker notes for slide {i + 1} with enough detail to pass checks."
+        notes_frame.text = (
+            f"Speaker notes for slide {i + 1} with enough detail to pass checks."
+        )
         slide.notes_slide.notes_text_frame = notes_frame
 
         # One content shape with text
@@ -86,6 +89,7 @@ def _make_shape(text="Hello", left=914400, top=914400, width=914400 * 5, height=
 
 # ── check_slide_count ─────────────────────────────────────────────────────────
 
+
 class TestSlideCount:
     def test_exact_match(self):
         prs = _make_prs(5)
@@ -117,6 +121,7 @@ class TestSlideCount:
 
 # ── check_placeholder_text ────────────────────────────────────────────────────
 
+
 class TestPlaceholderText:
     def test_no_placeholders(self):
         prs = _make_prs(1)
@@ -141,11 +146,14 @@ class TestPlaceholderText:
         prs = _make_prs(1)
         prs.slides[0].notes_slide.notes_text_frame.text = "FIXME add speaker notes"
         issues = check_placeholder_text(prs)
-        placeholder_in_notes = [i for i in issues if i["check"] == "placeholder_in_notes"]
+        placeholder_in_notes = [
+            i for i in issues if i["check"] == "placeholder_in_notes"
+        ]
         assert len(placeholder_in_notes) >= 1
 
 
 # ── check_speaker_notes ──────────────────────────────────────────────────────
+
 
 class TestSpeakerNotes:
     def test_notes_present(self):
@@ -169,6 +177,7 @@ class TestSpeakerNotes:
 
 
 # ── check_font_sizes ─────────────────────────────────────────────────────────
+
 
 class TestFontSizes:
     def _make_prs_with_font(self, pt_size):
@@ -202,6 +211,7 @@ class TestFontSizes:
 
 # ── check_slide_text_density ─────────────────────────────────────────────────
 
+
 class TestTextDensity:
     def test_normal_density(self):
         prs = _make_prs(2)
@@ -224,6 +234,7 @@ class TestTextDensity:
 
 
 # ── run_all_checks ────────────────────────────────────────────────────────────
+
 
 class TestRunAllChecks:
     def test_nonexistent_file(self, tmp_path):
@@ -272,6 +283,7 @@ class TestRunAllChecks:
 
 # ── format_report ─────────────────────────────────────────────────────────────
 
+
 class TestFormatReport:
     def test_clean_report(self):
         report = {
@@ -294,9 +306,23 @@ class TestFormatReport:
             "slide_count": 1,
             "expected_slides": 5,
             "issues": [
-                {"slide": 0, "severity": "CRITICAL", "check": "slide_count", "message": "wrong count"}
+                {
+                    "slide": 0,
+                    "severity": "CRITICAL",
+                    "check": "slide_count",
+                    "message": "wrong count",
+                }
             ],
-            "issues_by_slide": {0: [{"slide": 0, "severity": "CRITICAL", "check": "slide_count", "message": "wrong count"}]},
+            "issues_by_slide": {
+                0: [
+                    {
+                        "slide": 0,
+                        "severity": "CRITICAL",
+                        "check": "slide_count",
+                        "message": "wrong count",
+                    }
+                ]
+            },
             "summary": {"CRITICAL": 1, "MAJOR": 0, "MINOR": 0},
         }
         text = format_report(report)
@@ -306,10 +332,20 @@ class TestFormatReport:
 
 # ── PLACEHOLDER_RE ────────────────────────────────────────────────────────────
 
+
 class TestPlaceholderRegex:
-    @pytest.mark.parametrize("text", [
-        "xxxx", "lorem ipsum", "TODO", "FIXME", "placeholder", "TBD", "insert here",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "xxxx",
+            "lorem ipsum",
+            "TODO",
+            "FIXME",
+            "placeholder",
+            "TBD",
+            "insert here",
+        ],
+    )
     def test_matches_known_patterns(self, text):
         assert PLACEHOLDER_RE.search(text)
 

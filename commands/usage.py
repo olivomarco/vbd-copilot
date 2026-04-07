@@ -73,7 +73,9 @@ def _show_session_usage(
     console.print()
     console.print("  [bold]Current Session[/bold]")
     console.print(f"  [dim]Session ID:[/dim]  [cyan]{session_id}[/cyan]")
-    console.print(f"  [dim]Agent:[/dim]       [#00d4ff]{current_agent or '?'}[/#00d4ff]")
+    console.print(
+        f"  [dim]Agent:[/dim]       [#00d4ff]{current_agent or '?'}[/#00d4ff]"
+    )
     console.print(f"  [dim]Model:[/dim]       {current_model or '?'}")
 
     turns = s.get("turn_count", 0) if s else 0
@@ -106,9 +108,15 @@ def _show_session_usage(
         console.print(f"  [dim]Remaining:[/dim]   {remaining:,} tokens")
     elif max_ctx > 0:
         console.print(f"  [dim]Capacity:[/dim]    {max_ctx:,} tokens")
-        console.print("  [dim]Used:[/dim]        [dim italic]no data yet (send a message first)[/dim italic]")
+        console.print(
+            "  [dim]Used:[/dim]        [dim italic]no data yet (send a message first)[/dim italic]"
+        )
     else:
-        console.print(f"  [dim]Last input:[/dim]  {ctx_used:,} tokens" if ctx_used else "  [dim]No usage data yet.[/dim]")
+        console.print(
+            f"  [dim]Last input:[/dim]  {ctx_used:,} tokens"
+            if ctx_used
+            else "  [dim]No usage data yet.[/dim]"
+        )
 
     console.print()
     console.print("  [dim]Use [cyan]/usage all[/cyan] for global aggregates.[/dim]")

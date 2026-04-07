@@ -38,13 +38,17 @@ def _text(result: dict) -> str:
 # bing_search
 # ---------------------------------------------------------------------------
 
+
 class TestBingSearchTool:
     @pytest.mark.asyncio
     async def test_html_fallback(self, monkeypatch):
         monkeypatch.delenv("BING_API_KEY", raising=False)
-        with patch("tools._bing_html_search", return_value=[
-            {"title": "Test", "url": "https://test.com", "snippet": "result"}
-        ]):
+        with patch(
+            "tools._bing_html_search",
+            return_value=[
+                {"title": "Test", "url": "https://test.com", "snippet": "result"}
+            ],
+        ):
             result = await _call(bing_search, {"query": "test", "max_results": 3})
         text = _text(result)
         data = json.loads(text)
@@ -54,9 +58,10 @@ class TestBingSearchTool:
     @pytest.mark.asyncio
     async def test_api_when_key_set(self, monkeypatch):
         monkeypatch.setenv("BING_API_KEY", "fake-key")
-        with patch("tools._bing_api_search", return_value=[
-            {"title": "API", "url": "https://api.com", "snippet": "s"}
-        ]):
+        with patch(
+            "tools._bing_api_search",
+            return_value=[{"title": "API", "url": "https://api.com", "snippet": "s"}],
+        ):
             result = await _call(bing_search, {"query": "test", "max_results": 3})
         text = _text(result)
         data = json.loads(text)
@@ -81,7 +86,9 @@ class TestBingSearchTool:
     @pytest.mark.asyncio
     async def test_exception_returns_error(self, monkeypatch):
         monkeypatch.delenv("BING_API_KEY", raising=False)
-        with patch("tools._bing_html_search", side_effect=ConnectionError("no network")):
+        with patch(
+            "tools._bing_html_search", side_effect=ConnectionError("no network")
+        ):
             result = await _call(bing_search, {"query": "test", "max_results": 5})
         data = json.loads(_text(result))
         assert "error" in data
@@ -91,31 +98,40 @@ class TestBingSearchTool:
 # QA tool runners
 # ---------------------------------------------------------------------------
 
+
 class TestRunPptxQaChecksTool:
     @pytest.mark.asyncio
     async def test_run_success(self):
         mock_result = MagicMock(returncode=0, stdout="CLEAN: No issues found")
         with patch("subprocess.run", return_value=mock_result):
-            result = await _call(run_pptx_qa_checks, {"pptx_path": "/tmp/t.pptx", "expected_slides": 10})
+            result = await _call(
+                run_pptx_qa_checks, {"pptx_path": "/tmp/t.pptx", "expected_slides": 10}
+            )
         assert "CLEAN" in _text(result)
 
     @pytest.mark.asyncio
     async def test_returncode_2(self):
         mock_result = MagicMock(returncode=2, stdout="", stderr="Script error")
         with patch("subprocess.run", return_value=mock_result):
-            result = await _call(run_pptx_qa_checks, {"pptx_path": "/tmp/t.pptx", "expected_slides": 10})
+            result = await _call(
+                run_pptx_qa_checks, {"pptx_path": "/tmp/t.pptx", "expected_slides": 10}
+            )
         assert "ERROR" in _text(result)
 
     @pytest.mark.asyncio
     async def test_exception(self):
         with patch("subprocess.run", side_effect=OSError("boom")):
-            result = await _call(run_pptx_qa_checks, {"pptx_path": "/tmp/t.pptx", "expected_slides": 10})
+            result = await _call(
+                run_pptx_qa_checks, {"pptx_path": "/tmp/t.pptx", "expected_slides": 10}
+            )
         assert "ERROR" in _text(result)
 
     @pytest.mark.asyncio
     async def test_script_not_found(self):
         with patch("os.path.exists", return_value=False):
-            result = await _call(run_pptx_qa_checks, {"pptx_path": "/tmp/t.pptx", "expected_slides": 10})
+            result = await _call(
+                run_pptx_qa_checks, {"pptx_path": "/tmp/t.pptx", "expected_slides": 10}
+            )
         assert "not found" in _text(result)
 
 
@@ -131,8 +147,14 @@ class TestRunDemoQaChecksTool:
     async def test_with_options(self):
         mock_result = MagicMock(returncode=0, stdout="OK")
         with patch("subprocess.run", return_value=mock_result) as mock_run:
-            await _call(run_demo_qa_checks, {
-                "guide_path": "/tmp/g.md", "companion_dir": "/tmp/s", "expected_demos": 3})
+            await _call(
+                run_demo_qa_checks,
+                {
+                    "guide_path": "/tmp/g.md",
+                    "companion_dir": "/tmp/s",
+                    "expected_demos": 3,
+                },
+            )
         cmd = mock_run.call_args[0][0]
         assert "--companion-dir" in cmd
         assert "--expected-demos" in cmd
@@ -169,7 +191,9 @@ class TestRunArchitectureQaChecksTool:
     async def test_with_slug(self):
         mock_result = MagicMock(returncode=0, stdout="OK")
         with patch("subprocess.run", return_value=mock_result) as mock_run:
-            await _call(run_architecture_qa_checks, {"docs_dir": "/tmp/d", "project_slug": "p"})
+            await _call(
+                run_architecture_qa_checks, {"docs_dir": "/tmp/d", "project_slug": "p"}
+            )
         assert "--project-slug" in mock_run.call_args[0][0]
 
     @pytest.mark.asyncio
@@ -204,7 +228,9 @@ class TestRunInfraQaChecksTool:
     async def test_with_slug(self):
         mock_result = MagicMock(returncode=0, stdout="OK")
         with patch("subprocess.run", return_value=mock_result) as mock_run:
-            await _call(run_infra_qa_checks, {"infra_dir": "/tmp/i", "project_slug": "p"})
+            await _call(
+                run_infra_qa_checks, {"infra_dir": "/tmp/i", "project_slug": "p"}
+            )
         assert "--project-slug" in mock_run.call_args[0][0]
 
     @pytest.mark.asyncio
@@ -239,7 +265,9 @@ class TestRunPipelineQaChecksTool:
     async def test_with_slug(self):
         mock_result = MagicMock(returncode=0, stdout="OK")
         with patch("subprocess.run", return_value=mock_result) as mock_run:
-            await _call(run_pipeline_qa_checks, {"project_dir": "/tmp/p", "project_slug": "p"})
+            await _call(
+                run_pipeline_qa_checks, {"project_dir": "/tmp/p", "project_slug": "p"}
+            )
         assert "--project-slug" in mock_run.call_args[0][0]
 
     @pytest.mark.asyncio
@@ -274,7 +302,9 @@ class TestRunDocsQaChecksTool:
     async def test_with_slug(self):
         mock_result = MagicMock(returncode=0, stdout="OK")
         with patch("subprocess.run", return_value=mock_result) as mock_run:
-            await _call(run_docs_qa_checks, {"project_dir": "/tmp/p", "project_slug": "p"})
+            await _call(
+                run_docs_qa_checks, {"project_dir": "/tmp/p", "project_slug": "p"}
+            )
         assert "--project-slug" in mock_run.call_args[0][0]
 
     @pytest.mark.asyncio
@@ -309,7 +339,10 @@ class TestRunHackathonQaChecksTool:
     async def test_with_expected_challenges(self):
         mock_result = MagicMock(returncode=0, stdout="OK")
         with patch("subprocess.run", return_value=mock_result) as mock_run:
-            await _call(run_hackathon_qa_checks, {"hackathon_dir": "/tmp/h", "expected_challenges": 5})
+            await _call(
+                run_hackathon_qa_checks,
+                {"hackathon_dir": "/tmp/h", "expected_challenges": 5},
+            )
         assert "--expected-challenges" in mock_run.call_args[0][0]
 
     @pytest.mark.asyncio

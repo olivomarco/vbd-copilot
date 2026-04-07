@@ -172,9 +172,7 @@ class TestChatEndpoint:
             assert "token" in parsed
             assert "done" in parsed
 
-    def test_chat_endpoint_validation_error(
-        self, test_client: TestClient
-    ) -> None:
+    def test_chat_endpoint_validation_error(self, test_client: TestClient) -> None:
         """Missing message field returns 422."""
         response = test_client.post(
             "/api/v1/chat",
@@ -229,9 +227,7 @@ class TestFeedbackEndpoint:
         call_kwargs = feedback_service.save_feedback.call_args.kwargs
         assert call_kwargs.get("comment") == "Non era pertinente"
 
-    def test_chat_feedback_invalid_rating(
-        self, test_client: TestClient
-    ) -> None:
+    def test_chat_feedback_invalid_rating(self, test_client: TestClient) -> None:
         """Invalid rating value returns 422."""
         response = test_client.post(
             "/api/v1/chat/feedback",
@@ -243,9 +239,7 @@ class TestFeedbackEndpoint:
         )
         assert response.status_code == 422
 
-    def test_chat_feedback_missing_fields(
-        self, test_client: TestClient
-    ) -> None:
+    def test_chat_feedback_missing_fields(self, test_client: TestClient) -> None:
         """Missing required fields return 422."""
         response = test_client.post(
             "/api/v1/chat/feedback",

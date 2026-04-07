@@ -108,7 +108,9 @@ class TestReadiness:
         self, test_app: FastAPI, test_client: TestClient
     ) -> None:
         """Exception during health check marks service as unhealthy."""
-        test_app.state.conversation_manager.health_check.side_effect = Exception("DB error")
+        test_app.state.conversation_manager.health_check.side_effect = Exception(
+            "DB error"
+        )
         test_app.state.search_service.health_check.return_value = True
         test_app.state.openai_service.health_check.return_value = True
 

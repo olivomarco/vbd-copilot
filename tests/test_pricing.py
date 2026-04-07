@@ -38,18 +38,24 @@ class TestEstimateCost:
 
     def test_claude_sonnet(self):
         # claude-sonnet-4.6: $3.00 in, $15.00 out per 1M
-        cost = estimate_cost("claude-sonnet-4.6", input_tokens=500_000, output_tokens=200_000)
+        cost = estimate_cost(
+            "claude-sonnet-4.6", input_tokens=500_000, output_tokens=200_000
+        )
         expected = (500_000 / 1_000_000) * 3.00 + (200_000 / 1_000_000) * 15.00
         assert cost == pytest.approx(expected)
 
     def test_claude_opus(self):
         # claude-opus-4: $15.00 in, $75.00 out per 1M
-        cost = estimate_cost("claude-opus-4", input_tokens=100_000, output_tokens=50_000)
+        cost = estimate_cost(
+            "claude-opus-4", input_tokens=100_000, output_tokens=50_000
+        )
         expected = (100_000 / 1_000_000) * 15.00 + (50_000 / 1_000_000) * 75.00
         assert cost == pytest.approx(expected)
 
     def test_gpt4_1_mini(self):
-        cost = estimate_cost("gpt-4.1-mini", input_tokens=1_000_000, output_tokens=1_000_000)
+        cost = estimate_cost(
+            "gpt-4.1-mini", input_tokens=1_000_000, output_tokens=1_000_000
+        )
         assert cost == pytest.approx(0.40 + 1.60)
 
     def test_all_known_models_in_pricing_table(self):
@@ -57,6 +63,8 @@ class TestEstimateCost:
         for model_name in MODEL_PRICING:
             if model_name == "default":
                 continue
-            cost = estimate_cost(model_name, input_tokens=1_000_000, output_tokens=1_000_000)
+            cost = estimate_cost(
+                model_name, input_tokens=1_000_000, output_tokens=1_000_000
+            )
             in_price, out_price = MODEL_PRICING[model_name]
             assert cost == pytest.approx(in_price + out_price)

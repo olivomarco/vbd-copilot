@@ -67,16 +67,22 @@ REQUIRED_ENV_VARS = [
 
 missing = [v for v in REQUIRED_ENV_VARS if not os.environ.get(v)]
 if missing:
-    print(f"ERROR: Missing required environment variables: {', '.join(missing)}", file=sys.stderr)
-    print("Set these as GitHub Actions secrets and map them under 'env:' in the workflow.", file=sys.stderr)
+    print(
+        f"ERROR: Missing required environment variables: {', '.join(missing)}",
+        file=sys.stderr,
+    )
+    print(
+        "Set these as GitHub Actions secrets and map them under 'env:' in the workflow.",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 # ---------------------------------------------------------------------------
 # Read configuration from environment
 # ---------------------------------------------------------------------------
 workspace_id = os.environ["FABRIC_PROD_WORKSPACE_ID"]
-tenant_id    = os.environ["FABRIC_TENANT_ID"]
-client_id    = os.environ["FABRIC_CLIENT_ID"]
+tenant_id = os.environ["FABRIC_TENANT_ID"]
+client_id = os.environ["FABRIC_CLIENT_ID"]
 client_secret = os.environ["FABRIC_CLIENT_SECRET"]
 
 # Environment tag used by parameter.yml find_replace rules (must match key in replace_value)
@@ -100,7 +106,11 @@ item_type_in_scope = [
 # ---------------------------------------------------------------------------
 try:
     from azure.identity import ClientSecretCredential
-    from fabric_cicd import FabricWorkspace, publish_all_items, unpublish_all_orphan_items
+    from fabric_cicd import (
+        FabricWorkspace,
+        publish_all_items,
+        unpublish_all_orphan_items,
+    )
 except ImportError as exc:
     print(f"ERROR: Required package not installed: {exc}", file=sys.stderr)
     print("Run: pip install fabric-cicd azure-identity", file=sys.stderr)
@@ -152,4 +162,6 @@ unpublish_all_orphan_items(target_workspace)
 # ---------------------------------------------------------------------------
 print(f"\nDeployment to PROD workspace {workspace_id} complete.")
 print("Verify the deployment in Fabric portal -> workspace -> item list.")
-print("Check audit trail: Fabric Admin portal -> Activity log -> filter by SPN client_id.")
+print(
+    "Check audit trail: Fabric Admin portal -> Activity log -> filter by SPN client_id."
+)

@@ -4,7 +4,6 @@ from agents.models import AgentConfig
 
 
 class TestAgentConfig:
-
     def test_defaults(self):
         agent = AgentConfig(
             name="test-agent",

@@ -47,6 +47,7 @@ def _clear_connections():
 # Pending input
 # ---------------------------------------------------------------------------
 
+
 class TestPendingInput:
     def test_set_and_get_pending_input(self):
         _get_or_create("s1")
@@ -70,6 +71,7 @@ class TestPendingInput:
 # ---------------------------------------------------------------------------
 # Last done
 # ---------------------------------------------------------------------------
+
 
 class TestLastDone:
     def test_set_and_get_last_done(self):
@@ -97,6 +99,7 @@ class TestLastDone:
 # Output files
 # ---------------------------------------------------------------------------
 
+
 class TestOutputFiles:
     def test_set_and_get_output_files(self):
         _get_or_create("s1")
@@ -123,6 +126,7 @@ class TestOutputFiles:
 # Ask user lock
 # ---------------------------------------------------------------------------
 
+
 class TestAskUserLock:
     def test_get_ask_user_lock(self):
         _get_or_create("s1")
@@ -139,6 +143,7 @@ class TestAskUserLock:
 # ---------------------------------------------------------------------------
 # Event handler lifecycle
 # ---------------------------------------------------------------------------
+
 
 class TestEventHandler:
     def test_no_handler_initially(self):
@@ -183,6 +188,7 @@ class TestEventHandler:
 # set_active_ws / get_active_ws
 # ---------------------------------------------------------------------------
 
+
 class TestActiveWs:
     def test_legacy_single_arg(self):
         ws = MagicMock()
@@ -207,6 +213,7 @@ class TestActiveWs:
 # ---------------------------------------------------------------------------
 # remove_ws edge cases
 # ---------------------------------------------------------------------------
+
 
 class TestRemoveWsEdgeCases:
     def test_remove_ws_no_connection(self):
@@ -244,6 +251,7 @@ class TestRemoveWsEdgeCases:
 # ---------------------------------------------------------------------------
 # _detect_phase
 # ---------------------------------------------------------------------------
+
 
 class TestDetectPhase:
     def test_research_tool(self):
@@ -293,6 +301,7 @@ class TestDetectPhase:
 # emit_state_changed
 # ---------------------------------------------------------------------------
 
+
 class TestEmitStateChanged:
     def test_emit_with_ws(self):
         ws = MagicMock()
@@ -320,12 +329,14 @@ class TestSendFunction:
     def test_send_no_session_no_active_ws(self):
         """_send with no session and no active_ws should be a no-op."""
         from server_adapter import _send
+
         _send({"type": "test", "data": {}})  # should not raise
 
     def test_send_with_legacy_active_ws(self):
         """_send without session_id falls back to _active_ws."""
         from server_adapter import _send
         import asyncio
+
         ws = MagicMock()
         ws.client_state = MagicMock()
         ws.client_state.name = "CONNECTED"
@@ -345,6 +356,7 @@ class TestSendFunction:
 # ---------------------------------------------------------------------------
 # ws_reset
 # ---------------------------------------------------------------------------
+
 
 class TestWsReset:
     def test_ws_reset_session(self):
@@ -372,6 +384,7 @@ class TestWsReset:
 # SessionConnection cleanup
 # ---------------------------------------------------------------------------
 
+
 class TestSessionConnectionCleanup:
     def test_cleanup_clears_state(self):
         conn = _get_or_create("s1")
@@ -398,11 +411,14 @@ class TestSessionConnectionCleanup:
 # ws_handle_event (legacy)
 # ---------------------------------------------------------------------------
 
+
 class TestWsHandleEvent:
     def test_legacy_handler_noop(self):
         from server_adapter import ws_handle_event
+
         # Create a minimal event
         from copilot.generated.session_events import SessionEventType
+
         event = SimpleNamespace(
             type=SessionEventType.ASSISTANT_MESSAGE_DELTA,
             id="evt-1",
@@ -416,15 +432,18 @@ class TestWsHandleEvent:
 # push/pop user response legacy (no session_id)
 # ---------------------------------------------------------------------------
 
+
 class TestLegacyUserResponse:
     def test_push_legacy(self):
         from server_adapter import push_user_response, _user_input_queue
+
         push_user_response("hello")
         assert _user_input_queue.get_nowait() == "hello"
 
     @pytest.mark.asyncio
     async def test_pop_legacy(self):
         from server_adapter import pop_user_response, _user_input_queue
+
         _user_input_queue.put_nowait("world")
         result = await pop_user_response(timeout=1.0)
         assert result == "world"
@@ -434,11 +453,13 @@ class TestLegacyUserResponse:
 # _heartbeat_loop task lifecycle
 # ---------------------------------------------------------------------------
 
+
 class TestHeartbeatTask:
     @pytest.mark.asyncio
     async def test_start_and_stop(self):
         from server_adapter import start_heartbeat, stop_heartbeat
         import server_adapter as sa
+
         stop_heartbeat()
         start_heartbeat()
         assert sa._heartbeat_task is not None

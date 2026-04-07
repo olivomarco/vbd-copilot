@@ -20,7 +20,6 @@ def collector(store):
 
 
 class TestSessionLifecycle:
-
     def test_on_session_created(self, collector, store):
         collector.on_session_created("s1", agent="test-agent", model="gpt-4o")
         session = store.get_session("s1")
@@ -51,10 +50,11 @@ class TestSessionLifecycle:
 
 
 class TestTurnLifecycle:
-
     def test_on_turn_start(self, collector, store):
         collector.on_session_created("s1")
-        turn_id = collector.on_turn_start("s1", agent="a1", model="m1", user_prompt="hello")
+        turn_id = collector.on_turn_start(
+            "s1", agent="a1", model="m1", user_prompt="hello"
+        )
         assert turn_id is not None
         assert collector._current_turn_id == turn_id
         turn = store.get_turn(turn_id)
@@ -91,13 +91,14 @@ class TestTurnLifecycle:
 
 
 class TestUsageUpdate:
-
     def test_on_usage(self, collector, store):
         collector.on_session_created("s1")
         turn_id = collector.on_turn_start("s1", model="gpt-4o")
         collector.on_usage(
-            input_tokens=500, output_tokens=200,
-            cache_read_tokens=100, cache_write_tokens=50,
+            input_tokens=500,
+            output_tokens=200,
+            cache_read_tokens=100,
+            cache_write_tokens=50,
             model="gpt-4o",
         )
         turn = store.get_turn(turn_id)
@@ -110,7 +111,6 @@ class TestUsageUpdate:
 
 
 class TestToolInvocations:
-
     def test_on_tool_start(self, collector, store):
         collector.on_session_created("s1")
         turn_id = collector.on_turn_start("s1")
@@ -141,7 +141,6 @@ class TestToolInvocations:
 
 
 class TestSubagentInvocations:
-
     def test_on_subagent_start(self, collector, store):
         collector.on_session_created("s1")
         turn_id = collector.on_turn_start("s1")
@@ -170,7 +169,6 @@ class TestSubagentInvocations:
 
 
 class TestSubagentNamePassthrough:
-
     def test_on_tool_start_with_subagent_name(self, collector, store):
         """on_tool_start should pass subagent_name to record_invocation."""
         collector.on_session_created("s-sa1", agent="test")
@@ -191,12 +189,13 @@ class TestSubagentNamePassthrough:
 
 
 class TestAssistantResponsePersistence:
-
     def test_on_turn_end_stores_assistant_response(self, collector, store):
         """on_turn_end should persist assistant_response to the turns table."""
         collector.on_session_created("s-resp1", agent="test")
         tid = collector.on_turn_start("s-resp1", agent="test", user_prompt="hi")
-        collector.on_turn_end(tid, assistant_response="Hello, how can I help?", model="gpt-4o")
+        collector.on_turn_end(
+            tid, assistant_response="Hello, how can I help?", model="gpt-4o"
+        )
         turn = store.get_turn(tid)
         assert turn is not None
         assert turn["assistant_response"] == "Hello, how can I help?"

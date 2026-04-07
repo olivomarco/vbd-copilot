@@ -52,19 +52,21 @@ print(f"Spark version: {spark.version}")
 # ---------------------------------------------------------------------------
 # Cell 2 - Define schema and unified dataset
 # ---------------------------------------------------------------------------
-orders_schema = StructType([
-    StructField("OrderID",  StringType(), False),
-    StructField("SalesRep", StringType(), False),
-    StructField("Region",   StringType(), False),
-    StructField("Amount",   DoubleType(), False),
-])
+orders_schema = StructType(
+    [
+        StructField("OrderID", StringType(), False),
+        StructField("SalesRep", StringType(), False),
+        StructField("Region", StringType(), False),
+        StructField("Amount", DoubleType(), False),
+    ]
+)
 
 orders_data = [
     ("O001", "Alice", "North", 52000.0),
-    ("O002", "Bob",   "North", 47000.0),
+    ("O002", "Bob", "North", 47000.0),
     ("O003", "Carol", "North", 61000.0),
-    ("O004", "Dave",  "South", 39000.0),
-    ("O005", "Eve",   "South", 44500.0),
+    ("O004", "Dave", "South", 39000.0),
+    ("O005", "Eve", "South", 44500.0),
     ("O006", "Frank", "South", 58000.0),
 ]
 
@@ -83,7 +85,9 @@ print(f"SalesOrders created - row count: {count_orders}")
 print("\n--- SalesOrders preview ---")
 spark.table("SalesOrders").show()
 
-print("\nTable written successfully. Proceed with OneLake RLS role creation in the Fabric portal.")
+print(
+    "\nTable written successfully. Proceed with OneLake RLS role creation in the Fabric portal."
+)
 
 # ---------------------------------------------------------------------------
 # Cell 5 - RLS predicates to copy into OneLake UI
@@ -135,6 +139,7 @@ IMPORTANT BEHAVIOR NOTES (share with audience during demo):
 
 print(RLS_NOTES)
 
+
 # ---------------------------------------------------------------------------
 # Cell 8 - Cleanup helper (run ONLY to reset demo environment)
 # ---------------------------------------------------------------------------
@@ -145,5 +150,6 @@ def cleanup_demo_tables():
     """
     # spark.sql("DROP TABLE IF EXISTS SalesOrders")
     print("Cleanup helper loaded. Uncomment drop statement to execute.")
+
 
 cleanup_demo_tables()

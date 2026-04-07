@@ -76,7 +76,9 @@ class TestModelRouterComplexQueries:
         result = router.classify("Vorrei un confronto con la bolletta scorsa")
         assert result.model == "gpt-4o"
 
-    def test_numerical_comparison_keywords_differenza(self, router: ModelRouter) -> None:
+    def test_numerical_comparison_keywords_differenza(
+        self, router: ModelRouter
+    ) -> None:
         """Keyword 'differenza' triggers complex routing."""
         result = router.classify("Qual e' la differenza tra le due tariffe?")
         assert result.model == "gpt-4o"
@@ -91,7 +93,9 @@ class TestModelRouterComplexQueries:
         result = router.classify("Come si spiega l'aumento della bolletta?")
         assert result.model == "gpt-4o"
 
-    def test_numerical_comparison_keywords_percentuale(self, router: ModelRouter) -> None:
+    def test_numerical_comparison_keywords_percentuale(
+        self, router: ModelRouter
+    ) -> None:
         """Keyword 'percentuale' triggers complex routing."""
         result = router.classify("Che percentuale sono le tasse?")
         assert result.model == "gpt-4o"
@@ -105,7 +109,9 @@ class TestModelRouterComplexQueries:
 class TestModelRouterClassificationOutput:
     """Verify the structure and content of ModelClassification output."""
 
-    def test_classification_returns_correct_model_name(self, router: ModelRouter) -> None:
+    def test_classification_returns_correct_model_name(
+        self, router: ModelRouter
+    ) -> None:
         """Exact deployment names from settings are used."""
         simple = router.classify("Ciao")
         assert simple.model == "gpt-4o-mini"
@@ -143,7 +149,9 @@ class TestModelRouterClassificationOutput:
         assert "bill reference" in result.reasoning
         assert "numerical-comparison keywords" in result.reasoning
 
-    def test_needs_billing_data_false_without_bill_ref(self, router: ModelRouter) -> None:
+    def test_needs_billing_data_false_without_bill_ref(
+        self, router: ModelRouter
+    ) -> None:
         """Even with complex keywords, needs_billing_data is False without bill_ref."""
         result = router.classify("Confronto tariffe attuali")
         assert result.needs_billing_data is False

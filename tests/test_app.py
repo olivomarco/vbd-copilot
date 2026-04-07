@@ -6,7 +6,6 @@ from app import _find_new_outputs, _INTERESTING_SUFFIXES, _SKIP_DIRS
 
 
 class TestFindNewOutputs:
-
     def test_finds_pptx_files(self, tmp_path, monkeypatch):
         monkeypatch.setattr("app.OUTPUTS_DIR", tmp_path)
         since = time.time() - 1
@@ -57,6 +56,7 @@ class TestFindNewOutputs:
         pptx = tmp_path / "old.pptx"
         pptx.write_bytes(b"PK")
         import os
+
         # Set mtime to far in the past
         old_time = time.time() - 3600
         os.utime(pptx, (old_time, old_time))

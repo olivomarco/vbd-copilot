@@ -17,8 +17,8 @@ from agents.registry import AgentCatalog
 
 # -- Resolve paths -------------------------------------------------------------
 
-_PKG_DIR = Path(__file__).resolve().parent          # agents/
-_APP_DIR = _PKG_DIR.parent                          # project root
+_PKG_DIR = Path(__file__).resolve().parent  # agents/
+_APP_DIR = _PKG_DIR.parent  # project root
 _DEFS_DIR = _APP_DIR / "agent_defs"
 _SKILLS_DIR = _APP_DIR / "skills"
 
@@ -29,6 +29,7 @@ CATALOG = AgentCatalog(_source.load_all(), _SKILLS_DIR)
 
 
 # -- SDK config converter ------------------------------------------------------
+
 
 def _build_sdk_config(agent: AgentConfig) -> dict[str, Any]:
     """Convert a core AgentConfig to the dict shape expected by the SDK."""

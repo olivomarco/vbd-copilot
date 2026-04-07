@@ -7,7 +7,12 @@ from pathlib import Path
 
 # Load hackathon_qa_checks from the skill directory (hyphenated dir name
 # cannot be a normal Python import).
-_QA_SCRIPT = Path(__file__).resolve().parent.parent / "skills" / "hackathon-generator" / "hackathon_qa_checks.py"
+_QA_SCRIPT = (
+    Path(__file__).resolve().parent.parent
+    / "skills"
+    / "hackathon-generator"
+    / "hackathon_qa_checks.py"
+)
 _spec = importlib.util.spec_from_file_location("hackathon_qa_checks", _QA_SCRIPT)
 _mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
@@ -33,7 +38,12 @@ def _create_valid_hackathon(base: Path, num_challenges: int = 3) -> Path:
     dc_dir = hack_dir / ".devcontainer"
     dc_dir.mkdir()
     (dc_dir / "devcontainer.json").write_text(
-        json.dumps({"name": "Test Hack", "image": "mcr.microsoft.com/devcontainers/base:ubuntu"})
+        json.dumps(
+            {
+                "name": "Test Hack",
+                "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+            }
+        )
     )
     (dc_dir / "Dockerfile").write_text("FROM ubuntu:22.04\nRUN apt-get update\n")
 
@@ -73,7 +83,6 @@ def _create_valid_hackathon(base: Path, num_challenges: int = 3) -> Path:
 
 
 class TestHackathonQaChecks:
-
     def test_valid_hackathon_passes(self, tmp_path):
         hack_dir = _create_valid_hackathon(tmp_path)
         report = run_all_checks(str(hack_dir))
@@ -90,17 +99,25 @@ class TestHackathonQaChecks:
     def test_missing_challenges_dir(self, tmp_path):
         hack_dir = tmp_path / "hack"
         hack_dir.mkdir()
-        (hack_dir / "README.md").write_text("# Hack\n## Prerequisites\n## Challenges\n| a | b |\n")
+        (hack_dir / "README.md").write_text(
+            "# Hack\n## Prerequisites\n## Challenges\n| a | b |\n"
+        )
         (hack_dir / ".devcontainer").mkdir()
         (hack_dir / ".devcontainer" / "devcontainer.json").write_text("{}")
         (hack_dir / "coach").mkdir()
-        (hack_dir / "coach" / "facilitation-guide.md").write_text("# Guide\n## Agenda\n")
-        (hack_dir / "coach" / "scoring-rubric.md").write_text("# Rubric\n## Challenge\n")
+        (hack_dir / "coach" / "facilitation-guide.md").write_text(
+            "# Guide\n## Agenda\n"
+        )
+        (hack_dir / "coach" / "scoring-rubric.md").write_text(
+            "# Rubric\n## Challenge\n"
+        )
         (hack_dir / "resources").mkdir()
         (hack_dir / "resources" / "reference-architecture.md").write_text("# Arch\n")
         report = run_all_checks(str(hack_dir))
         assert report["status"] == "ISSUES_FOUND"
-        challenge_issues = [i for i in report["issues"] if i["check"] == "challenge_dir"]
+        challenge_issues = [
+            i for i in report["issues"] if i["check"] == "challenge_dir"
+        ]
         assert len(challenge_issues) >= 1
 
     def test_gap_in_numbering(self, tmp_path):
@@ -120,7 +137,9 @@ class TestHackathonQaChecks:
         challenge_path.write_text(text + "\nTODO: finish this section\n")
         report = run_all_checks(str(hack_dir))
         assert report["status"] == "ISSUES_FOUND"
-        placeholder_issues = [i for i in report["issues"] if i["check"] == "placeholder_text"]
+        placeholder_issues = [
+            i for i in report["issues"] if i["check"] == "placeholder_text"
+        ]
         assert len(placeholder_issues) >= 1
 
     def test_missing_challenge_sections(self, tmp_path):
@@ -132,17 +151,22 @@ class TestHackathonQaChecks:
         report = run_all_checks(str(hack_dir))
         assert report["status"] == "ISSUES_FOUND"
         section_issues = [
-            i for i in report["issues"]
+            i
+            for i in report["issues"]
             if i["check"] == "challenge_sections" and "challenge-01" in i["file"]
         ]
         assert len(section_issues) >= 1
 
     def test_invalid_devcontainer_json(self, tmp_path):
         hack_dir = _create_valid_hackathon(tmp_path)
-        (hack_dir / ".devcontainer" / "devcontainer.json").write_text("not valid json {{{")
+        (hack_dir / ".devcontainer" / "devcontainer.json").write_text(
+            "not valid json {{{"
+        )
         report = run_all_checks(str(hack_dir))
         assert report["status"] == "ISSUES_FOUND"
-        dc_issues = [i for i in report["issues"] if i["check"] == "devcontainer_json_valid"]
+        dc_issues = [
+            i for i in report["issues"] if i["check"] == "devcontainer_json_valid"
+        ]
         assert len(dc_issues) >= 1
 
     def test_missing_coach_materials(self, tmp_path):
@@ -170,7 +194,9 @@ class TestHackathonQaChecks:
         os.remove(str(hack_dir / "resources" / "reference-architecture.md"))
         report = run_all_checks(str(hack_dir))
         assert report["status"] == "ISSUES_FOUND"
-        ref_issues = [i for i in report["issues"] if i["check"] == "reference_architecture"]
+        ref_issues = [
+            i for i in report["issues"] if i["check"] == "reference_architecture"
+        ]
         assert len(ref_issues) >= 1
 
     def test_broken_cross_reference(self, tmp_path):

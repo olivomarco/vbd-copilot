@@ -103,6 +103,7 @@ def _write_guide(tmp_path: Path, content: str = VALID_GUIDE) -> Path:
 
 # ── check_guide_exists ────────────────────────────────────────────────────────
 
+
 class TestGuideExists:
     def test_exists(self, tmp_path):
         guide = _write_guide(tmp_path)
@@ -123,6 +124,7 @@ class TestGuideExists:
 
 
 # ── check_demo_count ──────────────────────────────────────────────────────────
+
 
 class TestDemoCount:
     def test_correct_count(self):
@@ -145,6 +147,7 @@ class TestDemoCount:
 
 # ── check_placeholders ────────────────────────────────────────────────────────
 
+
 class TestPlaceholders:
     def test_clean_text(self):
         issues = check_placeholders("Azure Kubernetes overview", "test.md")
@@ -166,18 +169,20 @@ class TestPlaceholders:
 
 # ── check_emoji ───────────────────────────────────────────────────────────────
 
+
 class TestEmoji:
     def test_no_emoji(self):
         issues = check_emoji("Clean text without emoji", "test.md")
         assert issues == []
 
     def test_detects_emoji(self):
-        issues = check_emoji("Rocket launch \U0001F680 today!", "test.md")
+        issues = check_emoji("Rocket launch \U0001f680 today!", "test.md")
         assert len(issues) >= 1
         assert issues[0]["check"] == "emoji"
 
 
 # ── check_em_dashes ──────────────────────────────────────────────────────────
+
 
 class TestEmDashes:
     def test_no_dashes(self):
@@ -191,6 +196,7 @@ class TestEmDashes:
 
 
 # ── check_guide_structure ─────────────────────────────────────────────────────
+
 
 class TestGuideStructure:
     def test_valid_structure(self):
@@ -222,6 +228,7 @@ class TestGuideStructure:
 
 # ── check_guide_length ────────────────────────────────────────────────────────
 
+
 class TestGuideLength:
     def test_adequate_length(self):
         issues = check_guide_length(VALID_GUIDE, expected_demos=2)
@@ -233,6 +240,7 @@ class TestGuideLength:
 
 
 # ── check_companion_dir_exists ────────────────────────────────────────────────
+
 
 class TestCompanionDir:
     def test_none_companion(self):
@@ -260,6 +268,7 @@ class TestCompanionDir:
 
 # ── run_all_checks (integration) ─────────────────────────────────────────────
 
+
 class TestRunAllChecks:
     def test_valid_guide(self, tmp_path):
         guide = _write_guide(tmp_path)
@@ -277,7 +286,9 @@ class TestRunAllChecks:
         guide = _write_guide(tmp_path, content)
         report = run_all_checks(str(guide))
         assert report["status"] == "ISSUES_FOUND"
-        placeholder_issues = [i for i in report["issues"] if i["check"] == "placeholder_text"]
+        placeholder_issues = [
+            i for i in report["issues"] if i["check"] == "placeholder_text"
+        ]
         assert len(placeholder_issues) >= 1
 
     def test_report_keys(self, tmp_path):
@@ -298,6 +309,7 @@ class TestRunAllChecks:
 
 
 # ── format_report ─────────────────────────────────────────────────────────────
+
 
 class TestFormatReport:
     def test_clean_format(self):
@@ -320,9 +332,23 @@ class TestFormatReport:
             "companion_dir": "/tmp/comp",
             "expected_demos": 3,
             "issues": [
-                {"file": "guide", "severity": "CRITICAL", "check": "demo_count", "message": "wrong"}
+                {
+                    "file": "guide",
+                    "severity": "CRITICAL",
+                    "check": "demo_count",
+                    "message": "wrong",
+                }
             ],
-            "issues_by_file": {"guide": [{"file": "guide", "severity": "CRITICAL", "check": "demo_count", "message": "wrong"}]},
+            "issues_by_file": {
+                "guide": [
+                    {
+                        "file": "guide",
+                        "severity": "CRITICAL",
+                        "check": "demo_count",
+                        "message": "wrong",
+                    }
+                ]
+            },
             "summary": {"CRITICAL": 1, "MAJOR": 0, "MINOR": 0},
         }
         text = format_report(report)

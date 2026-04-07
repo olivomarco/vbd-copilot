@@ -121,7 +121,14 @@ class TestSaveFeedback:
         )
 
         doc = mock_cosmos_container.create_item.call_args[0][0]
-        required_keys = {"id", "sessionId", "messageId", "rating", "comment", "timestamp"}
+        required_keys = {
+            "id",
+            "sessionId",
+            "messageId",
+            "rating",
+            "comment",
+            "timestamp",
+        }
         assert required_keys.issubset(set(doc.keys()))
 
 

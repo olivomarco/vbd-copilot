@@ -120,12 +120,16 @@ def usage_summary(
         f"FROM turns WHERE {where}",
         tuple(params),
     )
-    result = dict(row) if row else {
-        "total_input_tokens": 0,
-        "total_output_tokens": 0,
-        "total_cost_usd": 0.0,
-        "turn_count": 0,
-    }
+    result = (
+        dict(row)
+        if row
+        else {
+            "total_input_tokens": 0,
+            "total_output_tokens": 0,
+            "total_cost_usd": 0.0,
+            "turn_count": 0,
+        }
+    )
     result["by_agent"] = usage_by_agent(store, period=period)
     result["by_model"] = usage_by_model(store, period=period)
     return result

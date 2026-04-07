@@ -35,7 +35,6 @@ def catalog(tmp_path, skill_dirs):
 
 
 class TestCatalogProperties:
-
     def test_all_agents(self, catalog):
         assert len(catalog.all_agents) == 3
         assert "slide-conductor" in catalog.all_agents
@@ -68,7 +67,6 @@ class TestCatalogProperties:
 
 
 class TestCatalogLookups:
-
     def test_get_agent(self, catalog):
         agent = catalog.get_agent("slide-conductor")
         assert agent is not None
@@ -93,7 +91,6 @@ class TestCatalogLookups:
 
 
 class TestCatalogCustomDefaults:
-
     def test_custom_default_model(self, tmp_path):
         agents = [_make_agent("a")]
         cat = AgentCatalog(agents, tmp_path, default_model="custom-model")
@@ -108,7 +105,6 @@ class TestCatalogCustomDefaults:
 
 
 class TestCatalogEmpty:
-
     def test_empty_catalog(self, tmp_path):
         cat = AgentCatalog([], tmp_path)
         assert cat.all_agents == {}

@@ -42,7 +42,6 @@ Do minimal things.
 
 
 class TestLoadAgent:
-
     def test_load_full_agent(self, agent_md):
         agent = load_agent(agent_md)
         assert agent.name == "test-agent"
@@ -68,7 +67,6 @@ class TestLoadAgent:
 
 
 class TestFileSystemAgentSource:
-
     def test_load_all(self, tmp_path):
         # Create two agent files
         for name in ["agent-a", "agent-b"]:
@@ -118,11 +116,13 @@ class TestHackathonAgentLoading:
     def test_hackathon_conductor_is_routable(self):
         """hackathon-conductor must have infer=True and be in ROUTABLE_AGENTS."""
         from agents import ROUTABLE_AGENTS
+
         assert "hackathon-conductor" in ROUTABLE_AGENTS
 
     def test_hackathon_subagents_not_routable(self):
         """Hackathon subagents must have infer=False and NOT be in ROUTABLE_AGENTS."""
         from agents import ROUTABLE_AGENTS
+
         subagent_names = [
             "hackathon-research-subagent",
             "hackathon-challenge-builder-subagent",
@@ -135,6 +135,7 @@ class TestHackathonAgentLoading:
     def test_all_hackathon_agents_loaded(self):
         """All 5 hackathon agents must be discovered by the loader."""
         from agents import AGENTS
+
         expected = [
             "hackathon-conductor",
             "hackathon-research-subagent",

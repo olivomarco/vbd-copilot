@@ -50,6 +50,7 @@ def client():
 
 # ── Health ────────────────────────────────────────────────────────────────────
 
+
 class TestHealth:
     def test_health_returns_ok(self, client):
         resp = client.get("/health")
@@ -67,6 +68,7 @@ class TestHealth:
 
 
 # ── Agents ────────────────────────────────────────────────────────────────────
+
 
 class TestAgents:
     def test_list_agents_returns_list(self, client):
@@ -86,6 +88,7 @@ class TestAgents:
 
 
 # ── Sessions list ─────────────────────────────────────────────────────────────
+
 
 class TestListSessions:
     def test_list_sessions_default(self, client, _reset_globals):
@@ -116,6 +119,7 @@ class TestListSessions:
 
 # ── Session detail ────────────────────────────────────────────────────────────
 
+
 class TestGetSession:
     def test_get_session_found(self, client, _reset_globals):
         store = _reset_globals
@@ -139,6 +143,7 @@ class TestGetSession:
 
 # ── Delete session ────────────────────────────────────────────────────────────
 
+
 class TestDeleteSession:
     def test_delete_session(self, client, _reset_globals):
         store = _reset_globals
@@ -159,6 +164,7 @@ class TestDeleteSession:
 
 # ── Session turns ─────────────────────────────────────────────────────────────
 
+
 class TestSessionTurns:
     def test_get_turns(self, client, _reset_globals):
         store = _reset_globals
@@ -175,6 +181,7 @@ class TestSessionTurns:
 
 # ── Create session (requires SDK → 503) ──────────────────────────────────────
 
+
 class TestCreateSession:
     def test_create_session_503_no_client(self, client):
         resp = client.post("/sessions", json={"agent": "slides"})
@@ -183,6 +190,7 @@ class TestCreateSession:
 
 
 # ── Outputs ───────────────────────────────────────────────────────────────────
+
 
 class TestOutputs:
     def test_list_outputs_empty(self, client):
@@ -219,6 +227,7 @@ class TestOutputs:
 
 # ── File read ─────────────────────────────────────────────────────────────────
 
+
 class TestFileRead:
     def test_read_file_success(self, client):
         out = server_mod._outputs_dir / "slides"
@@ -230,7 +239,9 @@ class TestFileRead:
         assert resp.json()["content"] == "hello world"
 
     def test_read_file_not_found(self, client):
-        resp = client.get("/file", params={"path": str(server_mod._outputs_dir / "nope.md")})
+        resp = client.get(
+            "/file", params={"path": str(server_mod._outputs_dir / "nope.md")}
+        )
         assert resp.status_code == 404
 
     def test_read_file_path_traversal_blocked(self, client):
@@ -242,6 +253,7 @@ class TestFileRead:
 
 
 # ── Usage ─────────────────────────────────────────────────────────────────────
+
 
 class TestUsage:
     def test_usage_endpoint(self, client, _reset_globals):

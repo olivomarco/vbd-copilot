@@ -12,6 +12,7 @@ are caught and cause the test to be skipped with a diagnostic message
 rather than producing a hard failure -- this prevents noisy CI runs when
 the target environment is temporarily unavailable.
 """
+
 from __future__ import annotations
 
 import json
@@ -25,7 +26,7 @@ import pytest
 # ---------------------------------------------------------------------------
 
 REQUEST_TIMEOUT = 10.0  # seconds for simple requests
-STREAM_TIMEOUT = 30.0   # seconds for SSE streaming requests
+STREAM_TIMEOUT = 30.0  # seconds for SSE streaming requests
 SAMPLE_QUESTION = "Perche' la mia bolletta e' piu' alta del solito?"
 SAMPLE_BILL_REF = "PLN-2024-00012345"
 
@@ -34,11 +35,10 @@ SAMPLE_BILL_REF = "PLN-2024-00012345"
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _skip_on_connection_error(exc: Exception, url: str) -> None:
     """Skip the current test with a clear message when the service is unreachable."""
-    pytest.skip(
-        f"Service unreachable at {url} -- {type(exc).__name__}: {exc}"
-    )
+    pytest.skip(f"Service unreachable at {url} -- {type(exc).__name__}: {exc}")
 
 
 def _parse_sse_events(text: str) -> list[dict]:
@@ -52,7 +52,7 @@ def _parse_sse_events(text: str) -> list[dict]:
         line = line.strip()
         if not line.startswith("data:"):
             continue
-        payload = line[len("data:"):].strip()
+        payload = line[len("data:") :].strip()
         if not payload:
             continue
         try:
@@ -65,6 +65,7 @@ def _parse_sse_events(text: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Health endpoints
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.smoke
 class TestHealthEndpoints:
@@ -103,9 +104,7 @@ class TestHealthEndpoints:
             f"{resp.text}"
         )
         body = resp.json()
-        assert "status" in body, (
-            f"Response missing 'status' field: {body}"
-        )
+        assert "status" in body, f"Response missing 'status' field: {body}"
         assert body["status"] in ("healthy", "degraded"), (
             f"Unexpected status value: {body['status']}"
         )
@@ -119,6 +118,7 @@ class TestHealthEndpoints:
 # ---------------------------------------------------------------------------
 # OpenAPI documentation
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.smoke
 class TestDocumentation:
@@ -144,6 +144,7 @@ class TestDocumentation:
 # ---------------------------------------------------------------------------
 # Chat endpoints
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.smoke
 class TestChatEndpoints:
@@ -171,8 +172,7 @@ class TestChatEndpoints:
             _skip_on_connection_error(exc, url)
 
         assert resp.status_code == 200, (
-            f"Expected 200 from /api/v1/chat, got {resp.status_code}: "
-            f"{resp.text[:500]}"
+            f"Expected 200 from /api/v1/chat, got {resp.status_code}: {resp.text[:500]}"
         )
 
         events = _parse_sse_events(resp.text)
@@ -186,9 +186,7 @@ class TestChatEndpoints:
         assert final.get("done") is True, (
             f"Final event should have done=True, got: {final}"
         )
-        assert final.get("session_id"), (
-            f"Final event missing session_id: {final}"
-        )
+        assert final.get("session_id"), f"Final event missing session_id: {final}"
 
     def test_chat_streaming_format(
         self,
@@ -232,9 +230,7 @@ class TestChatEndpoints:
 
         # Validate final event
         final = events[-1]
-        assert final.get("done") is True, (
-            f"Final event should have done=True: {final}"
-        )
+        assert final.get("done") is True, f"Final event should have done=True: {final}"
         assert "session_id" in final, f"Final event missing session_id: {final}"
         assert "message_id" in final, f"Final event missing message_id: {final}"
 
@@ -308,6 +304,7 @@ class TestChatEndpoints:
 # ---------------------------------------------------------------------------
 # Session endpoints
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.smoke
 class TestSessionEndpoints:
@@ -430,6 +427,7 @@ class TestSessionEndpoints:
 # Bill reference chat
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.smoke
 class TestBillRefChat:
     """Verify that chat accepts an optional bill_ref parameter."""
@@ -474,17 +472,14 @@ class TestBillRefChat:
         )
 
         final = events[-1]
-        assert final.get("done") is True, (
-            f"Final event should have done=True: {final}"
-        )
-        assert final.get("session_id"), (
-            f"Final event missing session_id: {final}"
-        )
+        assert final.get("done") is True, f"Final event should have done=True: {final}"
+        assert final.get("session_id"), f"Final event missing session_id: {final}"
 
 
 # ---------------------------------------------------------------------------
 # Rate limiting (APIM)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.smoke
 class TestRateLimiting:
@@ -522,9 +517,7 @@ class TestRateLimiting:
         )
 
         found_headers = {
-            h: resp.headers[h]
-            for h in self.RATE_LIMIT_HEADERS
-            if h in resp.headers
+            h: resp.headers[h] for h in self.RATE_LIMIT_HEADERS if h in resp.headers
         }
 
         if not found_headers:

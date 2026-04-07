@@ -16,7 +16,9 @@ from app.services.conversation_manager import ConversationManager
 
 
 @pytest.fixture
-def manager(mock_settings: MagicMock, mock_credential: MagicMock) -> ConversationManager:
+def manager(
+    mock_settings: MagicMock, mock_credential: MagicMock
+) -> ConversationManager:
     """Create a ConversationManager with mocked Cosmos DB client."""
     mgr = ConversationManager(mock_settings, mock_credential)
     return mgr
@@ -105,7 +107,9 @@ class TestGetExistingSession:
         mock_cosmos_container: AsyncMock,
     ) -> None:
         """Session not found falls back to creation."""
-        mock_cosmos_container.read_item.side_effect = CosmosResourceNotFoundError(status_code=404, message="Not found")
+        mock_cosmos_container.read_item.side_effect = CosmosResourceNotFoundError(
+            status_code=404, message="Not found"
+        )
 
         await patched_manager.get_or_create_session(session_id="missing-id")
 
@@ -161,7 +165,9 @@ class TestGetExistingSession:
         mock_cosmos_container: AsyncMock,
     ) -> None:
         """get_session returns None for unknown session."""
-        mock_cosmos_container.read_item.side_effect = CosmosResourceNotFoundError(status_code=404, message="Not found")
+        mock_cosmos_container.read_item.side_effect = CosmosResourceNotFoundError(
+            status_code=404, message="Not found"
+        )
 
         result = await patched_manager.get_session("nonexistent")
         assert result is None
@@ -272,6 +278,7 @@ class TestGetConversationHistory:
         mock_cosmos_container: AsyncMock,
     ) -> None:
         """Respects the limit parameter."""
+
         async def mock_query_iter(*args, **kwargs):  # type: ignore[no-untyped-def]
             for item in []:
                 yield item
@@ -281,7 +288,9 @@ class TestGetConversationHistory:
         await patched_manager.get_conversation_history("session-1", limit=5)
 
         call_args = mock_cosmos_container.query_items.call_args
-        parameters = call_args.kwargs.get("parameters") or call_args[1].get("parameters")
+        parameters = call_args.kwargs.get("parameters") or call_args[1].get(
+            "parameters"
+        )
         limit_param = [p for p in parameters if p["name"] == "@limit"]
         assert len(limit_param) == 1
         assert limit_param[0]["value"] == 5
@@ -297,6 +306,7 @@ class TestDeleteSession:
         mock_cosmos_container: AsyncMock,
     ) -> None:
         """Deletes session + all messages + feedback."""
+
         # Mock query for messages and feedback
         async def mock_query_iter(*args, **kwargs):  # type: ignore[no-untyped-def]
             for item in [{"id": "item-1"}, {"id": "item-2"}]:

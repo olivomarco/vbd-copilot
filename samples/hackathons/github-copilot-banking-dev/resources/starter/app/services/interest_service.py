@@ -75,9 +75,7 @@ class InterestService:
         except Exception:  # BUG 3 (repeated): same silent failure pattern
             return 0.0
 
-    def apply_monthly_interest(
-        self, account_id: int, balance: float, annual_rate: float
-    ) -> float:
+    def apply_monthly_interest(self, account_id: int, balance: float, annual_rate: float) -> float:
         """Calculate one month of compound interest for a given account balance.
 
         Returns the interest amount to credit; does not update the account directly.

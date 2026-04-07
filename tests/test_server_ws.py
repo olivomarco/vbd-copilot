@@ -63,7 +63,9 @@ def test_websocket_allows_user_response_while_turn_is_waiting(client):
     test_client, session_id = client
 
     with test_client.websocket_connect(f"/ws/{session_id}") as ws:
-        ws.send_json({"type": "message", "content": "@slide-conductor Create something"})
+        ws.send_json(
+            {"type": "message", "content": "@slide-conductor Create something"}
+        )
 
         first = ws.receive_json()
         assert first["type"] == "turn_started"

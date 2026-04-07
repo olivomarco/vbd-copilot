@@ -19,6 +19,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 class Base(DeclarativeBase):
     """SQLAlchemy declarative base for all ORM models."""
+
     pass
 
 

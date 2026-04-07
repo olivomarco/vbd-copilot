@@ -30,6 +30,7 @@ log = logging.getLogger(__name__)
 # SessionConnection — encapsulates all per-session WebSocket state
 # ---------------------------------------------------------------------------
 
+
 class SessionConnection:
     """Manages WebSocket state for a single Copilot SDK session.
 
@@ -39,11 +40,23 @@ class SessionConnection:
     """
 
     __slots__ = (
-        "session_id", "websockets", "cancel_flag", "input_queue",
-        "pending_input", "last_done", "active_subagents",
-        "subagent_correlations", "seen_event_ids", "tool_starts",
-        "last_event_time", "event_handler_unsub", "_seq", "created_at",
-        "response_buffer", "output_files", "ask_user_lock",
+        "session_id",
+        "websockets",
+        "cancel_flag",
+        "input_queue",
+        "pending_input",
+        "last_done",
+        "active_subagents",
+        "subagent_correlations",
+        "seen_event_ids",
+        "tool_starts",
+        "last_event_time",
+        "event_handler_unsub",
+        "_seq",
+        "created_at",
+        "response_buffer",
+        "output_files",
+        "ask_user_lock",
     )
 
     def __init__(self, session_id: str) -> None:
@@ -56,7 +69,9 @@ class SessionConnection:
         self.active_subagents: list[str] = []
         self.subagent_correlations: dict[str, str] = {}  # agent_name -> correlation_id
         self.seen_event_ids: set[str] = set()
-        self.tool_starts: dict[str, tuple[float, str]] = {}  # tool -> (epoch, correlation_id)
+        self.tool_starts: dict[
+            str, tuple[float, str]
+        ] = {}  # tool -> (epoch, correlation_id)
         self.last_event_time: float = 0.0
         self.event_handler_unsub: Any | None = None
         self._seq: int = 0  # monotonic sequence counter for envelope
@@ -312,7 +327,9 @@ def push_user_response(content: str, session_id: str | None = None) -> None:
         _user_input_queue.put_nowait(content)
 
 
-async def pop_user_response(timeout: float = 300.0, session_id: str | None = None) -> str:
+async def pop_user_response(
+    timeout: float = 300.0, session_id: str | None = None
+) -> str:
     """Block until the renderer sends a user_response message."""
     if session_id:
         conn = _get_or_create(session_id)
@@ -329,6 +346,7 @@ def get_accumulated_response(session_id: str) -> str:
 # ---------------------------------------------------------------------------
 # Message envelope protocol (v1)
 # ---------------------------------------------------------------------------
+
 
 def _envelope(
     conn: SessionConnection | None,
@@ -352,6 +370,7 @@ def _envelope(
 # Session snapshot for reconnecting clients
 # ---------------------------------------------------------------------------
 
+
 def build_snapshot(session_id: str) -> dict[str, Any] | None:
     """Build a ``session_snapshot`` envelope for a reconnecting client.
 
@@ -360,21 +379,28 @@ def build_snapshot(session_id: str) -> dict[str, Any] | None:
     conn = _connections.get(session_id)
     if conn is None:
         return None
-    status = "waiting" if conn.pending_input else ("active" if conn.websockets else "idle")
-    return _envelope(conn, "session_snapshot", {
-        "session_id": session_id,
-        "status": status,
-        "pending_input": conn.pending_input,
-        "last_done": conn.last_done,
-        "active_subagents": list(conn.active_subagents),
-        "output_files": conn.output_files,
-        "seq": conn._seq,
-    })
+    status = (
+        "waiting" if conn.pending_input else ("active" if conn.websockets else "idle")
+    )
+    return _envelope(
+        conn,
+        "session_snapshot",
+        {
+            "session_id": session_id,
+            "status": status,
+            "pending_input": conn.pending_input,
+            "last_done": conn.last_done,
+            "active_subagents": list(conn.active_subagents),
+            "output_files": conn.output_files,
+            "seq": conn._seq,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
 # Server-push: session state changed
 # ---------------------------------------------------------------------------
+
 
 def emit_state_changed(session_id: str, status: str, reason: str = "") -> None:
     """Push a ``session_state_changed`` event to all connected clients.
@@ -384,11 +410,15 @@ def emit_state_changed(session_id: str, status: str, reason: str = "") -> None:
     conn = _connections.get(session_id)
     if conn and conn.websockets:
         _send(
-            _envelope(conn, "session_state_changed", {
-                "session_id": session_id,
-                "status": status,
-                "reason": reason,
-            }),
+            _envelope(
+                conn,
+                "session_state_changed",
+                {
+                    "session_id": session_id,
+                    "status": status,
+                    "reason": reason,
+                },
+            ),
             session_id,
         )
 
@@ -431,6 +461,7 @@ def stop_heartbeat() -> None:
 # ---------------------------------------------------------------------------
 # Helper: send a JSON message over a WebSocket (fire-and-forget)
 # ---------------------------------------------------------------------------
+
 
 def _send(payload: dict[str, Any], session_id: str | None = None) -> None:
     """Fan out a JSON message to all WebSockets subscribed to a session.
@@ -482,9 +513,15 @@ def _send(payload: dict[str, Any], session_id: str | None = None) -> None:
 # ---------------------------------------------------------------------------
 
 _RESEARCH_TOOLS = {"bing_search", "web_fetch"}
-_QA_TOOLS = {"run_pptx_qa_checks", "run_demo_qa_checks", "run_hackathon_qa_checks",
-             "run_architecture_qa_checks", "run_infra_qa_checks",
-             "run_pipeline_qa_checks", "run_docs_qa_checks"}
+_QA_TOOLS = {
+    "run_pptx_qa_checks",
+    "run_demo_qa_checks",
+    "run_hackathon_qa_checks",
+    "run_architecture_qa_checks",
+    "run_infra_qa_checks",
+    "run_pipeline_qa_checks",
+    "run_docs_qa_checks",
+}
 
 
 def _detect_phase(tool: str = "", agent: str = "") -> str | None:
@@ -520,6 +557,7 @@ def _detect_phase(tool: str = "", agent: str = "") -> str | None:
 # Event handler (wired via session.on())
 # ---------------------------------------------------------------------------
 
+
 def _make_ws_handler(session_id: str):
     """Return an event handler closure bound to a specific *session_id*.
 
@@ -546,13 +584,18 @@ def _make_ws_handler(session_id: str):
         # Resolve dedup set: per-connection or legacy global
         seen = conn.seen_event_ids if conn else _seen_event_ids
 
-        def emit(msg_type: str, data: dict[str, Any], correlation_id: str | None = None) -> None:
+        def emit(
+            msg_type: str, data: dict[str, Any], correlation_id: str | None = None
+        ) -> None:
             """Wrap *data* in an envelope and send."""
             _send(_envelope(conn, msg_type, data, correlation_id), session_id)
 
         # -- Reasoning deltas (thinking tokens) ----------------------------
 
-        if hasattr(SessionEventType, "ASSISTANT_REASONING_DELTA") and etype == SessionEventType.ASSISTANT_REASONING_DELTA:
+        if (
+            hasattr(SessionEventType, "ASSISTANT_REASONING_DELTA")
+            and etype == SessionEventType.ASSISTANT_REASONING_DELTA
+        ):
             delta = getattr(d, "delta_content", None) or ""
             if delta:
                 emit("reasoning_delta", {"content": delta})
@@ -581,7 +624,11 @@ def _make_ws_handler(session_id: str):
             # Agent is running tools — clear any pending input
             if conn:
                 conn.pending_input = None
-            tool = getattr(d, "tool_name", None) or getattr(d, "mcp_tool_name", None) or "?"
+            tool = (
+                getattr(d, "tool_name", None)
+                or getattr(d, "mcp_tool_name", None)
+                or "?"
+            )
             args_raw = getattr(d, "arguments", None)
             args_str = json.dumps(args_raw, ensure_ascii=False) if args_raw else "{}"
             corr_id = str(uuid.uuid4())
@@ -600,7 +647,11 @@ def _make_ws_handler(session_id: str):
             return
 
         if etype == SessionEventType.TOOL_EXECUTION_COMPLETE:
-            tool = getattr(d, "tool_name", None) or getattr(d, "mcp_tool_name", None) or "?"
+            tool = (
+                getattr(d, "tool_name", None)
+                or getattr(d, "mcp_tool_name", None)
+                or "?"
+            )
             started, corr_id = (0.0, None)
             if conn:
                 started, corr_id = conn.tool_starts.pop(
@@ -622,12 +673,18 @@ def _make_ws_handler(session_id: str):
 
         # -- Tool partial/progress events --------------------------------
 
-        if hasattr(SessionEventType, "TOOL_EXECUTION_PARTIAL_RESULT") and etype == SessionEventType.TOOL_EXECUTION_PARTIAL_RESULT:
+        if (
+            hasattr(SessionEventType, "TOOL_EXECUTION_PARTIAL_RESULT")
+            and etype == SessionEventType.TOOL_EXECUTION_PARTIAL_RESULT
+        ):
             partial = getattr(d, "partial_output", None) or ""
             emit("tool_partial_result", {"content": partial[:2000]})
             return
 
-        if hasattr(SessionEventType, "TOOL_EXECUTION_PROGRESS") and etype == SessionEventType.TOOL_EXECUTION_PROGRESS:
+        if (
+            hasattr(SessionEventType, "TOOL_EXECUTION_PROGRESS")
+            and etype == SessionEventType.TOOL_EXECUTION_PROGRESS
+        ):
             msg = getattr(d, "progress_message", None) or ""
             emit("tool_progress", {"message": msg})
             return
@@ -665,7 +722,10 @@ def _make_ws_handler(session_id: str):
             return
 
         # SUBAGENT_FAILED — forward the error to the frontend
-        if hasattr(SessionEventType, "SUBAGENT_FAILED") and etype == SessionEventType.SUBAGENT_FAILED:
+        if (
+            hasattr(SessionEventType, "SUBAGENT_FAILED")
+            and etype == SessionEventType.SUBAGENT_FAILED
+        ):
             name = getattr(d, "agent_name", "?") or "?"
             error = getattr(d, "message", None) or getattr(d, "error", None) or str(d)
             corr_id = None
@@ -677,30 +737,46 @@ def _make_ws_handler(session_id: str):
                 except ValueError:
                     if sa_stack:
                         sa_stack.pop()
-            emit("subagent_failed", {"agent": str(name), "error": str(error)}, correlation_id=corr_id)
+            emit(
+                "subagent_failed",
+                {"agent": str(name), "error": str(error)},
+                correlation_id=corr_id,
+            )
             return
 
         # SUBAGENT_SELECTED — notify frontend when the SDK picks a subagent
-        if hasattr(SessionEventType, "SUBAGENT_SELECTED") and etype == SessionEventType.SUBAGENT_SELECTED:
+        if (
+            hasattr(SessionEventType, "SUBAGENT_SELECTED")
+            and etype == SessionEventType.SUBAGENT_SELECTED
+        ):
             name = getattr(d, "agent_name", "?") or "?"
             emit("subagent_selected", {"agent": str(name)})
             return
 
         # SUBAGENT_DESELECTED
-        if hasattr(SessionEventType, "SUBAGENT_DESELECTED") and etype == SessionEventType.SUBAGENT_DESELECTED:
+        if (
+            hasattr(SessionEventType, "SUBAGENT_DESELECTED")
+            and etype == SessionEventType.SUBAGENT_DESELECTED
+        ):
             name = getattr(d, "agent_name", "?") or "?"
             emit("subagent_deselected", {"agent": str(name)})
             return
 
         # -- Reasoning / intent events --------------------------------------
 
-        if hasattr(SessionEventType, "ASSISTANT_REASONING") and etype == SessionEventType.ASSISTANT_REASONING:
+        if (
+            hasattr(SessionEventType, "ASSISTANT_REASONING")
+            and etype == SessionEventType.ASSISTANT_REASONING
+        ):
             text = getattr(d, "reasoning_text", None) or ""
             if text:
                 emit("assistant_reasoning", {"text": text[:2000]})
             return
 
-        if hasattr(SessionEventType, "ASSISTANT_INTENT") and etype == SessionEventType.ASSISTANT_INTENT:
+        if (
+            hasattr(SessionEventType, "ASSISTANT_INTENT")
+            and etype == SessionEventType.ASSISTANT_INTENT
+        ):
             intent = getattr(d, "intent", None) or ""
             if intent:
                 emit("assistant_intent", {"intent": intent})
@@ -708,16 +784,25 @@ def _make_ws_handler(session_id: str):
 
         # -- Session lifecycle events ---------------------------------------
 
-        if hasattr(SessionEventType, "SESSION_HANDOFF") and etype == SessionEventType.SESSION_HANDOFF:
+        if (
+            hasattr(SessionEventType, "SESSION_HANDOFF")
+            and etype == SessionEventType.SESSION_HANDOFF
+        ):
             name = getattr(d, "agent_name", None) or "?"
             emit("session_handoff", {"agent": str(name)})
             return
 
-        if hasattr(SessionEventType, "ASSISTANT_TURN_START") and etype == SessionEventType.ASSISTANT_TURN_START:
+        if (
+            hasattr(SessionEventType, "ASSISTANT_TURN_START")
+            and etype == SessionEventType.ASSISTANT_TURN_START
+        ):
             emit("turn_started", {})
             return
 
-        if hasattr(SessionEventType, "ASSISTANT_TURN_END") and etype == SessionEventType.ASSISTANT_TURN_END:
+        if (
+            hasattr(SessionEventType, "ASSISTANT_TURN_END")
+            and etype == SessionEventType.ASSISTANT_TURN_END
+        ):
             emit("turn_ended", {})
             return
 
@@ -728,10 +813,15 @@ def _make_ws_handler(session_id: str):
             output_t = getattr(d, "output_tokens", 0) or 0
             cache_r = getattr(d, "cache_read_tokens", 0) or 0
             cache_w = getattr(d, "cache_write_tokens", 0) or 0
-            emit("usage", {
-                "input_tokens": input_t, "output_tokens": output_t,
-                "cache_read_tokens": cache_r, "cache_write_tokens": cache_w,
-            })
+            emit(
+                "usage",
+                {
+                    "input_tokens": input_t,
+                    "output_tokens": output_t,
+                    "cache_read_tokens": cache_r,
+                    "cache_write_tokens": cache_w,
+                },
+            )
             return
 
         if etype == SessionEventType.SESSION_ERROR:
@@ -739,11 +829,17 @@ def _make_ws_handler(session_id: str):
             emit("error", {"message": str(error_msg)})
             return
 
-        if hasattr(SessionEventType, "SESSION_COMPACTION_START") and etype == SessionEventType.SESSION_COMPACTION_START:
+        if (
+            hasattr(SessionEventType, "SESSION_COMPACTION_START")
+            and etype == SessionEventType.SESSION_COMPACTION_START
+        ):
             emit("compaction_start", {})
             return
 
-        if hasattr(SessionEventType, "SESSION_COMPACTION_COMPLETE") and etype == SessionEventType.SESSION_COMPACTION_COMPLETE:
+        if (
+            hasattr(SessionEventType, "SESSION_COMPACTION_COMPLETE")
+            and etype == SessionEventType.SESSION_COMPACTION_COMPLETE
+        ):
             post = int(getattr(d, "post_compaction_tokens", 0) or 0)
             emit("compaction_complete", {"post_tokens": post})
             return

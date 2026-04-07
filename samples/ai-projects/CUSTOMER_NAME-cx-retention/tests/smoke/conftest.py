@@ -9,6 +9,7 @@ Usage::
 
     API_BASE_URL=https://my-app.azurecontainerapps.io pytest tests/smoke/ -v --live
 """
+
 from __future__ import annotations
 
 import os
@@ -19,6 +20,7 @@ import pytest
 # ---------------------------------------------------------------------------
 # Pytest plugin hooks -- register the --live flag and the smoke marker
 # ---------------------------------------------------------------------------
+
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     """Add the ``--live`` CLI flag for smoke tests."""
@@ -46,9 +48,7 @@ def pytest_collection_modifyitems(
     if config.getoption("--live"):
         return
 
-    skip_marker = pytest.mark.skip(
-        reason="Smoke tests require the --live flag to run."
-    )
+    skip_marker = pytest.mark.skip(reason="Smoke tests require the --live flag to run.")
     for item in items:
         # Apply the skip to every test collected from within the smoke/ directory
         if "smoke" in str(item.fspath):
@@ -58,6 +58,7 @@ def pytest_collection_modifyitems(
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="session")
 def base_url() -> str:

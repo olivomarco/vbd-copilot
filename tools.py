@@ -52,6 +52,7 @@ _REQUEST_TIMEOUT = 15
 # Bing Search
 # =============================================================================
 
+
 def _fetch_url(url: str, *, max_bytes: int = 200_000) -> str:
     req = urllib.request.Request(
         url,
@@ -64,7 +65,9 @@ def _fetch_url(url: str, *, max_bytes: int = 200_000) -> str:
             "Accept-Language": "en-US,en;q=0.5",
         },
     )
-    with urllib.request.urlopen(req, timeout=_REQUEST_TIMEOUT, context=_SSL_CTX) as resp:
+    with urllib.request.urlopen(
+        req, timeout=_REQUEST_TIMEOUT, context=_SSL_CTX
+    ) as resp:
         raw = resp.read(max_bytes)
     charset = resp.headers.get_content_charset() or "utf-8"
     return raw.decode(charset, errors="replace")
@@ -103,19 +106,26 @@ def _parse_bing_results(html_str: str, max_results: int) -> list[dict[str, str]]
 def _bing_api_search(query: str, count: int, api_key: str) -> list[dict[str, str]]:
     params = urllib.parse.urlencode({"q": query, "count": count, "mkt": "en-US"})
     url = f"https://api.bing.microsoft.com/v7.0/search?{params}"
-    req = urllib.request.Request(url, headers={
-        "Ocp-Apim-Subscription-Key": api_key,
-        "Accept": "application/json",
-    })
-    with urllib.request.urlopen(req, timeout=_REQUEST_TIMEOUT, context=_SSL_CTX) as resp:
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Ocp-Apim-Subscription-Key": api_key,
+            "Accept": "application/json",
+        },
+    )
+    with urllib.request.urlopen(
+        req, timeout=_REQUEST_TIMEOUT, context=_SSL_CTX
+    ) as resp:
         data = json.loads(resp.read().decode("utf-8"))
     results: list[dict[str, str]] = []
     for item in data.get("webPages", {}).get("value", []):
-        results.append({
-            "title": item.get("name", ""),
-            "url": item.get("url", ""),
-            "snippet": item.get("snippet", ""),
-        })
+        results.append(
+            {
+                "title": item.get("name", ""),
+                "url": item.get("url", ""),
+                "snippet": item.get("snippet", ""),
+            }
+        )
     return results
 
 
@@ -128,7 +138,9 @@ def _bing_html_search(query: str, count: int) -> list[dict[str, str]]:
 
 class BingSearchParams(BaseModel):
     query: str = Field(description="The search query to send to Bing")
-    max_results: int = Field(default=5, description="Maximum results to return (max 10)")
+    max_results: int = Field(
+        default=5, description="Maximum results to return (max 10)"
+    )
 
 
 @define_tool(
@@ -180,17 +192,29 @@ class RunPptxQaChecksParams(BaseModel):
 )
 def run_pptx_qa_checks(params: RunPptxQaChecksParams) -> str:
     import subprocess
-    qa_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "skills", "pptx-generator", "pptx_qa_checks.py")
+
+    qa_script = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "skills",
+        "pptx-generator",
+        "pptx_qa_checks.py",
+    )
 
     if not os.path.exists(qa_script):
         return f"ERROR: QA script not found at {qa_script}"
 
     try:
         result = subprocess.run(
-            [sys.executable, qa_script, params.pptx_path,
-             "--expected-slides", str(params.expected_slides)],
-            capture_output=True, text=True, timeout=30,
+            [
+                sys.executable,
+                qa_script,
+                params.pptx_path,
+                "--expected-slides",
+                str(params.expected_slides),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         output = result.stdout
         if result.returncode == 2:
@@ -231,8 +255,13 @@ class RunDemoQaChecksParams(BaseModel):
 )
 def run_demo_qa_checks(params: RunDemoQaChecksParams) -> str:
     import subprocess
-    qa_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "skills", "demo-generator", "demo_qa_checks.py")
+
+    qa_script = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "skills",
+        "demo-generator",
+        "demo_qa_checks.py",
+    )
 
     if not os.path.exists(qa_script):
         return f"ERROR: Demo QA script not found at {qa_script}"
@@ -282,8 +311,13 @@ class RunArchitectureQaChecksParams(BaseModel):
 )
 def run_architecture_qa_checks(params: RunArchitectureQaChecksParams) -> str:
     import subprocess
-    qa_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "skills", "architecture-design", "architecture_qa_checks.py")
+
+    qa_script = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "skills",
+        "architecture-design",
+        "architecture_qa_checks.py",
+    )
 
     if not os.path.exists(qa_script):
         return f"ERROR: QA script not found at {qa_script}"
@@ -330,8 +364,13 @@ class RunInfraQaChecksParams(BaseModel):
 )
 def run_infra_qa_checks(params: RunInfraQaChecksParams) -> str:
     import subprocess
-    qa_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "skills", "code-project", "infra_qa_checks.py")
+
+    qa_script = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "skills",
+        "code-project",
+        "infra_qa_checks.py",
+    )
 
     if not os.path.exists(qa_script):
         return f"ERROR: QA script not found at {qa_script}"
@@ -374,8 +413,13 @@ class RunPipelineQaChecksParams(BaseModel):
 )
 def run_pipeline_qa_checks(params: RunPipelineQaChecksParams) -> str:
     import subprocess
-    qa_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "skills", "code-project", "pipeline_qa_checks.py")
+
+    qa_script = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "skills",
+        "code-project",
+        "pipeline_qa_checks.py",
+    )
 
     if not os.path.exists(qa_script):
         return f"ERROR: QA script not found at {qa_script}"
@@ -419,8 +463,13 @@ class RunDocsQaChecksParams(BaseModel):
 )
 def run_docs_qa_checks(params: RunDocsQaChecksParams) -> str:
     import subprocess
-    qa_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "skills", "code-project", "docs_qa_checks.py")
+
+    qa_script = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "skills",
+        "code-project",
+        "docs_qa_checks.py",
+    )
 
     if not os.path.exists(qa_script):
         return f"ERROR: QA script not found at {qa_script}"
@@ -448,7 +497,9 @@ CODE_PROJECT_TOOLS = [run_infra_qa_checks, run_pipeline_qa_checks, run_docs_qa_c
 
 
 class RunHackathonQaChecksParams(BaseModel):
-    hackathon_dir: str = Field(description="Path to the hackathon directory to validate")
+    hackathon_dir: str = Field(
+        description="Path to the hackathon directory to validate"
+    )
     expected_challenges: int = Field(
         default=0,
         description="Expected number of challenges (0 to skip count check)",
@@ -468,8 +519,13 @@ class RunHackathonQaChecksParams(BaseModel):
 )
 def run_hackathon_qa_checks(params: RunHackathonQaChecksParams) -> str:
     import subprocess
-    qa_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "skills", "hackathon-generator", "hackathon_qa_checks.py")
+
+    qa_script = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "skills",
+        "hackathon-generator",
+        "hackathon_qa_checks.py",
+    )
 
     if not os.path.exists(qa_script):
         return f"ERROR: Hackathon QA script not found at {qa_script}"
@@ -496,6 +552,10 @@ HACKATHON_TOOLS = [run_hackathon_qa_checks]
 # =============================================================================
 
 ALL_CUSTOM_TOOLS = (
-    RESEARCH_TOOLS + SLIDE_TOOLS + DEMO_TOOLS
-    + ARCHITECTURE_TOOLS + CODE_PROJECT_TOOLS + HACKATHON_TOOLS
+    RESEARCH_TOOLS
+    + SLIDE_TOOLS
+    + DEMO_TOOLS
+    + ARCHITECTURE_TOOLS
+    + CODE_PROJECT_TOOLS
+    + HACKATHON_TOOLS
 )
