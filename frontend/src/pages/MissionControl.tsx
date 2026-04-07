@@ -133,7 +133,7 @@ function JobCard({ job }: { job: Job }) {
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          <Text size={200} style={{ color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
+          <Text size={200} style={{ color: "var(--text-secondary)", whiteSpace: "nowrap", minWidth: 56, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
             {formatElapsed(job)}
           </Text>
           <span
@@ -146,6 +146,9 @@ function JobCard({ job }: { job: Job }) {
               letterSpacing: "0.02em",
               color: "white",
               whiteSpace: "nowrap",
+              minWidth: 64,
+              textAlign: "center",
+              display: "inline-block",
               background:
                 job.status === "completed"
                   ? "#7FBA00"
@@ -160,28 +163,30 @@ function JobCard({ job }: { job: Job }) {
           </span>
         </div>
 
-        {/* Progress indication for running jobs */}
-        {job.status === "running" && (
-          <div
-            style={{
-              width: 60,
-              height: 6,
-              background: "var(--border)",
-              borderRadius: 3,
-              overflow: "hidden",
-            }}
-          >
+        {/* Progress indication — fixed-width slot to prevent layout shift */}
+        <div style={{ width: 60, flexShrink: 0 }}>
+          {job.status === "running" && (
             <div
               style={{
-                height: "100%",
+                width: 60,
+                height: 6,
+                background: "var(--border)",
                 borderRadius: 3,
-                background: "var(--brand-primary)",
-                animation: "indeterminate 1.5s ease-in-out infinite",
-                width: "40%",
+                overflow: "hidden",
               }}
-            />
-          </div>
-        )}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  borderRadius: 3,
+                  background: "var(--brand-primary)",
+                  animation: "indeterminate 1.5s ease-in-out infinite",
+                  width: "40%",
+                }}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Waiting indicator */}
@@ -216,11 +221,11 @@ function JobCard({ job }: { job: Job }) {
             gap: 12,
           }}
         >
-          <span>
+          <span style={{ fontVariantNumeric: "tabular-nums" }}>
             {formatTokens(job.usage.inputTokens + job.usage.outputTokens)} tokens
           </span>
-          <span>{job.progress.toolCalls} tools</span>
-          <span>{job.progress.subagentRuns} subagents</span>
+          <span style={{ fontVariantNumeric: "tabular-nums" }}>{job.progress.toolCalls} tools</span>
+          <span style={{ fontVariantNumeric: "tabular-nums" }}>{job.progress.subagentRuns} subagents</span>
         </div>
       )}
 
@@ -379,7 +384,7 @@ function LiveJobCard({ job }: { job: Job }) {
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-            <Text size={200} style={{ color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
+            <Text size={200} style={{ color: "var(--text-secondary)", whiteSpace: "nowrap", minWidth: 56, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
               {formatElapsed(job)}
             </Text>
             <span
@@ -392,6 +397,9 @@ function LiveJobCard({ job }: { job: Job }) {
                 letterSpacing: "0.02em",
                 color: "white",
                 whiteSpace: "nowrap",
+                minWidth: 64,
+                textAlign: "center",
+                display: "inline-block",
                 background:
                   job.status === "completed"
                     ? "#7FBA00"
@@ -406,27 +414,30 @@ function LiveJobCard({ job }: { job: Job }) {
             </span>
           </div>
 
-          {job.status === "running" && (
-            <div
-              style={{
-                width: 60,
-                height: 6,
-                background: "var(--border)",
-                borderRadius: 3,
-                overflow: "hidden",
-              }}
-            >
+          {/* Progress indication — fixed-width slot to prevent layout shift */}
+          <div style={{ width: 60, flexShrink: 0 }}>
+            {job.status === "running" && (
               <div
                 style={{
-                  height: "100%",
+                  width: 60,
+                  height: 6,
+                  background: "var(--border)",
                   borderRadius: 3,
-                  background: "var(--brand-primary)",
-                  animation: "indeterminate 1.5s ease-in-out infinite",
-                  width: "40%",
+                  overflow: "hidden",
                 }}
-              />
-            </div>
-          )}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    borderRadius: 3,
+                    background: "var(--brand-primary)",
+                    animation: "indeterminate 1.5s ease-in-out infinite",
+                    width: "40%",
+                  }}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Waiting indicator */}
@@ -758,9 +769,9 @@ export function MissionControl() {
         </div>
       )}
 
-      {/* Running */}
-      {running.length > 0 && (
-        <div style={{ marginBottom: 28 }}>
+      {/* Running — always rendered for stable layout */}
+      {allJobs.length > 0 && (
+        <div style={{ marginBottom: 28, minHeight: 36 }}>
           <Text
             weight="semibold"
             size={300}
@@ -783,9 +794,9 @@ export function MissionControl() {
         </div>
       )}
 
-      {/* Waiting */}
-      {waiting.length > 0 && (
-        <div style={{ marginBottom: 28 }}>
+      {/* Waiting — always rendered for stable layout */}
+      {allJobs.length > 0 && (
+        <div style={{ marginBottom: 28, minHeight: 36 }}>
           <Text
             weight="semibold"
             size={300}
@@ -795,10 +806,10 @@ export function MissionControl() {
               textTransform: "uppercase",
               fontSize: 11,
               letterSpacing: "0.04em",
-              color: "#d48806",
+              color: waiting.length > 0 ? "#d48806" : "var(--text-secondary)",
             }}
           >
-            ⚠️ Waiting for Input ({waiting.length})
+            {waiting.length > 0 ? "⚠️ " : ""}Waiting for Input ({waiting.length})
           </Text>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {waiting.map((j) => (
@@ -808,9 +819,9 @@ export function MissionControl() {
         </div>
       )}
 
-      {/* Completed */}
-      {completed.length > 0 && (
-        <div style={{ marginBottom: 28 }}>
+      {/* Completed — always rendered for stable layout */}
+      {allJobs.length > 0 && (
+        <div style={{ marginBottom: 28, minHeight: 36 }}>
           <Text
             weight="semibold"
             size={300}
