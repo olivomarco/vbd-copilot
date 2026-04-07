@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
+import logging
 import os
 import socket
 import time
@@ -753,6 +754,14 @@ async def _server_main(port: int) -> None:
     import uvicorn
     from server import app as fastapi_app, configure as server_configure
 
+    verbose_backend_logs = os.environ.get("CSA_BACKEND_DEV_LOG") == "1"
+
+    if verbose_backend_logs:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="[backend] %(asctime)s %(levelname)s %(name)s: %(message)s",
+        )
+
     # Pick a free port if port == 0
     if port == 0:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -793,8 +802,8 @@ async def _server_main(port: int) -> None:
         fastapi_app,
         host="127.0.0.1",
         port=port,
-        log_level="warning",
-        access_log=False,
+        log_level="info" if verbose_backend_logs else "warning",
+        access_log=verbose_backend_logs,
     )
     server = uvicorn.Server(config)
     try:

@@ -28,12 +28,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
+_verbose_backend_logs = os.environ.get("CSA_BACKEND_DEV_LOG") == "1"
 
 # ---------------------------------------------------------------------------
 # App-wide state injected at startup by server_main()
@@ -80,6 +81,34 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Content-Type"],
 )
+
+
+@app.middleware("http")
+async def log_http_requests(request: Request, call_next: Any):
+    if not _verbose_backend_logs:
+        return await call_next(request)
+
+    started_at = time.perf_counter()
+    path = request.url.path
+    if request.url.query:
+        path = f"{path}?{request.url.query}"
+
+    try:
+        response = await call_next(request)
+    except Exception:
+        elapsed_ms = (time.perf_counter() - started_at) * 1000
+        log.exception("[http] %s %s failed in %.1fms", request.method, path, elapsed_ms)
+        raise
+
+    elapsed_ms = (time.perf_counter() - started_at) * 1000
+    log.info(
+        "[http] %s %s -> %s in %.1fms",
+        request.method,
+        path,
+        response.status_code,
+        elapsed_ms,
+    )
+    return response
 
 
 # ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Shell } from "./components/layout/Shell";
 import { useJobStore } from "./stores/jobStore";
 import { useActiveJobWatcher } from "./hooks/useActiveJobWatcher";
+import { getSessionStatus } from "./api/client";
 
 const Launchpad = lazy(() => import("./pages/Launchpad").then(m => ({ default: m.Launchpad })));
 const OutputLibrary = lazy(() => import("./pages/OutputLibrary").then(m => ({ default: m.OutputLibrary })));
@@ -15,21 +16,26 @@ const AgentWorkspace = lazy(() => import("./pages/AgentWorkspace").then(m => ({ 
 const MissionControl = lazy(() => import("./pages/MissionControl").then(m => ({ default: m.MissionControl })));
 
 // Run ONCE at module load: clean up stale jobs from previous browser sessions.
-// Only marks a job as lost if no other tab is actively updating it.
+// Checks the server before marking jobs as completed to avoid killing sessions
+// that are still running (e.g. long agent work with >60s between events).
 const _cleanupDone = (() => {
   // Small delay to let zustand/persist hydrate from localStorage
-  setTimeout(() => {
+  setTimeout(async () => {
     const jobs = useJobStore.getState().jobs;
-    const now = Date.now();
     for (const [id, job] of Object.entries(jobs)) {
       if (job.status === "running" || job.status === "queued" || job.status === "waiting") {
-        // Check if the job has recent event activity (within last 60s).
-        // If it does, another tab is likely driving it — leave it alone.
-        const lastEvent = job.events.length > 0 ? job.events[job.events.length - 1].time : 0;
-        const isRecentlyActive = lastEvent > 0 && (now - lastEvent) < 60_000;
-        if (isRecentlyActive) continue;
+        // Ask the server if the session is still alive before marking it dead.
+        try {
+          const srv = await getSessionStatus(id);
+          if (srv.status === "active" && srv.in_memory) {
+            // Server confirms this session is still running — leave it alone.
+            continue;
+          }
+        } catch {
+          // Server unreachable — fall through to local heuristic.
+        }
 
-        // No recent activity — this job is genuinely orphaned.
+        // Server says session is ended (or server is unreachable).
         const hadWork = job.progress.toolCalls > 0 || job.events.length > 5;
         useJobStore.getState().updateJob(id, {
           status: hadWork ? "completed" : "cancelled",

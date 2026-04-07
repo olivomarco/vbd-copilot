@@ -239,6 +239,18 @@ export function useActiveJobWatcher() {
       ws.onerror = () => {};
       ws.onclose = () => {
         connections.current.delete(id);
+        // Reconnect if the job is still live (transient WS drop)
+        const freshJob = useJobStore.getState().getJob(id);
+        if (freshJob && (freshJob.status === "running" || freshJob.status === "queued" || freshJob.status === "waiting")) {
+          setTimeout(() => {
+            // Re-check — status may have changed during the delay
+            const recheck = useJobStore.getState().getJob(id);
+            if (recheck && (recheck.status === "running" || recheck.status === "queued" || recheck.status === "waiting") && !connections.current.has(id)) {
+              // Trigger re-render to re-create the WS via the useEffect
+              updateJob(id, { progress: { ...recheck.progress } });
+            }
+          }, 3000);
+        }
       };
     }
 

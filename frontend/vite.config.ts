@@ -1,7 +1,45 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import http from "http";
 import { spawn, type ChildProcess } from "child_process";
+
+function waitForBackendReady(maxWaitMs = 30000, intervalMs = 500): Promise<void> {
+  const deadline = Date.now() + maxWaitMs;
+
+  return new Promise((resolve, reject) => {
+    const attempt = () => {
+      const req = http.get("http://127.0.0.1:18080/health", { timeout: 2000 }, (res) => {
+        res.resume();
+        if (res.statusCode === 200) {
+          resolve();
+          return;
+        }
+
+        if (Date.now() >= deadline) {
+          reject(new Error(`health endpoint returned ${res.statusCode}`));
+          return;
+        }
+
+        setTimeout(attempt, intervalMs);
+      });
+
+      req.on("timeout", () => {
+        req.destroy(new Error("health check timeout"));
+      });
+
+      req.on("error", (error) => {
+        if (Date.now() >= deadline) {
+          reject(error);
+          return;
+        }
+        setTimeout(attempt, intervalMs);
+      });
+    };
+
+    attempt();
+  });
+}
 
 /**
  * Vite plugin that starts the Python backend (`python app.py --server --port 18080`)
@@ -9,14 +47,16 @@ import { spawn, type ChildProcess } from "child_process";
  */
 function backendPlugin() {
   let proc: ChildProcess | null = null;
+  let hasReportedReady = false;
   return {
     name: "start-backend",
     configureServer() {
       const root = path.resolve(__dirname, "..");
+      console.log("[dev] starting backend on http://127.0.0.1:18080");
       proc = spawn("python", ["app.py", "--server", "--port", "18080"], {
         cwd: root,
         stdio: ["ignore", "pipe", "pipe"],
-        env: { ...process.env },
+        env: { ...process.env, CSA_BACKEND_DEV_LOG: "1" },
       });
       proc.stdout?.on("data", (d: Buffer) => {
         const line = d.toString().trim();
@@ -32,6 +72,17 @@ function backendPlugin() {
         }
         proc = null;
       });
+
+      void waitForBackendReady()
+        .then(() => {
+          if (!hasReportedReady) {
+            hasReportedReady = true;
+            console.log("[dev] backend ready at http://127.0.0.1:18080");
+          }
+        })
+        .catch((error: Error) => {
+          console.error(`[dev] backend did not become healthy: ${error.message}`);
+        });
 
       const cleanup = () => {
         if (proc && !proc.killed) {

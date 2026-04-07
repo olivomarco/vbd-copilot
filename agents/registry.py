@@ -10,7 +10,8 @@ from pathlib import Path
 
 from agents.models import AgentConfig
 
-DEFAULT_MODEL = "claude-opus-4.6"
+#DEFAULT_MODEL = "claude-opus-4.6"
+DEFAULT_MODEL = "gpt-5.4"
 DEFAULT_TIMEOUT = 14400  # 4 hours
 
 

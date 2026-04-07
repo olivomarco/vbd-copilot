@@ -313,6 +313,14 @@ export function MissionControl() {
   // Sort by most recent first
   completed.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
 
+  // Tick every second while there are running jobs so elapsed time stays fresh
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (running.length === 0) return;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [running.length]);
+
   // Poll the server for running/waiting jobs when the user is on this page
   // (no WS is connected from MissionControl, so job state can go stale).
   const updateJob = useJobStore((s) => s.updateJob);
@@ -702,7 +710,7 @@ export function MissionControl() {
                 display: "flex",
                 alignItems: "center",
                 gap: 12,
-                padding: "0 16px 8px 40px",
+                padding: "0 16px 8px 48px",
                 fontSize: 11,
                 fontWeight: 600,
                 color: "var(--text-secondary)",
@@ -710,12 +718,12 @@ export function MissionControl() {
                 letterSpacing: "0.04em",
               }}
             >
-              <span style={{ minWidth: 80 }}>ID</span>
-              <span style={{ minWidth: 120 }}>Agent</span>
-              <span style={{ minWidth: 90 }}>Model</span>
-              <span style={{ minWidth: 50, textAlign: "center" }}>Turns</span>
-              <span style={{ minWidth: 60 }}>Tokens</span>
-              <span style={{ minWidth: 70 }}>Duration</span>
+              <span style={{ flex: "0 0 80px" }}>ID</span>
+              <span style={{ flex: "0 0 150px" }}>Agent</span>
+              <span style={{ flex: "0 0 130px" }}>Model</span>
+              <span style={{ flex: "0 0 50px", textAlign: "center" }}>Turns</span>
+              <span style={{ flex: "0 0 60px", textAlign: "center" }}>Tokens</span>
+              <span style={{ flex: "0 0 90px" }}>Duration</span>
               <span style={{ flex: 1 }} />
               <span>Status</span>
             </div>
@@ -843,28 +851,28 @@ function HistoryRow({
 
         <Text
           size={200}
-          style={{ fontFamily: "monospace", minWidth: 80, color: "var(--text-secondary)" }}
+          style={{ fontFamily: "monospace", flex: "0 0 80px", color: "var(--text-secondary)" }}
         >
           {session.id.slice(0, 8)}
         </Text>
 
-        <Text weight="semibold" size={200} style={{ minWidth: 120 }}>
+        <Text weight="semibold" size={200} style={{ flex: "0 0 150px" }}>
           {session.agent || "copilot"}
         </Text>
 
-        <Text size={200} style={{ color: "var(--text-secondary)", minWidth: 90 }}>
+        <Text size={200} style={{ color: "var(--text-secondary)", flex: "0 0 130px" }}>
           {session.model ? session.model.split("/").pop()?.slice(0, 15) : "—"}
         </Text>
 
-        <Text size={200} style={{ minWidth: 50, textAlign: "center" }}>
+        <Text size={200} style={{ flex: "0 0 50px", textAlign: "center" }}>
           {session.turn_count}
         </Text>
 
-        <Text size={200} style={{ minWidth: 60, color: "var(--text-secondary)" }}>
+        <Text size={200} style={{ flex: "0 0 60px", textAlign: "center", color: "var(--text-secondary)" }}>
           {formatTokens(session.total_input_tokens + session.total_output_tokens)}
         </Text>
 
-        <Text size={200} style={{ minWidth: 70, color: "var(--text-secondary)" }}>
+        <Text size={200} style={{ flex: "0 0 90px", color: "var(--text-secondary)" }}>
           {historyDuration(session.started_at, session.ended_at)}
         </Text>
 
