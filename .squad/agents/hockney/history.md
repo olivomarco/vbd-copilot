@@ -22,6 +22,19 @@ Added 11 tests across three files covering McManus's Phase 2 backend changes:
 
 All 104 tests pass (0.45s). No regressions.
 
+## Phase 3 Tests — 2026-04-07
+
+Added 8 tests to `test_server_adapter.py` covering McManus's Phase 3 backend changes:
+
+- **TestEmitStateChanged** (3 tests): `emit_state_changed` with active WS connection (async — needs event loop for `_send`), no-op for unknown sessions, no-op when session has zero websockets.
+- **TestHeartbeat** (2 tests): `start_heartbeat`/`stop_heartbeat` lifecycle (start creates task, stop cancels it, task ref nulled), idempotency (double-start returns same task).
+- **TestPhase3EnvelopeShapes** (2 tests): heartbeat envelope structure (`v`, `type`, `data.ts`, `id`, `seq`), `session_state_changed` envelope includes `status` and `reason`.
+- **TestSnapshotDuringResponse** (1 test): `build_snapshot` succeeds when `response_buffer` has accumulated content, confirms `status == "active"`.
+
+Also updated `_clear_connections` autouse fixture to call `stop_heartbeat()` in teardown — prevents heartbeat task leaks across tests.
+
+All 364 tests pass (1.39s). No regressions.
+
 ## Deep Test Suite Study — 2026-04-04
 
 ### Test Inventory (15 files, 200+ tests)

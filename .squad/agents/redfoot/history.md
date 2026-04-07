@@ -86,3 +86,22 @@
 - `assistant_message` is for history only (complete response text); live streaming still uses `delta` events accumulated into `deltaText`
 - `subagent_failed` uses Fluent UI semantic color tokens (`colorStatusDangerBackground1`/`colorStatusDangerForeground1`)
 - Pre-existing tsc errors in `jobStore.ts` are unrelated (implicit `any` types from Zustand persist middleware)
+
+## Phase 3 — Server-Push State, Stale Detection & Exponential Backoff — 2026-04-07
+
+### Changes Made
+- **types.ts**: Added `WsSessionStateChanged` (session_id, status, reason) and `WsHeartbeat` (ts) interfaces
+- **useWebSocket.ts**:
+  - `session_state_changed` handler in switch — when status="ended", marks job completed and pushes synthetic done event. Replaces reliance on 3s status polling for session end detection.
+  - `lastServerMessage` ref updated on every incoming WS message (not just heartbeats) — any message proves connection is alive.
+  - Stale detection in heartbeat interval: if no server message in 45s (3 missed 15s heartbeats), force-close and reconnect.
+  - Exponential backoff: `getReconnectDelay(attempt)` — 1s, 2s, 4s, 8s, 16s, cap 30s with ±25% jitter. Replaces fixed 2s `RECONNECT_DELAY_MS` for reconnect timer.
+  - Safety-net status poll changed from 3s to 10s (rarely needed now with server-push).
+- **useActiveJobWatcher.ts**: Added `session_state_changed` handler — finalizes job, clears notifications, fires completion notification when server pushes session ended.
+
+### Key Patterns
+- `lastServerMessage.current = Date.now()` at top of `onmessage` before any parsing — covers all message types
+- Stale threshold constant `STALE_THRESHOLD_MS = 45_000` — only triggers for non-terminal jobs (checked in the interval guard)
+- Jitter formula: `delay * 0.25 * (Math.random() * 2 - 1)` gives ±25% range
+- `reconnectAttempts.current` is reset to 0 on successful open, so backoff resets naturally
+- `session_state_changed` in watcher uses same terminal-state guard as `done` handler

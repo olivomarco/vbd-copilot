@@ -50,6 +50,31 @@
 
 **Impact:** server_adapter.py, store.py, collector.py, server.py modified. 356 tests pass. CLI mode unaffected.
 
+### 2026-04-07: Phase 3 Backend — Server-push state events, heartbeat, full envelope coverage
+
+**By:** McManus (Backend & CLI Dev)
+
+**What:** Three reliability improvements to server-mode WebSocket layer:
+1. `emit_state_changed()` pushes `session_state_changed` events when sessions are deleted. Frontend can stop its 3s polling and rely on server-push instead.
+2. Server-side heartbeat sends `heartbeat` messages every 15s to all connected sessions. Lets frontend detect stale connections without relying on SDK event flow.
+3. Every remaining raw `_send({"type": ...})` in server.py now uses the v1 envelope protocol. Zero raw sends remain — 100% envelope coverage.
+
+Bonus: Switched from deprecated `@app.on_event("startup/shutdown")` to `lifespan` context manager.
+
+**Why:** Frontend was polling `/sessions/{id}/status` every 3s to detect session end — expensive and fragile. Heartbeat fills the gap when no SDK events flow (idle sessions, slow agent operations). Envelope coverage ensures all messages get dedup IDs, sequence numbers, and timestamps.
+
+**Impact:** server_adapter.py (emit_state_changed, heartbeat functions), server.py (lifespan, all raw sends wrapped), test_server_ws.py (assertion updated). 364 tests pass. CLI mode unaffected.
+
+### 2026-04-07: Phase 3 Frontend — Server-push state changes, stale detection, exponential backoff
+
+**By:** Redfoot (Full-Stack Frontend Dev)
+
+**What:** Frontend now handles `session_state_changed` server-push events to detect session endings immediately (both in workspace WS and background watcher). Stale connection detection added — if no server message in 45s (3 missed heartbeats), force reconnect. Reconnection uses exponential backoff (1s→30s cap, ±25% jitter) instead of fixed 2s delay. Safety-net status poll pushed from 3s to 10s since server-push makes it rarely needed.
+
+**Why:** McManus added server-side heartbeat (15s) and `session_state_changed` push events. Frontend needed matching handlers. Fixed delay reconnect could cause thundering herd on server restart. Stale detection catches TCP half-open / zombie connections that never close cleanly.
+
+**Impact:** types.ts (+2 interfaces), useWebSocket.ts (new handler, stale detection, backoff), useActiveJobWatcher.ts (new handler). No component API changes. Backward compatible — envelope unwrap handles both old and new message types.
+
 ### 2026-04-06: Kujan onboarding observations — product priorities
 
 **By:** Kujan (Product Owner)

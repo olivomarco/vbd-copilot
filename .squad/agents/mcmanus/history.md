@@ -124,3 +124,17 @@
 - `response_buffer` is in `__slots__` and cleared in `reset_turn()` — no leak across turns.
 - Envelope wrapping uses `get_connection()` (returns None if no conn) which `_envelope()` handles gracefully (seq=0).
 - CLI mode (app.py) untouched — it already accumulates via `ui._current_response`.
+
+## Phase 3 Backend — State events, heartbeat, envelope completion (2026-04-07)
+
+### What was done
+- **`emit_state_changed()`** in `server_adapter.py` — pushes `session_state_changed` events to all connected WS clients. No-op if no connections. Called from `end_session` in server.py before cleanup with `status="ended", reason="session_deleted"`.
+- **Server-side heartbeat** in `server_adapter.py` — `_heartbeat_loop()` sends `heartbeat` messages with `{ts}` to all connected sessions every 15s. `start_heartbeat()` / `stop_heartbeat()` control the asyncio task. Cancellable for clean shutdown and tests.
+- **Lifespan integration** — heartbeat starts/stops via `@asynccontextmanager` `_lifespan` on the FastAPI app. Replaced deprecated `@app.on_event("startup/shutdown")`.
+- **All remaining raw sends wrapped** — every `_send({"type": ...})` in server.py now uses `_send(_envelope(conn, type, data))`. Covers: `_run_turn` error/timeout/new_files/done, turn_started, turn-already-running error, empty user_response error, pong, session-creation errors, invalid JSON, unknown message type.
+
+### Key patterns
+- Heartbeat loop catches all exceptions per-session to prevent one dead WS from killing the loop.
+- `emit_state_changed` is safe on sessions with zero WS connections — checks `conn.websockets` before sending.
+- Direct `websocket.send_text()` calls for pre-loop errors also now use envelopes (with `conn` from `get_connection()`).
+- Test updated: `test_server_ws.py` assertion uses `done.get("data", done).get("status")` to handle both raw and enveloped formats.
