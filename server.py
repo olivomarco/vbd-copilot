@@ -700,7 +700,6 @@ async def list_outputs_grouped() -> JSONResponse:
             title = stem.replace("-", " ").replace("_", " ")
             title = _re.sub(r"\bl\d{3}\b", "", title, flags=_re.IGNORECASE).strip()
             title = _re.sub(r"\d+\s*(?:min|h)\b", "", title, flags=_re.IGNORECASE).strip()
-            title = " ".join(w.capitalize() for w in title.split())
 
             try:
                 stat = p.stat()
@@ -740,7 +739,6 @@ async def list_outputs_grouped() -> JSONResponse:
                         file_list.append(str(child))
 
             title = slug.replace("-", " ").replace("generic ", "").replace("internal ", "")
-            title = " ".join(w.capitalize() for w in title.split())
 
             try:
                 stat = p.stat()
@@ -779,7 +777,6 @@ async def list_outputs_grouped() -> JSONResponse:
                 continue
 
             title = d.name.replace("-", " ")
-            title = " ".join(w.capitalize() for w in title.split())
             readme = d / "README.md"
             latest = max(Path(f).stat().st_mtime for f in file_list if Path(f).is_file())
 
@@ -819,7 +816,6 @@ async def list_outputs_grouped() -> JSONResponse:
                 continue
 
             title = d.name.replace("-", " ").replace("_", " ")
-            title = " ".join(w.capitalize() for w in title.split())
             readme = d / "README.md"
             latest = max(Path(f).stat().st_mtime for f in file_list if Path(f).is_file())
 
