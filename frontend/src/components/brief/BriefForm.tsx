@@ -102,7 +102,7 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
     setProjLoading(true);
     listGroupedOutputs()
       .then((all) => setProjects(
-        all.filter((g) => g.category === "ai-projects" && g.file_count > 0)
+        all.filter((g) => g.category === "ai-projects" && g.has_solution === true)
       ))
       .catch(() => {})
       .finally(() => setProjLoading(false));

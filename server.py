@@ -827,6 +827,9 @@ async def list_outputs_grouped() -> JSONResponse:
                     if ad.is_file() and ad.name.lower() in _ARCH_DOC_NAMES:
                         arch_docs.append(str(ad))
 
+            # A project "has a solution" when it contains infra/ or src/
+            has_solution = (d / "infra").is_dir() or (d / "src").is_dir()
+
             groups.append({
                 "id": f"ai-projects/{d.name}",
                 "title": title,
@@ -839,6 +842,7 @@ async def list_outputs_grouped() -> JSONResponse:
                 "has_pdf": False,
                 "has_architecture": len(arch_docs) > 0,
                 "architecture_docs": arch_docs,
+                "has_solution": has_solution,
                 "size": sum(Path(f).stat().st_size for f in file_list if Path(f).is_file()),
                 "modified": latest,
             })

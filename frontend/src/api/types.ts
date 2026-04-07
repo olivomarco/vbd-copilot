@@ -98,6 +98,7 @@ export interface GroupedOutput {
   has_pdf: boolean;
   has_architecture?: boolean;
   architecture_docs?: string[];
+  has_solution?: boolean;
   size: number;
   modified: number;
 }

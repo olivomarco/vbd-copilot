@@ -76,7 +76,7 @@ export function Launchpad() {
       .then((all) => {
         const archReady = all.some((g) => g.category === "ai-projects" && g.has_architecture);
         setHasArchitectures(archReady);
-        const projectsExist = all.some((g) => g.category === "ai-projects" && g.file_count > 0);
+        const projectsExist = all.some((g) => g.category === "ai-projects" && g.has_solution);
         setHasProjects(projectsExist);
       })
       .catch(() => { setHasArchitectures(false); setHasProjects(false); });
