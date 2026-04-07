@@ -68,10 +68,39 @@ export function useWebSocket(sessionId: string | null) {
       }
     }
 
-    // Restore done state if server says so
+    // Restore done state if server says so.
+    // A snapshot with last_done means the session already completed — mark it
+    // terminal immediately so the reconnect loop doesn't re-arm.
     if (snap.last_done) {
+      const doneStatus = snap.last_done.status as string | undefined;
+      const isTimeout = doneStatus === "timeout";
+
+      // Timeouts are non-fatal; every other outcome is terminal.
+      if (!isTimeout) {
+        jobDone.current = true;
+      }
+
       if (currentJob.status !== "completed" && currentJob.status !== "failed" && currentJob.status !== "cancelled") {
-        pushEvent(sid, { type: "done", data: snap.last_done });
+        if (isTimeout) {
+          // Timeout is non-fatal — replay the event; the session stays alive.
+          pushEvent(sid, { type: "done", data: snap.last_done });
+        } else {
+          const jobStatus: "completed" | "failed" | "cancelled" =
+            doneStatus === "success" ? "completed" :
+            doneStatus === "cancelled" ? "cancelled" :
+            "failed";
+          clearInputNotification();
+          updateJob(sid, {
+            status: jobStatus,
+            phase: "done",
+            completedAt: Date.now(),
+            pendingInput: [],
+          });
+          pushEvent(sid, { type: "done", data: snap.last_done });
+          if (jobStatus === "completed") {
+            notifyJobCompleted(currentJob.title || "Your content is ready");
+          }
+        }
       }
     }
 
@@ -97,7 +126,13 @@ export function useWebSocket(sessionId: string | null) {
       intentionalClose.current = false;
     }
 
-    jobDone.current = false;
+    // Only clear jobDone when the job is not already in a terminal state.
+    // Stale status-check timers from previous connections can set jobDone=true;
+    // unconditionally resetting it here would re-arm the reconnect cycle.
+    const existingJob = useJobStore.getState().getJob(sid);
+    if (!existingJob || (existingJob.status !== "completed" && existingJob.status !== "failed" && existingJob.status !== "cancelled")) {
+      jobDone.current = false;
+    }
     activeSubagentStack.current = [];
     const url = `${BASE_WS}/ws/${sid}`;
     const ws = new WebSocket(url);
