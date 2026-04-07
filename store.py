@@ -92,6 +92,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_nickname
 _MIGRATIONS: list[str] = [
     "ALTER TABLE sessions ADD COLUMN nickname TEXT",
     "ALTER TABLE invocations ADD COLUMN subagent_name TEXT",
+    "ALTER TABLE turns ADD COLUMN output_files TEXT NOT NULL DEFAULT '[]'",
 ]
 
 
@@ -433,6 +434,14 @@ class EventStore:
         self._execute(
             "UPDATE turns SET subagent_count = subagent_count + 1 WHERE id=?",
             (turn_id,),
+        )
+        self._commit()
+
+    def set_turn_output_files(self, turn_id: str, files: list[str]) -> None:
+        import json
+        self._execute(
+            "UPDATE turns SET output_files=? WHERE id=?",
+            (json.dumps(files), turn_id),
         )
         self._commit()
 

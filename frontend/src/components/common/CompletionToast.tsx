@@ -26,6 +26,8 @@ export function CompletionToast() {
   const navigate = useNavigate();
   const [toasts, setToasts] = useState<ToastEntry[]>([]);
   const seenRef = useRef(new Set<string>());
+  /** Track which jobs we've already seen as "completed" to detect transitions. */
+  const prevStatusRef = useRef(new Map<string, string>());
   const dismissNotification = useJobStore((s) => s.dismissNotification);
 
   // Watch all jobs — surface newly completed ones as toasts
@@ -34,14 +36,22 @@ export function CompletionToast() {
 
   useEffect(() => {
     for (const job of Object.values(jobs)) {
-      if (
+      const prevStatus = prevStatusRef.current.get(job.id);
+      const justCompleted = job.status === "completed" && prevStatus !== undefined && prevStatus !== "completed";
+      const hasFiles = job.outputFiles.length > 0;
+
+      // Show toast when:
+      // 1. Job JUST transitioned to completed (we saw it in a non-completed state before)
+      // 2. OR: Job is completed with files and within 30s window (handles page refresh / reconnect)
+      const withinWindow = job.completedAt && (Date.now() - job.completedAt < 30_000);
+      const shouldShow =
+        hasFiles &&
         job.status === "completed" &&
-        job.outputFiles.length > 0 &&
-        job.completedAt &&
-        Date.now() - job.completedAt < 5_000 && // only flash for just-completed
+        (justCompleted || withinWindow) &&
         !seenRef.current.has(job.id) &&
-        !dismissedNotifications.has(job.id)
-      ) {
+        !dismissedNotifications.has(job.id);
+
+      if (shouldShow) {
         seenRef.current.add(job.id);
         const key = ++_toastCounter;
         setToasts((prev) => [...prev, { job, key }]);
@@ -52,6 +62,11 @@ export function CompletionToast() {
           setToasts((prev) => prev.filter((t) => t.key !== key));
         }, AUTO_DISMISS_MS);
       }
+    }
+
+    // Update previous status tracking
+    for (const job of Object.values(jobs)) {
+      prevStatusRef.current.set(job.id, job.status);
     }
   }, [jobs, dismissedNotifications]);
 

@@ -12,6 +12,7 @@
 import { useEffect, useRef } from "react";
 import { useJobStore } from "@/stores/jobStore";
 import { notifyInputRequired, clearInputNotification, notifyJobCompleted } from "@/utils/notifications";
+import { getSessionStatus } from "@/api/client";
 
 const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
 const BASE_WS = import.meta.env.VITE_WS_URL ?? `${WS_PROTOCOL}//${window.location.hostname}:${window.location.port}`;
@@ -71,10 +72,10 @@ export function useActiveJobWatcher() {
         const msg = isEnvelope ? raw.data : raw;
 
         // If the workspace WS is handling this session, only process
-        // terminal events (done/cancelled) as a safety net
+        // terminal events (done/cancelled), new_files, and input_timed_out as a safety net
         const wsCheckJob = useJobStore.getState().getJob(id);
         if (wsCheckJob?._ws && wsCheckJob._ws.readyState < WebSocket.CLOSING) {
-          if (t !== "done" && t !== "cancelled") return;
+          if (t !== "done" && t !== "cancelled" && t !== "new_files" && t !== "input_timed_out") return;
         }
 
         if (t === "session_state_changed" && msg.status === "ended") {
@@ -126,6 +127,11 @@ export function useActiveJobWatcher() {
           if (remaining.length === 0) clearInputNotification();
         }
 
+        // Push input_timed_out to event feed so skipped questions render properly
+        if (t === "input_timed_out") {
+          pushEvent(id, { type: t, data: msg });
+        }
+
         if (t === "done") {
           const currentJob = useJobStore.getState().getJob(id);
           if (!currentJob) return;
@@ -150,6 +156,30 @@ export function useActiveJobWatcher() {
             completedAt: Date.now(),
             pendingInput: [],
           });
+
+          // If output files weren't captured (WS race), fetch from server
+          if (jobStatus === "completed") {
+            const afterJob = useJobStore.getState().getJob(id);
+            if (afterJob && afterJob.outputFiles.length === 0) {
+              getSessionStatus(id)
+                .then((srv) => {
+                  const srvFiles: string[] = srv.output_files || [];
+                  if (srvFiles.length > 0) {
+                    const freshJob = useJobStore.getState().getJob(id);
+                    if (freshJob) {
+                      const existing = new Set(freshJob.outputFiles);
+                      const newFiles = srvFiles.filter((f: string) => !existing.has(f));
+                      if (newFiles.length > 0) {
+                        updateJob(id, {
+                          outputFiles: [...freshJob.outputFiles, ...newFiles],
+                        });
+                      }
+                    }
+                  }
+                })
+                .catch(() => {});
+            }
+          }
         }
 
         if (t === "cancelled") {
@@ -159,6 +189,23 @@ export function useActiveJobWatcher() {
             phase: "done",
             completedAt: Date.now(),
           });
+        }
+
+        // Capture output files so CompletionToast and MissionControl have them
+        if (t === "new_files") {
+          const currentJob = useJobStore.getState().getJob(id);
+          if (currentJob && Array.isArray(msg.files)) {
+            const existing = new Set(currentJob.outputFiles);
+            const newFiles = (msg.files as string[]).filter((f: string) => !existing.has(f));
+            if (newFiles.length > 0) {
+              updateJob(id, {
+                outputFiles: [...currentJob.outputFiles, ...newFiles],
+                phase: "delivering",
+              });
+            }
+          }
+          // Push to event feed so the workspace shows the card when user navigates
+          pushEvent(id, { type: t, data: msg });
         }
 
         // Forward subagent and tool progress so MissionControl cards update

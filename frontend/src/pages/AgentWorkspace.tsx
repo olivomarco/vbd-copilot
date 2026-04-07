@@ -96,6 +96,7 @@ interface EventDataMap {
   error: { message?: string };
   waiting_for_input: { question?: string; choices?: string[] };
   user_response: { content?: string };
+  input_timed_out: { question?: string };
   phase_changed: { phase?: string };
   user_followup: { content?: string };
   input_resolved: Record<string, never>;
@@ -504,19 +505,26 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
     );
   }
   if (t === "waiting_for_input") {
-    const answered = !!userAnswer;
-    const answerText = userAnswer ? eventData(userAnswer, "user_response").content : undefined;
+    const wasTimedOut = userAnswer?.type === "input_timed_out";
+    const answered = !!userAnswer && !wasTimedOut;
+    const answerText = answered ? eventData(userAnswer!, "user_response").content : undefined;
+    const cardBg = wasTimedOut ? "#f5f5f5" : answered ? "#f5f5f5" : "#fff5e6";
+    const cardOpacity = wasTimedOut || answered ? 0.85 : 1;
     return (
       <div style={{
         padding: "8px 12px",
-        background: answered ? "#f5f5f5" : "#fff5e6",
+        background: cardBg,
         borderRadius: 6,
         fontSize: 13,
-        opacity: answered ? 0.85 : 1,
+        opacity: cardOpacity,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-          <span style={{ display: "inline-flex" }}>{answered ? <Checkmark20Regular /> : <Pause20Regular />}</span>
-          <strong>{answered ? "Question answered" : "Waiting for input"}</strong>
+          <span style={{ display: "inline-flex" }}>
+            {wasTimedOut ? <Warning20Regular /> : answered ? <Checkmark20Regular /> : <Pause20Regular />}
+          </span>
+          <strong>
+            {wasTimedOut ? "Skipped (no response)" : answered ? "Question answered" : "Waiting for input"}
+          </strong>
         </div>
         <div className="md-content" style={{ fontSize: 13 }}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -540,8 +548,8 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
       </div>
     );
   }
-  // user_response events that were merged into a waiting_for_input — skip
-  if (t === "user_response") return null;
+  // user_response / input_timed_out events that were merged into a waiting_for_input — skip
+  if (t === "user_response" || t === "input_timed_out") return null;
   // input_resolved is handled by the store — no UI needed
   if (t === "input_resolved") return null;
   // Follow-up messages from the user
@@ -576,6 +584,7 @@ export function AgentWorkspace() {
   const jobId = params.get("id") || "";
   const job = useJobStore((s) => s.getJob(jobId));
   const pushEvent = useJobStore((s) => s.pushEvent);
+  const updateJob = useJobStore((s) => s.updateJob);
   const { sendMessage, sendUserResponse, cancel } = useWebSocket(jobId || null);
   const [editedPlan, setEditedPlan] = useState("");
   const [elapsed, setElapsed] = useState(0);
@@ -696,11 +705,29 @@ export function AgentWorkspace() {
         // Track which event types we already have to prevent duplicating
         // one-shot events like "done" (client timestamps differ from server).
         const hasDone = currentJob.events.some((e) => e.type === "done");
+        const hydratedFiles: string[] = [];
         for (const se of serverEvents) {
           if ((se.type === "done" || se.type === "cancelled") && hasDone) continue;
           const ts = new Date(se.time).getTime();
           if (!existingTimes.has(ts)) {
             pushEvent(jobId, { type: se.type, data: se.data });
+          }
+          // Collect output files from new_files events regardless of dedup
+          if (se.type === "new_files" && se.data?.files) {
+            hydratedFiles.push(...(se.data.files as string[]));
+          }
+        }
+        // Restore outputFiles on the job if server has files we don't
+        if (hydratedFiles.length > 0) {
+          const freshJob = useJobStore.getState().getJob(jobId);
+          if (freshJob) {
+            const existing = new Set(freshJob.outputFiles);
+            const newFiles = hydratedFiles.filter((f) => !existing.has(f));
+            if (newFiles.length > 0) {
+              updateJob(jobId, {
+                outputFiles: [...freshJob.outputFiles, ...newFiles],
+              });
+            }
           }
         }
       })
@@ -775,14 +802,14 @@ export function AgentWorkspace() {
     return ids;
   }, [completionMap]);
 
-  // Build a map from waiting_for_input events to their matching user_response events.
+  // Build a map from waiting_for_input events to their matching user_response or input_timed_out events.
   const answerMap = useMemo(() => {
-    const map = new Map<number, JobEvent>(); // waiting_for_input event id → user_response event
+    const map = new Map<number, JobEvent>(); // waiting_for_input event id → user_response/input_timed_out event
     let pendingWaiting: number | null = null;
     for (const e of feedEvents) {
       if (e.type === "waiting_for_input") {
         pendingWaiting = e.id;
-      } else if (e.type === "user_response" && pendingWaiting !== null) {
+      } else if ((e.type === "user_response" || e.type === "input_timed_out") && pendingWaiting !== null) {
         map.set(pendingWaiting, e);
         pendingWaiting = null;
       }
@@ -790,7 +817,7 @@ export function AgentWorkspace() {
     return map;
   }, [feedEvents.length]);
 
-  // IDs of user_response events already merged into waiting_for_input cards
+  // IDs of user_response / input_timed_out events already merged into waiting_for_input cards
   const mergedAnswerIds = useMemo(() => {
     const ids = new Set<number>();
     for (const ae of answerMap.values()) ids.add(ae.id);
@@ -1208,22 +1235,6 @@ export function AgentWorkspace() {
             );
           })()}
 
-          {/* Stats row */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 16,
-              fontSize: 13,
-              color: "var(--text-secondary)",
-            }}
-          >
-            <span>{job.progress.toolCalls} tool calls</span>
-            <span>│</span>
-            <span>{job.progress.subagentRuns} subagents</span>
-            <span>│</span>
-            <span>⏱ {formatElapsed(job.completedAt ? job.completedAt - job.startedAt : elapsed)}</span>
-          </div>
         </div>
       </div>
     </div>

@@ -611,37 +611,37 @@ export function OutputLibrary() {
                     "var(--card-bg)";
                 }}
               >
-                <CategoryIcon category={o.category} size="inline" />
-                {level && <ContentLevelBadge level={level} size={26} />}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, width: 68, flexShrink: 0, justifyContent: "flex-start" }}>
+                  <CategoryIcon category={o.category} size="inline" />
+                  {level ? <ContentLevelBadge level={level} size={26} /> : <div style={{ width: 26 }} />}
+                </div>
                 <Text weight="semibold" size={300} style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {o.title}
                 </Text>
-                <Badge size="small" appearance="tint" color="informative">
+                <Badge size="small" appearance="tint" color="informative" style={{ minWidth: 80, textAlign: "center" }}>
                   {o.category}
                 </Badge>
-                {o.duration && (
-                  <Text
-                    size={200}
-                    style={{ color: "var(--text-secondary)", minWidth: 50, flexShrink: 0 }}
-                  >
-                    {o.duration}
-                  </Text>
-                )}
                 <Text
                   size={200}
-                  style={{ color: "var(--text-secondary)", minWidth: 50, flexShrink: 0 }}
+                  style={{ color: "var(--text-secondary)", width: 50, flexShrink: 0, textAlign: "right" }}
+                >
+                  {o.duration || ""}
+                </Text>
+                <Text
+                  size={200}
+                  style={{ color: "var(--text-secondary)", width: 50, flexShrink: 0, textAlign: "right" }}
                 >
                   {o.file_count} file{o.file_count !== 1 ? "s" : ""}
                 </Text>
                 <Text
                   size={200}
-                  style={{ color: "var(--text-secondary)", minWidth: 60, flexShrink: 0 }}
+                  style={{ color: "var(--text-secondary)", width: 60, flexShrink: 0, textAlign: "right" }}
                 >
                   {formatSize(o.size)}
                 </Text>
                 <Text
                   size={200}
-                  style={{ color: "var(--text-secondary)", minWidth: 80, flexShrink: 0 }}
+                  style={{ color: "var(--text-secondary)", width: 80, flexShrink: 0, textAlign: "right" }}
                 >
                   {new Date(o.modified * 1000).toLocaleDateString()}
                 </Text>

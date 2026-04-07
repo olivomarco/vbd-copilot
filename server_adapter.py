@@ -43,7 +43,7 @@ class SessionConnection:
         "pending_input", "last_done", "active_subagents",
         "subagent_correlations", "seen_event_ids", "tool_starts",
         "last_event_time", "event_handler_unsub", "_seq", "created_at",
-        "response_buffer",
+        "response_buffer", "output_files", "ask_user_lock",
     )
 
     def __init__(self, session_id: str) -> None:
@@ -62,6 +62,8 @@ class SessionConnection:
         self._seq: int = 0  # monotonic sequence counter for envelope
         self.created_at: float = time.time()
         self.response_buffer: list[str] = []
+        self.output_files: list[str] = []
+        self.ask_user_lock: asyncio.Lock = asyncio.Lock()
 
     def next_seq(self) -> int:
         """Return the next monotonic sequence number."""
@@ -242,6 +244,25 @@ def clear_last_done(session_id: str) -> None:
         conn.last_done = None
 
 
+def set_output_files(session_id: str, files: list[str]) -> None:
+    """Store output files detected for a session so reconnecting clients receive them."""
+    conn = _connections.get(session_id)
+    if conn:
+        conn.output_files = list(set(conn.output_files + files))
+
+
+def get_output_files(session_id: str) -> list[str]:
+    """Return the stored output files list."""
+    conn = _connections.get(session_id)
+    return conn.output_files if conn else []
+
+
+def get_ask_user_lock(session_id: str) -> asyncio.Lock:
+    """Return the per-session lock for serializing ask_user calls."""
+    conn = _get_or_create(session_id)
+    return conn.ask_user_lock
+
+
 def has_event_handler(session_id: str) -> bool:
     """Check if a session already has a registered WS event handler."""
     conn = _connections.get(session_id)
@@ -332,6 +353,7 @@ def build_snapshot(session_id: str) -> dict[str, Any] | None:
         "pending_input": conn.pending_input,
         "last_done": conn.last_done,
         "active_subagents": list(conn.active_subagents),
+        "output_files": conn.output_files,
         "seq": conn._seq,
     })
 

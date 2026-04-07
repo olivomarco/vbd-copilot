@@ -169,23 +169,33 @@ async def create_session(body: CreateSessionRequest) -> JSONResponse:
 
     async def _user_input(request: Any, _inv: Any) -> Any:
         from copilot.types import UserInputResponse
-        from server_adapter import pop_user_response, _send, _envelope, set_pending_input, get_connection
-        question = request.get("question", "")
-        choices = request.get("choices")
+        from server_adapter import pop_user_response, _send, _envelope, set_pending_input, get_connection, get_ask_user_lock
         sid = _sid_ref[0] if _sid_ref else None
-        payload_data = {"question": question, "choices": choices}
-        conn = get_connection(sid) if sid else None
-        if sid:
-            set_pending_input(sid, payload_data)
-        _send(_envelope(conn, "waiting_for_input", payload_data), sid)
-        try:
-            answer = await pop_user_response(timeout=300.0, session_id=sid)
-        except asyncio.TimeoutError:
-            answer = ""
-        finally:
+        lock = get_ask_user_lock(sid) if sid else asyncio.Lock()
+        question = request.get("question", "")
+        log.info("[ask_user] Waiting for lock (sid=%s, q=%s)", sid, question[:60])
+        async with lock:
+            log.info("[ask_user] Lock acquired (sid=%s, q=%s)", sid, question[:60])
+            choices = request.get("choices")
+            payload_data = {"question": question, "choices": choices}
+            conn = get_connection(sid) if sid else None
             if sid:
-                set_pending_input(sid, None)
-                _send(_envelope(conn, "input_resolved", {}), sid)
+                set_pending_input(sid, payload_data)
+            _send(_envelope(conn, "waiting_for_input", payload_data), sid)
+            timed_out = False
+            try:
+                answer = await pop_user_response(timeout=300.0, session_id=sid)
+            except asyncio.TimeoutError:
+                answer = ""
+                timed_out = True
+                log.warning("[ask_user] Timed out (sid=%s, q=%s)", sid, question[:60])
+            finally:
+                if sid:
+                    set_pending_input(sid, None)
+                    if timed_out:
+                        _send(_envelope(conn, "input_timed_out", {"question": question}), sid)
+                    _send(_envelope(conn, "input_resolved", {}), sid)
+            log.info("[ask_user] Lock releasing (sid=%s, q=%s)", sid, question[:60])
         return UserInputResponse(answer=answer, wasFreeform=True)
 
     try:
@@ -246,20 +256,26 @@ async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONRes
 
     async def _user_input(request: Any, _inv: Any) -> Any:
         from copilot.types import UserInputResponse
-        from server_adapter import _send, _envelope, pop_user_response, set_pending_input, get_connection
-        question = request.get("question", "")
-        choices = request.get("choices")
-        payload_data = {"question": question, "choices": choices}
-        conn = get_connection(full_id)
-        set_pending_input(full_id, payload_data)
-        _send(_envelope(conn, "waiting_for_input", payload_data), full_id)
-        try:
-            answer = await pop_user_response(timeout=300.0, session_id=full_id)
-        except asyncio.TimeoutError:
-            answer = ""
-        finally:
-            set_pending_input(full_id, None)
-            _send(_envelope(conn, "input_resolved", {}), full_id)
+        from server_adapter import _send, _envelope, pop_user_response, set_pending_input, get_connection, get_ask_user_lock
+        lock = get_ask_user_lock(full_id)
+        async with lock:
+            question = request.get("question", "")
+            choices = request.get("choices")
+            payload_data = {"question": question, "choices": choices}
+            conn = get_connection(full_id)
+            set_pending_input(full_id, payload_data)
+            _send(_envelope(conn, "waiting_for_input", payload_data), full_id)
+            timed_out = False
+            try:
+                answer = await pop_user_response(timeout=300.0, session_id=full_id)
+            except asyncio.TimeoutError:
+                answer = ""
+                timed_out = True
+            finally:
+                set_pending_input(full_id, None)
+                if timed_out:
+                    _send(_envelope(conn, "input_timed_out", {"question": question}), full_id)
+                _send(_envelope(conn, "input_resolved", {}), full_id)
         return UserInputResponse(answer=answer, wasFreeform=True)
 
     try:
@@ -351,7 +367,7 @@ async def get_turn_invocations(session_id: str, turn_number: int) -> JSONRespons
 @app.get("/sessions/{session_id}/status")
 async def get_session_status(session_id: str) -> JSONResponse:
     """Lightweight status check for frontend reconnect polling."""
-    from server_adapter import get_connection, get_pending_input
+    from server_adapter import get_connection, get_pending_input, get_output_files
 
     store = _store()
     full_id = store.resolve_prefix("sessions", session_id)
@@ -367,6 +383,21 @@ async def get_session_status(session_id: str) -> JSONResponse:
     has_ws = conn is not None and bool(conn.websockets)
     pending = get_pending_input(full_id)
 
+    # Output files: prefer in-memory snapshot, fall back to DB
+    output_files = get_output_files(full_id)
+    if not output_files and detail.get("status") == "ended":
+        # Look up from the last turn's persisted output_files column
+        turns = store.get_turns(full_id)
+        for t in reversed(turns):
+            raw = t.get("output_files", "[]")
+            try:
+                files = json.loads(raw) if isinstance(raw, str) else raw
+            except (json.JSONDecodeError, TypeError):
+                files = []
+            if files:
+                output_files = files
+                break
+
     return JSONResponse(content={
         "session_id": full_id,
         "status": detail.get("status", "ended"),
@@ -375,6 +406,7 @@ async def get_session_status(session_id: str) -> JSONResponse:
         "turn_count": detail.get("turn_count", 0),
         "resumable": bool(detail.get("resumable", 0)),
         "pending_input": pending,
+        "output_files": output_files,
     })
 
 
@@ -488,6 +520,19 @@ async def get_session_events(session_id: str) -> JSONResponse:
                     "cache_write_tokens": turn.get("cache_write_tokens", 0),
                     "estimated_cost_usd": turn.get("estimated_cost_usd", 0.0),
                 },
+                "time": turn.get("ended_at") or turn.get("started_at", ""),
+            })
+
+        # output files created during this turn
+        output_files_raw = turn.get("output_files", "[]")
+        try:
+            output_files = json.loads(output_files_raw) if isinstance(output_files_raw, str) else output_files_raw
+        except (json.JSONDecodeError, TypeError):
+            output_files = []
+        if output_files:
+            events.append({
+                "type": "new_files",
+                "data": {"files": output_files},
                 "time": turn.get("ended_at") or turn.get("started_at", ""),
             })
 
@@ -1202,20 +1247,26 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
 
             async def _user_input(request: Any, _inv: Any) -> Any:
                 from copilot.types import UserInputResponse
-                from server_adapter import set_pending_input, _envelope, get_connection as _gc
-                question = request.get("question", "")
-                choices = request.get("choices")
-                payload_data = {"question": question, "choices": choices}
-                conn = _gc(session_id)
-                set_pending_input(session_id, payload_data)
-                _send(_envelope(conn, "waiting_for_input", payload_data), session_id)
-                try:
-                    answer = await pop_user_response(timeout=300.0, session_id=session_id)
-                except asyncio.TimeoutError:
-                    answer = ""
-                finally:
-                    set_pending_input(session_id, None)
-                    _send(_envelope(_gc(session_id), "input_resolved", {}), session_id)
+                from server_adapter import set_pending_input, _envelope, get_connection as _gc, get_ask_user_lock
+                lock = get_ask_user_lock(session_id)
+                async with lock:
+                    question = request.get("question", "")
+                    choices = request.get("choices")
+                    payload_data = {"question": question, "choices": choices}
+                    conn = _gc(session_id)
+                    set_pending_input(session_id, payload_data)
+                    _send(_envelope(conn, "waiting_for_input", payload_data), session_id)
+                    timed_out = False
+                    try:
+                        answer = await pop_user_response(timeout=300.0, session_id=session_id)
+                    except asyncio.TimeoutError:
+                        answer = ""
+                        timed_out = True
+                    finally:
+                        set_pending_input(session_id, None)
+                        if timed_out:
+                            _send(_envelope(_gc(session_id), "input_timed_out", {"question": question}), session_id)
+                        _send(_envelope(_gc(session_id), "input_resolved", {}), session_id)
                 return UserInputResponse(answer=answer, wasFreeform=True)
 
             try:
@@ -1297,10 +1348,15 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
         finally:
             conn = get_connection(session_id)
             new_files = _find_new_outputs(before_time)
-            if new_files:
+            file_paths = [str(f) for f in new_files]
+            if file_paths:
                 _send(_envelope(conn, "new_files", {
-                    "files": [str(f) for f in new_files],
+                    "files": file_paths,
                 }), session_id)
+
+                # Persist output files to the snapshot so reconnecting clients get them
+                from server_adapter import set_output_files
+                set_output_files(session_id, file_paths)
 
             _send(_envelope(conn, "done", {"status": turn_status}), session_id)
 
@@ -1315,6 +1371,9 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                     assistant_response=get_accumulated_response(session_id),
                     status=turn_status,
                 )
+                # Persist output files to DB for historical reconstruction
+                if file_paths:
+                    _collector._store.set_turn_output_files(turn_id, file_paths)
 
             if current_turn_task is asyncio.current_task():
                 current_turn_task = None

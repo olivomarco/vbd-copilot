@@ -74,6 +74,19 @@ export function useWebSocket(sessionId: string | null) {
         pushEvent(sid, { type: "done", data: snap.last_done });
       }
     }
+
+    // Restore output files from server snapshot
+    if (snap.output_files && Array.isArray(snap.output_files) && snap.output_files.length > 0) {
+      const existingFiles = new Set(currentJob.outputFiles);
+      const newFiles = (snap.output_files as string[]).filter((f: string) => !existingFiles.has(f));
+      if (newFiles.length > 0) {
+        updateJob(sid, {
+          outputFiles: [...currentJob.outputFiles, ...newFiles],
+        });
+        // Also push a new_files event so the card appears in the feed
+        pushEvent(sid, { type: "new_files", data: { files: snap.output_files } });
+      }
+    }
   }
 
   const connect = useCallback((sid: string) => {

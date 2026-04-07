@@ -86,6 +86,7 @@ export async function getSessionStatus(id: string): Promise<{
   turn_count: number;
   resumable: boolean;
   pending_input?: { type: string; question: string; choices?: string[] } | null;
+  output_files?: string[];
 }> {
   return request(`/sessions/${id}/status`);
 }

@@ -327,11 +327,16 @@ export function MissionControl() {
             const fresh = useJobStore.getState().getJob(job.id);
             if (!fresh || fresh.status === "completed" || fresh.status === "failed" || fresh.status === "cancelled") return;
             if (srv.status === "ended" || (!srv.in_memory && !srv.has_running_turn)) {
+              // Restore output files from the server if the WS missed them
+              const srvFiles: string[] = srv.output_files || [];
+              const existingFiles = new Set(fresh.outputFiles);
+              const newFiles = srvFiles.filter((f: string) => !existingFiles.has(f));
               updateJob(job.id, {
                 status: "completed",
                 phase: "done",
                 completedAt: Date.now(),
                 pendingInput: [],
+                ...(newFiles.length > 0 ? { outputFiles: [...fresh.outputFiles, ...newFiles] } : {}),
               });
             } else if (srv.pending_input && fresh.status !== "waiting") {
               // Server has a pending question the frontend doesn't know about
