@@ -190,10 +190,22 @@ export const useJobStore = create<JobStore>()(
     set((s) => {
       const job = s.jobs[id];
       if (!job) return s;
+
+      // Defense-in-depth dedup: if an identical event (same type + data) was pushed
+      // within the last 2 seconds, drop it. This catches events that bypass envelope
+      // dedup (e.g. getSessionEvents hydration which lacks envelope IDs) and any
+      // remaining reconnect replay edge cases.
+      const now = Date.now();
+      const dataKey = JSON.stringify(event.data);
+      const isDuplicate = job.events
+        .slice(-30)
+        .some((e: JobEvent) => e.type === event.type && JSON.stringify(e.data) === dataKey && now - e.time < 2000);
+      if (isDuplicate) return s;
+
       const newEvent: JobEvent = {
         ...event,
         id: ++_eventCounter,
-        time: Date.now(),
+        time: now,
       };
       // Keep only last 2000 events to preserve full session history
       const events = [...job.events, newEvent].slice(-2000);

@@ -112,8 +112,11 @@ export function useWebSocket(sessionId: string | null) {
         updateJob(sid, {
           outputFiles: [...currentJob.outputFiles, ...newFiles],
         });
-        // Also push a new_files event so the card appears in the feed
-        pushEvent(sid, { type: "new_files", data: { files: snap.output_files } });
+        // Also push a new_files event so the card appears in the feed.
+        // Use `newFiles` (the delta), not `snap.output_files` (the full list),
+        // so the card accurately reflects what was just added and isn't
+        // duplicated if the same snapshot arrives again on reconnect.
+        pushEvent(sid, { type: "new_files", data: { files: newFiles } });
       }
     }
   }
@@ -141,7 +144,9 @@ export function useWebSocket(sessionId: string | null) {
 
     ws.onopen = () => {
       reconnectAttempts.current = 0;
-      seenIds.current.clear();
+      // Do NOT clear seenIds here. The set must persist across reconnects so that
+      // replayed envelopes (same UUID) are still recognised as duplicates.
+      // Clearing it was the root cause of tool-call / turn_ended duplication on reconnect.
 
       const job = useJobStore.getState().getJob(sid);
 
