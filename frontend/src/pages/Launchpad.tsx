@@ -48,7 +48,7 @@ const TEMPLATES: Template[] = [
   {
     title: "RAG Chatbot on Azure",
     agent: "ai-solution-architect",
-    brief: { topic: "RAG chatbot using Azure OpenAI and AI Search", contentLevel: "L300", duration: "1 hour" },
+    brief: { topic: "RAG chatbot using Azure OpenAI and AI Search", contentLevel: "", duration: "" },
   },
 ];
 
@@ -502,12 +502,14 @@ export function Launchpad() {
                 >
                   {t.title}
                 </Text>
-                <Text
-                  size={200}
-                  style={{ color: "var(--text-secondary)", display: "block" }}
-                >
-                  {t.brief.contentLevel} · {t.brief.duration}
-                </Text>
+                { t.brief.contentLevel && t.brief.duration && (
+                  <Text
+                    size={200}
+                    style={{ color: "var(--text-secondary)", display: "block" }}
+                  >
+                    {t.brief.contentLevel} · {t.brief.duration}
+                  </Text>
+                )}
               </Card>
             );
           })}
