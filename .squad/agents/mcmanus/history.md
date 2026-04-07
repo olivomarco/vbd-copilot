@@ -110,3 +110,17 @@
 - `push_user_response` uses `_get_or_create()` (not `_connections.get()`) so push/pop work even without a WS connection (e.g., tests).
 - `remove_ws` triggers `cleanup()` when last WS disconnects — unsubscribes the event handler and clears state.
 - All event handler messages now go through `emit()` wrapper which envelopes automatically. Raw `_send()` stays available for backward-compat direct calls from server.py.
+
+## Phase 2 Backend — Response persistence, subagent_name, envelope wrapping (2026-04-07)
+
+### What was done
+- **response_buffer** added to `SessionConnection` — accumulates streaming deltas in server mode. `get_response_text()` method + `get_accumulated_response(session_id)` public helper. Buffer cleared on `reset_turn()`. `_run_turn` finally block now passes accumulated text to `on_turn_end()` instead of empty string.
+- **subagent_name column** on invocations table — new migration in `_MIGRATIONS`. `record_invocation()` accepts optional `subagent_name` param. `collector.on_tool_start()` passes it through. In `get_session_events`, uses DB column first, falls back to timestamp-based `_find_parent_subagent` for old data.
+- **_user_input envelope wrapping** — all three `_user_input` callbacks (create_session, resume_session, ws_agent) now use `_envelope(conn, type, data)` instead of raw dicts. `set_pending_input` stores the data portion (not the envelope wrapper).
+- **assistant_message in history events** — `get_session_events` now emits an `assistant_message` event with the persisted response text after `turn_started`, so frontend activity feeds show the full conversation.
+
+### Key patterns
+- Migrations are idempotent — ALTER TABLE ADD COLUMN wrapped in try/except in `_apply_migrations()`.
+- `response_buffer` is in `__slots__` and cleared in `reset_turn()` — no leak across turns.
+- Envelope wrapping uses `get_connection()` (returns None if no conn) which `_envelope()` handles gracefully (seq=0).
+- CLI mode (app.py) untouched — it already accumulates via `ui._current_response`.

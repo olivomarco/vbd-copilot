@@ -36,6 +36,20 @@
 
 **Impact:** types.ts (15 new interfaces), useWebSocket.ts (envelope unwrap + dedup + snapshot), useActiveJobWatcher.ts (dual-WS guard). No component API changes.
 
+### 2026-04-07: Phase 2 Backend — Response persistence, subagent_name, envelope consistency
+
+**By:** McManus (Backend & CLI Dev)
+
+**What:** Four changes to server-mode backend:
+1. Assistant response text now persisted via `response_buffer` on `SessionConnection` — deltas accumulated during streaming, flushed at `on_turn_end()`.
+2. `subagent_name` column added to invocations table (idempotent migration). `record_invocation()` and `collector.on_tool_start()` both accept the param. `get_session_events` uses DB column with timestamp fallback for old data.
+3. All three `_user_input` callbacks in server.py now use `_envelope()` wrapping — consistent with Phase 1 envelope protocol.
+4. `get_session_events` now emits `assistant_message` events from persisted response text for full conversation history rendering.
+
+**Why:** Server mode was losing assistant responses, tool→subagent mapping relied on fragile timestamp heuristics, and `_user_input` callbacks bypassed the envelope protocol.
+
+**Impact:** server_adapter.py, store.py, collector.py, server.py modified. 356 tests pass. CLI mode unaffected.
+
 ### 2026-04-06: Kujan onboarding observations — product priorities
 
 **By:** Kujan (Product Owner)

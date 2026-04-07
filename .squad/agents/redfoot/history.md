@@ -73,3 +73,16 @@
 - Event hydration: `getSessionEvents()` fetched on open, merged by `type:data` composite key to avoid dupes
 - Backward compat: all handlers work with both envelope and raw message formats
 - `sendMessage`/`sendUserResponse` unchanged — client→server doesn't use envelopes
+
+## Phase 2 — History Rendering & New Event Types — 2026-04-07
+
+### Changes Made
+- **types.ts**: Added `WsAssistantMessage` interface for complete assistant response text from history reconstruction
+- **AgentWorkspace.tsx**: Added `assistant_message` and `subagent_failed` to `EventDataMap`. Added rendering: `assistant_message` renders full markdown content (like deltaText but for history), `subagent_failed` renders a danger-styled alert with agent name and error. Both placed before the `delta` null-return in `EventCard`.
+
+### Key Patterns
+- `assistant_message` is NOT filtered from `feedEvents` — it passes through naturally since it's not in the exclusion list
+- Hydration in `useWebSocket.ts` already works for `assistant_message` — the `ws.onopen` handler fetches `getSessionEvents()` and pushes all unmatched events via composite key dedup
+- `assistant_message` is for history only (complete response text); live streaming still uses `delta` events accumulated into `deltaText`
+- `subagent_failed` uses Fluent UI semantic color tokens (`colorStatusDangerBackground1`/`colorStatusDangerForeground1`)
+- Pre-existing tsc errors in `jobStore.ts` are unrelated (implicit `any` types from Zustand persist middleware)

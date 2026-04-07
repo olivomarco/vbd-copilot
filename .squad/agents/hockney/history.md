@@ -12,6 +12,16 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+## Phase 2 Tests — 2026-04-07
+
+Added 11 tests across three files covering McManus's Phase 2 backend changes:
+
+- **test_server_adapter.py** (4 tests): `TestResponseBuffer` — buffer accumulation, reset clearing, `get_accumulated_response` for known/unknown sessions.
+- **test_store.py** (3 tests): `TestSubagentName` — `record_invocation` with/without `subagent_name`, plus migration idempotency for the new column.
+- **test_collector.py** (4 tests): `TestSubagentNamePassthrough` — `on_tool_start` passes `subagent_name` through to store correctly. `TestAssistantResponsePersistence` — `on_turn_end` persists `assistant_response` to turns table.
+
+All 104 tests pass (0.45s). No regressions.
+
 ## Deep Test Suite Study — 2026-04-04
 
 ### Test Inventory (15 files, 200+ tests)
