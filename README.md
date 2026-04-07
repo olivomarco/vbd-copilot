@@ -148,45 +148,31 @@ Every output goes through multiple quality layers before delivery. See [docs/QUA
 - A **GitHub Copilot** subscription (Individual, Business, or Enterprise) with CLI access
 - The [**GitHub CLI** (`gh`)](https://cli.github.com/) installed and authenticated (`gh auth login`)
 
-### Quickstart — CLI (recommended)
+### Quickstart
+
+```bash
+git clone https://github.com/olivomarco/vbd-copilot.git
+cd vbd-copilot
+
+# One-time setup (Python venv + frontend deps)
+./scripts/setup.sh
+
+# Run the app
+./scripts/dev.sh              # Browser UI  — http://localhost:5173
+./scripts/dev.sh --electron   # Desktop UI  — Electron window
+./scripts/dev.sh --cli        # CLI         — Docker container
+```
+
+> [!TIP]
+> `setup.sh` checks prerequisites (`gh`, `uv`, `node`), creates the Python venv, installs backend and frontend dependencies. Run it once.
+> Pass `--with-system-deps` to also install `libreoffice-impress` and `poppler-utils` (needed for PPTX thumbnails).
 
 ![CSA-Copilot CLI](assets/screenshots/csa-copilot-cli.png)
 
-The CLI is the **stable, fully-tested interface**. Every workflow — slides, demos, AI projects, hackathons — has been developed and validated here.
+> [!WARNING]
+> The **CLI** is the **stable, fully-tested** interface. The **Browser / Electron UI** is **experimental** — it works for most flows but may have rough edges. If something breaks, fall back to `./scripts/dev.sh --cli`.
 
-```bash
-git clone https://github.com/olivomarco/vbd-copilot.git
-cd vbd-copilot
-
-docker build -t csa-copilot .
-docker run -it --rm \
-  -e GITHUB_TOKEN=$(gh auth token) \
-  -v "$(pwd)/outputs:/app/outputs" \
-  csa-copilot
-```
-
-More CLI install methods (Codespaces, native, Copilot plugin): [docs/INSTALLATION.md — CLI options](docs/INSTALLATION.md#option-c--cli-via-docker)
-
-### Quickstart — Desktop App (experimental 🧪)
-
-> [!CAUTION]
-> The desktop UI is **experimental**. It works for most flows but may have rough edges, incomplete features, or unexpected behaviour. If something breaks, fall back to the [CLI](#quickstart--cli-recommended).
-
-```bash
-git clone https://github.com/olivomarco/vbd-copilot.git
-cd vbd-copilot
-
-# Python backend
-uv venv .venv && source .venv/bin/activate && uv pip install -e .
-
-# Frontend
-cd frontend && npm install && npm run dev   # Terminal 1
-npm run electron:dev                         # Terminal 2
-```
-
-The desktop app gives you form-based briefs, concurrent agent runs, inline output previews (PPTX carousel, Markdown renderer, code explorer), and a full output library — all in one window.
-
-Full desktop setup (Electron, browser-only, standalone build): [docs/INSTALLATION.md — Desktop App](docs/INSTALLATION.md#option-a--desktop-app-experimental-)
+More install methods (Codespaces, Copilot plugin, native, standalone Electron build): [docs/INSTALLATION.md](docs/INSTALLATION.md)
 
 ---
 

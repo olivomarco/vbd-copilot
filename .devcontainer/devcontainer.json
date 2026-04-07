@@ -10,7 +10,7 @@
     }
   },
 
-  "postCreateCommand": "sudo rm -f /etc/apt/sources.list.d/yarn.list && sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-impress poppler-utils && pip install --no-cache-dir -e . && git lfs install",
+  "postCreateCommand": "sudo rm -f /etc/apt/sources.list.d/yarn.list && sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-impress poppler-utils && pip install --no-cache-dir -e . && cd frontend && npm install && cd .. && git lfs install",
 
   "customizations": {
     "vscode": {

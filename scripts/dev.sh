@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ── CSA-Copilot — Development launcher ────────────────────────────────────────
+# Starts the full development environment (Python backend + React frontend).
+#
+# Usage:
+#   ./scripts/dev.sh              # Browser mode  — open http://localhost:5173
+#   ./scripts/dev.sh --electron   # Electron mode — desktop window
+#   ./scripts/dev.sh --cli        # CLI mode      — Docker container
+# ──────────────────────────────────────────────────────────────────────────────
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT_DIR"
+
+MODE="browser"
+for arg in "$@"; do
+  case "$arg" in
+    --electron) MODE="electron" ;;
+    --cli)      MODE="cli" ;;
+    -h|--help)
+      echo "Usage: $0 [--electron | --cli]"
+      echo ""
+      echo "Modes:"
+      echo "  (default)    Browser mode  — Vite dev server at http://localhost:5173"
+      echo "  --electron   Electron mode — desktop window (two processes)"
+      echo "  --cli        CLI mode      — Docker build + run"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $arg" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# ── CLI / Docker mode ─────────────────────────────────────────────────────────
+
+if [[ "$MODE" == "cli" ]]; then
+  echo "🐳 Building Docker image..."
+  docker build -t csa-copilot .
+  echo "🚀 Starting CSA-Copilot CLI..."
+  docker run -it --rm \
+    -e GITHUB_TOKEN="$(gh auth token)" \
+    -v "$(pwd)/outputs:/app/outputs" \
+    csa-copilot
+  exit 0
+fi
+
+# ── Activate venv ─────────────────────────────────────────────────────────────
+
+if [[ ! -d ".venv" ]]; then
+  echo "❌ Virtual environment not found. Run ./scripts/setup.sh first." >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1091
+source .venv/bin/activate
+
+# ── Browser mode (default) ────────────────────────────────────────────────────
+
+if [[ "$MODE" == "browser" ]]; then
+  echo "🚀 Starting CSA-Copilot (browser mode)..."
+  echo "   Frontend + backend: http://localhost:5173"
+  echo ""
+  cd frontend
+  npm run dev
+  exit 0
+fi
+
+# ── Electron mode ─────────────────────────────────────────────────────────────
+
+if [[ "$MODE" == "electron" ]]; then
+  echo "🚀 Starting CSA-Copilot (Electron mode)..."
+  echo "   Starting Vite dev server and Electron shell..."
+  echo ""
+
+  cd frontend
+
+  # Start Vite in background
+  npm run dev &
+  VITE_PID=$!
+
+  cleanup() {
+    echo ""
+    echo "Shutting down..."
+    kill "$VITE_PID" 2>/dev/null || true
+    wait "$VITE_PID" 2>/dev/null || true
+  }
+  trap cleanup EXIT INT TERM
+
+  # Wait for Vite to be ready
+  echo "⏳ Waiting for Vite dev server..."
+  for _ in $(seq 1 30); do
+    if curl -s http://localhost:5173 >/dev/null 2>&1; then
+      break
+    fi
+    sleep 1
+  done
+
+  npm run electron:dev
+
+  exit 0
+fi
