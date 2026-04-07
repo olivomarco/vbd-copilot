@@ -761,16 +761,44 @@ export function AgentWorkspace() {
 
   const meta = AGENT_META[job.agent] || { icon: "", label: job.agent, color: "#0078D4" };
 
-  // Filter to only meaningful events for the activity feed
-  const feedEvents = job.events.filter(
-    (e) =>
-      e.type !== "delta" &&
-      e.type !== "reasoning_delta" &&
-      e.type !== "usage" &&
-      e.type !== "phase_changed" &&
-      e.type !== "turn_started" &&
-      e.type !== "input_resolved",
-  );
+  // Filter to only meaningful events for the activity feed.
+  // - ask_user tool events are redundant with the waiting_for_input card that follows them
+  // - Deduplicate waiting_for_input events with the same question text (keep first with real text)
+  const feedEvents = useMemo(() => {
+    const isAskUserTool = (e: JobEvent) =>
+      (e.type === "tool_started" || e.type === "tool_completed") &&
+      String((e.data as any).tool || "").toLowerCase() === "ask_user";
+
+    const base = job.events.filter(
+      (e) =>
+        e.type !== "delta" &&
+        e.type !== "reasoning_delta" &&
+        e.type !== "usage" &&
+        e.type !== "phase_changed" &&
+        e.type !== "turn_started" &&
+        e.type !== "input_resolved" &&
+        !isAskUserTool(e),
+    );
+
+    // Deduplicate waiting_for_input: if multiple appear in a row (or near
+    // each other) for the same question, keep only the one with real text.
+    const seenQuestions = new Set<string>();
+    return base.filter((e) => {
+      if (e.type !== "waiting_for_input") {
+        // Reset seen questions when a non-waiting event occurs (new turn cycle)
+        if (e.type === "user_response" || e.type === "done") seenQuestions.clear();
+        return true;
+      }
+      const q = String((e.data as any).question || "");
+      // Skip generic fallback entries if we already have a real question
+      if (!q || q === "The agent has a question") {
+        return seenQuestions.size === 0; // only show if no real question exists
+      }
+      if (seenQuestions.has(q)) return false;
+      seenQuestions.add(q);
+      return true;
+    });
+  }, [job.events.length]);
 
   // Build a map from tool_started events to their matching tool_completed events.
   // We match by tool name, pairing the most recent unmatched start with its completion.
