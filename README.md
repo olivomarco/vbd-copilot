@@ -3,7 +3,7 @@
 **Stop spending tonight copy-pasting from MS Learn.** CSA-Copilot turns a single prompt into slide decks, demo guides, hackathon packages, and full Azure projects — researched, built, and QA-checked by 27 AI agents. You describe what you need. They deliver. You review and present.
 
 <p align="center">
-  <video src="assets/screenshots/csa-copilot-demo.mp4" autoplay loop muted playsinline width="100%"></video>
+  <img src="assets/screenshots/csa-copilot-demo.gif" alt="CSA-Copilot in action" width="100%">
 </p>
 
 ---
