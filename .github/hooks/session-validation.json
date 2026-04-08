@@ -8,6 +8,13 @@
         "cwd": ".",
         "timeoutSec": 120
       }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": ".github/hooks/scripts/session-end-checks.sh",
+        "timeout": 120
+      }
     ]
   }
 }
