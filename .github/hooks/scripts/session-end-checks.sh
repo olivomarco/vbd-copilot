@@ -11,12 +11,12 @@ else
 fi
 
 echo "── ruff format ──"
-ruff format --check .
+uv run --extra dev ruff format --check .
 
 echo "── ruff check ──"
-ruff check .
+uv run --extra dev ruff check .
 
 echo "── pytest + coverage ──"
-python -m pytest tests/ -v --cov --cov-report=term-missing
+uv run --extra dev python -m pytest tests/ -v --cov --cov-report=term-missing
 
 echo "✅ All session-end checks passed."
