@@ -93,7 +93,7 @@ code:not(pre code) {
 }
 
 /* Markdown rendered content */
-.md-content h1 { font-size: 1.8rem; font-weight: 700; margin: 1.5rem 0 0.75rem; }
+.md-content h1 { font-size: 1.8rem; font-weight: 700; margin: 1.5rem 0 0.75rem; line-height: 1.35; }
 .md-content h2 { font-size: 1.4rem; font-weight: 600; margin: 1.25rem 0 0.5rem; border-bottom: 1px solid #edebe9; padding-bottom: 0.3rem; }
 .md-content h3 { font-size: 1.15rem; font-weight: 600; margin: 1rem 0 0.4rem; }
 .md-content p { margin: 0.5rem 0; line-height: 1.65; }

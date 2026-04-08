@@ -367,9 +367,9 @@ function LiveJobCard({ job }: { job: Job }) {
             </span>
           </div>
 
-          {/* Progress indication — fixed-width slot to prevent layout shift */}
-          <div style={{ width: 60, flexShrink: 0 }}>
-            {job.status === "running" && (
+          {/* Progress indication — only rendered when running to avoid dead space */}
+          {job.status === "running" && (
+            <div style={{ width: 60, flexShrink: 0 }}>
               <div
                 style={{
                   width: 60,
@@ -389,8 +389,8 @@ function LiveJobCard({ job }: { job: Job }) {
                   }}
                 />
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Waiting indicator */}

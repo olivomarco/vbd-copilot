@@ -191,9 +191,15 @@ export function ProjectExplorer() {
         setAllOutputs(filtered);
 
         // Auto-select README.md if it exists, then primary_file, then first file
-        const readme = filtered.find(
+        // Prefer the shallowest README.md (root of the project, not nested)
+        const readmes = filtered.filter(
           (o) => o.name.toLowerCase() === "readme.md",
         );
+        const readme = readmes.length > 0
+          ? readmes.reduce((a, b) =>
+              a.path.split("/").length <= b.path.split("/").length ? a : b,
+            )
+          : undefined;
         const primary = filtered.find((o) => o.path === basePath);
         if (readme) {
           setSelectedFile(readme.path);
