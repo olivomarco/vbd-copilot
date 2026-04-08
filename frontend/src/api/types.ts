@@ -182,7 +182,6 @@ export const AGENT_META: Record<
     showDuration: true,
     showAudience: true,
     defaultLevel: "L300",
-    beta: true,
     durationOptions: ["Half day", "Full day", "2 days"],
   },
   "ai-brainstorming": {
