@@ -49,13 +49,15 @@ fi
 
 # ── Activate venv ─────────────────────────────────────────────────────────────
 
-if [[ ! -d ".venv" ]]; then
+if [[ -n "${REMOTE_CONTAINERS:-}" || -n "${CODESPACES:-}" || -f /.dockerenv ]]; then
+  echo "📦 Dev Container detected — using system Python."
+elif [[ ! -d ".venv" ]]; then
   echo "❌ Virtual environment not found. Run ./scripts/setup.sh first." >&2
   exit 1
+else
+  # shellcheck disable=SC1091
+  source .venv/bin/activate
 fi
-
-# shellcheck disable=SC1091
-source .venv/bin/activate
 
 # ── Browser mode (default) ────────────────────────────────────────────────────
 
