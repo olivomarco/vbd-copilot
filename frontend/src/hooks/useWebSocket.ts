@@ -431,7 +431,7 @@ export function useWebSocket(sessionId: string | null) {
               usage: {
                 inputTokens: job.usage.inputTokens + (msg.input_tokens || 0),
                 outputTokens: job.usage.outputTokens + (msg.output_tokens || 0),
-                estimatedCostUsd: job.usage.estimatedCostUsd,
+                estimatedCostUsd: job.usage.estimatedCostUsd + (msg.estimated_cost_usd || 0),
               },
             });
           }

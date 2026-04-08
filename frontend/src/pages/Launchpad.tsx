@@ -26,11 +26,6 @@ const TEMPLATES: Template[] = [
     brief: { topic: "Azure Kubernetes Service overview", contentLevel: "L100", duration: "15 min" },
   },
   {
-    title: "GitHub Copilot Deep Dive",
-    agent: "slide-conductor",
-    brief: { topic: "GitHub Copilot for enterprise developers", contentLevel: "L300", duration: "1 hour" },
-  },
-  {
     title: "KEDA Autoscaling Demo",
     agent: "demo-conductor",
     brief: { topic: "KEDA event-driven autoscaling on AKS", contentLevel: "L300", duration: "30 min" },

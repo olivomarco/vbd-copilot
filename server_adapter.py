@@ -813,6 +813,9 @@ def _make_ws_handler(session_id: str):
             output_t = getattr(d, "output_tokens", 0) or 0
             cache_r = getattr(d, "cache_read_tokens", 0) or 0
             cache_w = getattr(d, "cache_write_tokens", 0) or 0
+            model_name = getattr(d, "model", None) or ""
+            from pricing import estimate_cost
+            cost = estimate_cost(model_name, input_t, output_t)
             emit(
                 "usage",
                 {
@@ -820,6 +823,7 @@ def _make_ws_handler(session_id: str):
                     "output_tokens": output_t,
                     "cache_read_tokens": cache_r,
                     "cache_write_tokens": cache_w,
+                    "estimated_cost_usd": cost,
                 },
             )
             return
