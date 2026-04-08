@@ -815,6 +815,7 @@ def _make_ws_handler(session_id: str):
             cache_w = getattr(d, "cache_write_tokens", 0) or 0
             model_name = getattr(d, "model", None) or ""
             from pricing import estimate_cost
+
             cost = estimate_cost(model_name, input_t, output_t)
             emit(
                 "usage",
