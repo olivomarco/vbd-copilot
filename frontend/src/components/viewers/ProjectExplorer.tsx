@@ -386,7 +386,7 @@ export function ProjectExplorer() {
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeHighlight]}
               >
-                {fileContent}
+                {fileContent.replace(/<!--[\s\S]*?-->/g, "")}
               </ReactMarkdown>
             </div>
           ) : (

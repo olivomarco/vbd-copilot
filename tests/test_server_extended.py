@@ -478,6 +478,9 @@ class TestGroupedOutputs:
         proj_dir.mkdir(parents=True)
         docs_dir = proj_dir / "docs"
         docs_dir.mkdir()
+        src_dir = proj_dir / "src"
+        src_dir.mkdir()
+        (src_dir / "main.py").write_text("print('hi')")
         (proj_dir / "README.md").write_text("# Contoso")
         (docs_dir / "solution-design.md").write_text("# Solution")
         resp = client.get("/outputs/grouped")
@@ -997,7 +1000,9 @@ class TestGroupedOutputsEdge:
     def test_grouped_ai_project_no_readme(self, client):
         proj_dir = server_mod._outputs_dir / "ai-projects" / "proj"
         proj_dir.mkdir(parents=True)
-        (proj_dir / "main.py").write_text("print()")
+        src_dir = proj_dir / "src"
+        src_dir.mkdir()
+        (src_dir / "main.py").write_text("print()")
         resp = client.get("/outputs/grouped")
         data = resp.json()
         assert len(data) == 1

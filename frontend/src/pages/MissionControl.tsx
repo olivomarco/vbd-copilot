@@ -146,8 +146,8 @@ function JobCard({ job }: { job: Job }) {
           >
             {job.status}
           </span>
-          {/* Individual delete button for completed/failed jobs */}
-          {(job.status === "completed" || job.status === "failed") && (
+          {/* Individual delete button for completed/failed/cancelled jobs */}
+          {(job.status === "completed" || job.status === "failed" || job.status === "cancelled") && (
             <button
               title="Remove this job"
               onClick={(e) => {

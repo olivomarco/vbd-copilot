@@ -66,7 +66,9 @@ export function MarkdownViewer() {
     return () => window.removeEventListener("keydown", handler);
   }, [navigate]);
 
-  const toc = useMemo(() => extractToc(content), [content]);
+  // Strip HTML comments so they aren't rendered as visible text
+  const cleaned = useMemo(() => content.replace(/<!--[\s\S]*?-->/g, ""), [content]);
+  const toc = useMemo(() => extractToc(cleaned), [cleaned]);
 
   if (loading) {
     return (
@@ -277,7 +279,7 @@ export function MarkdownViewer() {
               ),
             }}
           >
-            {content}
+            {cleaned}
           </ReactMarkdown>
         </div>
       </div>

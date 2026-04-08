@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Text,
@@ -99,6 +99,7 @@ export function OutputLibrary() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<GroupedOutput | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const deleteBannerRef = useRef<HTMLDivElement>(null);
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return;
@@ -117,6 +118,12 @@ export function OutputLibrary() {
   useEffect(() => {
     fetchOutputs();
   }, []);
+
+  useEffect(() => {
+    if (deleteTarget && deleteBannerRef.current) {
+      deleteBannerRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [deleteTarget]);
 
   const outputs = filteredGrouped();
 
@@ -249,6 +256,7 @@ export function OutputLibrary() {
       {/* Delete confirmation banner */}
       {deleteTarget && (
         <div
+          ref={deleteBannerRef}
           className="animate-in"
           style={{
             display: "flex",

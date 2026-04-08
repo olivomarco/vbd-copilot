@@ -917,6 +917,14 @@ async def list_outputs_grouped() -> JSONResponse:
             if not file_list:
                 continue
 
+            # Skip incomplete projects that only have docs/brainstorming
+            # artifacts but no actual solution (no infra/, src/, tests/,
+            # scripts/, or .github/ directories).
+            _SOLUTION_DIRS = {"infra", "src", "tests", "scripts", ".github"}
+            has_any_solution_dir = any((d / sd).is_dir() for sd in _SOLUTION_DIRS)
+            if not has_any_solution_dir:
+                continue
+
             title = d.name.replace("-", " ").replace("_", " ")
             readme = d / "README.md"
             latest = max(
