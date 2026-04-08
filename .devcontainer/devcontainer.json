@@ -36,6 +36,7 @@
     }
   },
 
-  "forwardPorts": [],
+  "forwardPorts": [5173, 18080],
+  "postAttachCommand": "cd frontend && nohup npm run dev > /tmp/vite-dev.log 2>&1 &",
   "remoteUser": "vscode"
 }
