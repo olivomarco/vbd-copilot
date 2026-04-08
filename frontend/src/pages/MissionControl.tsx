@@ -24,11 +24,6 @@ import {
   Play20Regular,
   Rocket20Regular,
   Warning20Regular,
-  SlideText20Regular,
-  Code20Regular,
-  Document20Regular,
-  Settings20Regular,
-  DocumentText20Regular,
   ChevronDown12Regular,
   ChevronRight12Regular,
 } from "@fluentui/react-icons";
@@ -54,16 +49,6 @@ function formatElapsed(job: Job): string {
 function formatTokens(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(0)}k`;
   return String(n);
-}
-
-function fileIcon(ext: string | undefined) {
-  switch (ext) {
-    case "pptx": return <SlideText20Regular />;
-    case "py": return <Code20Regular />;
-    case "md": return <Document20Regular />;
-    case "sh": return <Settings20Regular />;
-    default: return <DocumentText20Regular />;
-  }
 }
 
 function JobCard({ job }: { job: Job }) {
@@ -161,30 +146,39 @@ function JobCard({ job }: { job: Job }) {
           >
             {job.status}
           </span>
-        </div>
-
-        {/* Progress indication — fixed-width slot to prevent layout shift */}
-        <div style={{ width: 60, flexShrink: 0 }}>
-          {job.status === "running" && (
-            <div
+          {/* Individual delete button for completed/failed jobs */}
+          {(job.status === "completed" || job.status === "failed") && (
+            <button
+              title="Remove this job"
+              onClick={(e) => {
+                e.stopPropagation();
+                useJobStore.getState().removeJob(job.id);
+              }}
               style={{
-                width: 60,
-                height: 6,
-                background: "var(--border)",
-                borderRadius: 3,
-                overflow: "hidden",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                border: "none",
+                background: "transparent",
+                color: "var(--text-secondary)",
+                cursor: "pointer",
+                flexShrink: 0,
+                transition: "color 0.15s, background 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.color = "#d13438";
+                (e.currentTarget as HTMLElement).style.background = "rgba(209,52,56,0.08)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+                (e.currentTarget as HTMLElement).style.background = "transparent";
               }}
             >
-              <div
-                style={{
-                  height: "100%",
-                  borderRadius: 3,
-                  background: "var(--brand-primary)",
-                  animation: "indeterminate 1.5s ease-in-out infinite",
-                  width: "40%",
-                }}
-              />
-            </div>
+              <Delete20Regular />
+            </button>
           )}
         </div>
       </div>
@@ -229,71 +223,30 @@ function JobCard({ job }: { job: Job }) {
         </div>
       )}
 
-      {/* Output artifacts for completed jobs */}
-      {job.status === "completed" && job.outputFiles.filter((f) => !/\/generate_.*\.py$/.test(f)).length > 0 && (
-        <div
-          style={{
-            marginTop: 10,
-            padding: "8px 12px",
-            background: "linear-gradient(135deg, #f0fff0 0%, #f5fef5 100%)",
-            borderRadius: 6,
-            border: "1px solid rgba(127, 186, 0, 0.2)",
-          }}
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {job.outputFiles.filter((f) => !/\/generate_.*\.py$/.test(f)).map((f) => {
-              const name = f.split("/").pop() || f;
-              const ext = name.includes(".") ? name.split(".").pop()?.toLowerCase() : "";
-              return (
-                <div
-                  key={f}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 12,
-                  }}
-                >
-                  <span style={{ display: "inline-flex" }}>{fileIcon(ext)}</span>
-                  <span
-                    style={{
-                      flex: 1,
-                      fontWeight: 500,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {name}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const a = document.createElement("a");
-                      a.href = `/file/download?path=${encodeURIComponent(f)}`;
-                      a.download = name;
-                      a.click();
-                    }}
-                    style={{
-                      padding: "1px 7px",
-                      fontSize: 10,
-                      borderRadius: 4,
-                      border: "1px solid var(--border)",
-                      background: "white",
-                      color: "var(--brand-primary)",
-                      cursor: "pointer",
-                      flexShrink: 0,
-                      fontWeight: 500,
-                    }}
-                  >
-                    Download
-                  </button>
-                </div>
-              );
-            })}
+      {/* Compact deliverable summary for completed jobs */}
+      {job.status === "completed" && (() => {
+        const deliverables = job.outputFiles.filter((f) => !/\/generate_.*\.py$/.test(f));
+        return deliverables.length > 0 ? (
+          <div
+            style={{
+              marginTop: 10,
+              padding: "6px 12px",
+              background: "linear-gradient(135deg, #f0fff0 0%, #f5fef5 100%)",
+              borderRadius: 6,
+              border: "1px solid rgba(127, 186, 0, 0.2)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              fontWeight: 500,
+              color: "var(--text-primary)",
+            }}
+          >
+            <ArrowDownload20Regular style={{ flexShrink: 0, color: "#7FBA00" }} />
+            <span>{deliverables.length} deliverable{deliverables.length !== 1 ? "s" : ""} ready — click to view</span>
           </div>
-        </div>
-      )}
+        ) : null;
+      })()}
     </Card>
   );
 }
