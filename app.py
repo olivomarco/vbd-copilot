@@ -718,6 +718,32 @@ async def main() -> None:
                     status="cancelled",
                 )
                 continue
+            except Exception as exc:
+                turn_status = "error"
+                ui.print_response_end()
+                ui.stop_agent_display()
+                ui.print_input_lock_state(False)
+                msg = str(exc)
+                if "not authorized" in msg.lower() or "policy" in msg.lower():
+                    ui.console.print(
+                        f"\n  [red bold]ERROR:[/red bold] [red]{msg}[/red]\n\n"
+                        "  Your GITHUB_TOKEN may lack Copilot API scopes.\n"
+                        "  If running in Docker, ensure the token comes from a\n"
+                        "  Copilot-authorized source (e.g. VS Code devcontainer\n"
+                        "  GITHUB_TOKEN) rather than [cyan]gh auth token[/cyan].\n"
+                    )
+                else:
+                    ui.print_warning(
+                        f"Unexpected error: {msg}. "
+                        "Use /new to start a fresh session or quit."
+                    )
+                collector.on_turn_end(
+                    turn_id,
+                    assistant_response="".join(ui._current_response),
+                    model=ui.current_model,
+                    status="error",
+                )
+                continue
 
             if not ui.received_deltas and reply:
                 content = getattr(reply.data, "content", None)
