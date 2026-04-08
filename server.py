@@ -1571,7 +1571,7 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
             _send(_envelope(conn, "error", {"message": str(exc)}), session_id)
         finally:
             conn = get_connection(session_id)
-            new_files = _find_new_outputs(before_time)
+            new_files = _find_new_outputs(before_time, agent_name)
             file_paths = [str(f) for f in new_files]
             if file_paths:
                 _send(
@@ -1757,11 +1757,30 @@ _INTERESTING_SUFFIXES = {
     ".drawio",
 }
 
+# Map agent names to their expected output subdirectories so parallel
+# sessions only pick up their own files.
+_AGENT_OUTPUT_DIRS: dict[str, str] = {
+    "slide-conductor": "slides",
+    "demo-conductor": "demos",
+    "hackathon-conductor": "hackathons",
+    "ai-brainstorming": "ai-projects",
+    "ai-solution-architect": "ai-projects",
+    "ai-implementor": "ai-projects",
+    "ai-demo-conductor": "demos",
+}
 
-def _find_new_outputs(since: float) -> list[Path]:
+
+def _find_new_outputs(since: float, agent_name: str | None = None) -> list[Path]:
+    # Scope to the agent's output subdirectory when known
+    if agent_name and agent_name in _AGENT_OUTPUT_DIRS:
+        scan_root = _outputs_dir / _AGENT_OUTPUT_DIRS[agent_name]
+    else:
+        scan_root = _outputs_dir
+    if not scan_root.is_dir():
+        return []
     found: list[Path] = []
     grace = 3.0
-    for p in _outputs_dir.rglob("*"):
+    for p in scan_root.rglob("*"):
         if not p.is_file():
             continue
         if any(part in _SKIP_DIRS for part in p.parts):

@@ -58,12 +58,35 @@ DB_DIR = Path.home() / ".csa-copilot"
 _INTERESTING_SUFFIXES = {".pptx", ".md", ".py", ".bicep", ".json", ".yaml", ".sh"}
 _SKIP_DIRS = {".fragments"}
 
+# Map agent names to their expected output subdirectories so parallel
+# sessions only pick up their own files.
+_AGENT_OUTPUT_DIRS: dict[str, str] = {
+    "slide-conductor": "slides",
+    "demo-conductor": "demos",
+    "hackathon-conductor": "hackathons",
+    "ai-brainstorming": "ai-projects",
+    "ai-solution-architect": "ai-projects",
+    "ai-implementor": "ai-projects",
+    "ai-demo-conductor": "demos",
+}
 
-def _find_new_outputs(since: float) -> list[Path]:
-    """Return output files created/modified after `since` (epoch seconds)."""
+
+def _find_new_outputs(since: float, agent_name: str | None = None) -> list[Path]:
+    """Return output files created/modified after `since` (epoch seconds).
+
+    When *agent_name* is provided and maps to a known output subdirectory,
+    only that subdirectory is scanned — preventing parallel sessions from
+    picking up each other's files.
+    """
+    if agent_name and agent_name in _AGENT_OUTPUT_DIRS:
+        scan_root = OUTPUTS_DIR / _AGENT_OUTPUT_DIRS[agent_name]
+    else:
+        scan_root = OUTPUTS_DIR
+    if not scan_root.is_dir():
+        return []
     found: list[Path] = []
     grace = 3.0
-    for p in OUTPUTS_DIR.rglob("*"):
+    for p in scan_root.rglob("*"):
         if not p.is_file():
             continue
         if any(part in _SKIP_DIRS for part in p.parts):
@@ -705,7 +728,7 @@ async def main() -> None:
             ui.print_response_end()
 
             # ── Notify about any newly generated output files ─────────────
-            new_files = _find_new_outputs(before_time)
+            new_files = _find_new_outputs(before_time, agent_name)
             ui.print_output_files(new_files)
 
             ui.stop_agent_display()
