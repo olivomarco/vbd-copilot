@@ -37,12 +37,11 @@ import { AgentIcon } from "@/components/common/AgentIcon";
 import { listSessions, getSessionTurns, resumeSession as apiResumeSession, getSessionStatus } from "@/api/client";
 
 
-function formatElapsed(job: Job): string {
+import { formatElapsed } from "@/utils/formatElapsed";
+
+function formatJobElapsed(job: Job): string {
   const ms = (job.completedAt || Date.now()) - job.startedAt;
-  const sec = Math.floor(ms / 1000);
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}m ${String(s).padStart(2, "0")}s`;
+  return formatElapsed(ms);
 }
 
 function formatTokens(n: number): string {
@@ -118,7 +117,7 @@ function JobCard({ job }: { job: Job }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           <Text size={200} style={{ color: "var(--text-secondary)", whiteSpace: "nowrap", minWidth: 56, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-            {formatElapsed(job)}
+            {formatJobElapsed(job)}
           </Text>
           <span
             style={{
@@ -328,7 +327,7 @@ function LiveJobCard({ job }: { job: Job }) {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
             <Text size={200} style={{ color: "var(--text-secondary)", whiteSpace: "nowrap", minWidth: 56, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-              {formatElapsed(job)}
+              {formatJobElapsed(job)}
             </Text>
             <span
               style={{

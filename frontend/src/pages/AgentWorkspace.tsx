@@ -49,12 +49,7 @@ import { useSettingsStore } from "@/stores/settingsStore";
 
 
 
-function formatElapsed(ms: number): string {
-  const sec = Math.floor(ms / 1000);
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}m ${String(s).padStart(2, "0")}s`;
-}
+import { formatElapsed } from "@/utils/formatElapsed";
 
 /** Format tool args JSON into a short preview string. */
 function argPreview(argsStr?: string): string {

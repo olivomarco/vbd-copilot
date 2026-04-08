@@ -26,6 +26,7 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { useJobStore, type Job } from "@/stores/jobStore";
 import { AGENT_META, type AgentType } from "@/api/types";
 import { AgentIcon } from "@/components/common/AgentIcon";
+import { formatElapsedShort } from "@/utils/formatElapsed";
 
 const NAV_ITEMS = [
   {
@@ -265,9 +266,10 @@ export function Sidebar() {
                 ? `/library/markdown?path=${encodeURIComponent(primaryFile)}`
                 : "/library";
             const agentMeta = AGENT_META[job.agent as AgentType];
-            const elapsed = job.completedAt
-              ? Math.round((job.completedAt - job.startedAt) / 60000)
+            const elapsedMs = job.completedAt
+              ? job.completedAt - job.startedAt
               : 0;
+            const elapsedLabel = elapsedMs > 0 ? formatElapsedShort(elapsedMs) : "";
 
             return (
               <div
@@ -360,7 +362,7 @@ export function Sidebar() {
                     fontSize: 10,
                   }}
                 >
-                  {agentMeta?.label || job.agent} · {job.outputFiles.length} file{job.outputFiles.length !== 1 ? "s" : ""}{elapsed > 0 ? ` · ${elapsed}m` : ""}
+                  {agentMeta?.label || job.agent} · {job.outputFiles.length} file{job.outputFiles.length !== 1 ? "s" : ""}{elapsedLabel ? ` · ${elapsedLabel}` : ""}
                 </Text>
                 <Text
                   size={100}

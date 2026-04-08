@@ -11,6 +11,7 @@ import { useJobStore, type Job } from "@/stores/jobStore";
 import { AGENT_META, type AgentType } from "@/api/types";
 import { AgentIcon } from "@/components/common/AgentIcon";
 import { playNotificationSound } from "@/utils/notifications";
+import { formatElapsed } from "@/utils/formatElapsed";
 
 const AUTO_DISMISS_MS = 15_000;
 
@@ -109,13 +110,11 @@ export function CompletionToast() {
         const fileCount = job.outputFiles.length;
         const primaryFile = job.outputFiles[0] || "";
         const fileName = primaryFile.split("/").pop() || "";
-        const elapsed = job.completedAt
-          ? Math.round((job.completedAt - job.startedAt) / 1000)
-          : 0;
-        const elapsedStr =
-          elapsed >= 60
-            ? `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`
-            : `${elapsed}s`;
+        const elapsedStr = formatElapsed(
+          job.completedAt
+            ? job.completedAt - job.startedAt
+            : 0
+        );
 
         return (
           <div
