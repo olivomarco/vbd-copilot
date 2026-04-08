@@ -10,6 +10,21 @@ import { AgentIcon } from "@/components/common/AgentIcon";
 
 const AGENTS = Object.entries(AGENT_META) as [AgentType, (typeof AGENT_META)[AgentType]][];
 
+const FUN_PHRASES = [
+  "Baking a cake takes time. So does great content. Sit back and relax while the agents knead the dough.",
+  "Rome wasn't built in a day. Your deck won't take that long — but maybe grab a coffee.",
+  "Good things come to those who wait. Great slide decks come to those who let AI do the heavy lifting.",
+  "A watched pot never boils. A watched agent… still takes a few minutes. Go stretch your legs.",
+  "Even Michelangelo took 4 years to paint the Sistine Chapel. We'll be faster. Probably.",
+  "Your agents are working harder than a barista on Monday morning. Give them a moment.",
+  "Behind every great presentation is an AI that didn't sleep. Because it can't.",
+  "Content this good can't be microwaved. It needs to slow-cook.",
+  "Like a fine wine, great content needs time. Unlike wine, this won't give you a headache.",
+  "If great content grew on trees, you wouldn't need us. But it doesn't — so here we are.",
+  "The agents are putting in overtime. Don't worry, they don't charge extra.",
+  "Your content is marinating in excellence. Please hold.",
+];
+
 const CONTENT_AGENTS: AgentType[] = ["slide-conductor", "demo-conductor", "hackathon-conductor"];
 const PIPELINE_AGENTS: AgentType[] = ["ai-brainstorming", "ai-solution-architect", "ai-implementor", "ai-demo-conductor"];
 
@@ -56,6 +71,7 @@ export function Launchpad() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const [hasArchitectures, setHasArchitectures] = useState<boolean | null>(null); // null = loading
   const [hasProjects, setHasProjects] = useState<boolean | null>(null); // null = loading
+  const [funPhrase] = useState(() => FUN_PHRASES[Math.floor(Math.random() * FUN_PHRASES.length)]);
 
   const scrollCarousel = useCallback((direction: "left" | "right") => {
     const el = carouselRef.current;
@@ -163,6 +179,28 @@ export function Launchpad() {
             The Desktop / Web UI is experimental — it works for most flows but may have rough edges, missing features, or unexpected behaviour. The CLI is the stable, battle-tested path. Fall back to it if something breaks.
           </Text>
         </div>
+      </div>
+
+      {/* ── Fun phrase ── */}
+      <div
+        style={{
+          textAlign: "center",
+          marginBottom: 32,
+          padding: "0 24px",
+        }}
+      >
+        <Text
+          size={200}
+          italic
+          style={{
+            color: "var(--text-secondary)",
+            opacity: 0.7,
+            letterSpacing: "0.01em",
+            lineHeight: 1.5,
+          }}
+        >
+          {funPhrase}
+        </Text>
       </div>
 
       {/* ── Content Tools Section ── */}
@@ -624,6 +662,22 @@ export function Launchpad() {
           }}
         />
       )}
+
+      {/* ── Footer ── */}
+      <div
+        style={{
+          textAlign: "center",
+          marginTop: 56,
+          paddingTop: 24,
+          paddingBottom: 16,
+          borderTop: "1px solid var(--border)",
+          opacity: 0.55,
+        }}
+      >
+        <Text size={200} style={{ color: "var(--text-secondary)", letterSpacing: "0.01em" }}>
+          Made with ❤️ by a Microsoft Cloud Solution Architect, for other Cloud Solution Architects.
+        </Text>
+      </div>
     </div>
   );
 }
