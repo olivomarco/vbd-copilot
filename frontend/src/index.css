@@ -142,10 +142,10 @@ code:not(pre code) {
   animation: pulseAttention 1.5s ease-in-out infinite;
 }
 
-/* Stadium wave ("ola") effect — blue sweep across text */
+/* Stadium wave ("ola") effect — blue sweep across text (left to right) */
 @keyframes stadiumWave {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
 }
 
 .wave-text {
@@ -166,10 +166,10 @@ code:not(pre code) {
   animation: stadiumWave 2.5s ease-in-out infinite;
 }
 
-/* Top status bar — running (blue wave) */
+/* Top status bar — running (blue wave, left to right) */
 @keyframes topBarWave {
-  0% { background-position: -100% center; }
-  100% { background-position: 200% center; }
+  0% { background-position: 200% center; }
+  100% { background-position: -100% center; }
 }
 
 .top-status-bar-running {
@@ -188,16 +188,26 @@ code:not(pre code) {
   animation: topBarWave 2s ease-in-out infinite;
 }
 
-/* Top status bar — waiting (yellow pulse) */
-@keyframes topBarPulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
+/* Top status bar — waiting (yellow wave, left to right) */
+@keyframes topBarWaveYellow {
+  0% { background-position: 200% center; }
+  100% { background-position: -100% center; }
 }
 
 .top-status-bar-waiting {
   height: 3px;
-  background: #FFB900;
-  animation: topBarPulse 1.5s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 30%,
+    #FFB900 40%,
+    #FFD700 50%,
+    #FFB900 60%,
+    transparent 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: topBarWaveYellow 2s ease-in-out infinite;
 }
 
 .animate-in {

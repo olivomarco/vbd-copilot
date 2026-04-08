@@ -6,6 +6,8 @@ import {
   Card,
   Spinner,
   Textarea,
+  Badge,
+  Switch,
 } from "@fluentui/react-components";
 import {
   ArrowLeft20Regular,
@@ -32,15 +34,18 @@ import {
   ClipboardTask20Regular,
   Chat20Regular,
   ArrowSync20Regular,
+  Play20Regular,
 } from "@fluentui/react-icons";
 import { useJobStore, type Job, type JobEvent } from "@/stores/jobStore";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useAutoSendBrief } from "@/hooks/useAutoSendBrief";
 import { AGENT_META } from "@/api/types";
 import { getSessionEvents } from "@/api/client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AgentIcon } from "@/components/common/AgentIcon";
 import { clearInputNotification } from "@/utils/notifications";
+import { useSettingsStore } from "@/stores/settingsStore";
 
 
 
@@ -412,8 +417,86 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
       </div>
     );
   }
-  if (t === "delta") {
-    return null; // Don't show raw deltas as cards
+  if (t === "delta" || t === "reasoning_delta") {
+    return null; // Deltas are accumulated into blocks — see displayGroups
+  }
+  if (t === "phase_changed") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px" }}>
+        <Badge appearance="tint" color="informative" size="small">
+          {String(d.phase || "unknown")}
+        </Badge>
+      </div>
+    );
+  }
+  if (t === "turn_started") {
+    return (
+      <div style={{ padding: "4px 12px", fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
+        <Play20Regular style={{ width: 14, height: 14 }} /> Turn started
+      </div>
+    );
+  }
+  if (t === "turn_ended") {
+    return (
+      <div style={{ padding: "4px 12px", fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
+        <CheckmarkCircle20Regular style={{ width: 14, height: 14 }} /> Turn ended
+      </div>
+    );
+  }
+  if (t === "usage") {
+    return (
+      <div style={{ padding: "4px 12px", fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
+        <DataBarVertical20Regular style={{ width: 14, height: 14 }} />
+        Tokens: {String(d.input_tokens || 0)} in / {String(d.output_tokens || 0)} out
+        {d.cache_read_tokens ? ` / ${String(d.cache_read_tokens)} cached` : ""}
+      </div>
+    );
+  }
+  if (t === "assistant_intent") {
+    return (
+      <div style={{ padding: "6px 12px", fontSize: 12, color: "#8764b8", display: "flex", alignItems: "center", gap: 6 }}>
+        <Flash20Regular style={{ width: 14, height: 14 }} />
+        <span style={{ fontStyle: "italic" }}>Intent: {String(d.intent || d.content || "").slice(0, 120)}</span>
+      </div>
+    );
+  }
+  if (t === "assistant_reasoning") {
+    return (
+      <div style={{ padding: "6px 12px", fontSize: 12, color: "#888", fontStyle: "italic", fontFamily: "'Cascadia Code', 'Fira Code', monospace" }}>
+        {String(d.content || d.reasoning || "").slice(0, 200)}
+      </div>
+    );
+  }
+  if (t === "compaction_start" || t === "compaction_complete") {
+    return (
+      <div style={{ padding: "4px 12px", fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
+        <ArrowSync20Regular style={{ width: 14, height: 14 }} />
+        Context compaction {t === "compaction_start" ? "started" : "complete"}
+      </div>
+    );
+  }
+  if (t === "session_handoff") {
+    return (
+      <div style={{ padding: "4px 12px", fontSize: 12, color: "#8764b8", display: "flex", alignItems: "center", gap: 6 }}>
+        <ArrowSync20Regular style={{ width: 14, height: 14 }} />
+        Session handoff{d.target ? `: ${String(d.target)}` : ""}
+      </div>
+    );
+  }
+  if (t === "subagent_selected" || t === "subagent_deselected") {
+    return (
+      <div style={{ padding: "4px 12px", fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
+        <Bot20Regular style={{ width: 14, height: 14 }} />
+        Subagent {t === "subagent_selected" ? "selected" : "deselected"}: {String(d.agent || "unknown")}
+      </div>
+    );
+  }
+  if (t === "input_resolved") {
+    return (
+      <div style={{ padding: "4px 12px", fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
+        <CheckmarkCircle20Regular style={{ width: 14, height: 14 }} /> Input resolved
+      </div>
+    );
   }
   if (t === "new_files") {
     const files = ((d.files as string[]) || []).filter(
@@ -587,6 +670,9 @@ export function AgentWorkspace() {
   const pushEvent = useJobStore((s) => s.pushEvent);
   const updateJob = useJobStore((s) => s.updateJob);
   const { sendMessage, sendUserResponse, cancel } = useWebSocket(jobId || null);
+  useAutoSendBrief(jobId || null, sendMessage);
+  const verboseMode = useSettingsStore((s) => s.verboseMode);
+  const setVerboseMode = useSettingsStore((s) => s.setVerboseMode);
   const [editedPlan, setEditedPlan] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [followUp, setFollowUp] = useState("");
@@ -639,71 +725,6 @@ export function AgentWorkspace() {
     setRespondedToCurrentQ(false);
     setRetryAvailable(false);
   }, [jobId]);
-
-  // Assemble and send the initial prompt when the WS connects
-  const promptSent = useRef(false);
-
-  useEffect(() => {
-    // Reset when job ID changes — but only if it's a brand new job with no events
-    const existing = useJobStore.getState().getJob(jobId);
-    promptSent.current = !!(existing && existing.events.length > 0);
-  }, [jobId]);
-
-  useEffect(() => {
-    if (!job || promptSent.current) return;
-    // Wait until the job transitions from "queued" to "running" (WS connected)
-    if (job.status !== "running") return;
-    // Don't auto-send for resumed sessions — user will type a follow-up
-    if (job.brief.topic === "Resumed session") {
-      promptSent.current = true;
-      return;
-    }
-
-    promptSent.current = true;
-
-    // Build prompt from brief
-    const b = job.brief;
-    const agentMeta = AGENT_META[job.agent];
-    const levelPart = agentMeta?.showContentLevel ? `${b.contentLevel} ` : "";
-    const durationPart = agentMeta?.showDuration ? `${b.duration} ` : "";
-    let prompt: string;
-
-    if (job.agent === "slide-conductor") {
-      prompt = `@${job.agent} Create a ${levelPart}${durationPart}presentation on "${b.topic}"`;
-    } else if (job.agent === "demo-conductor") {
-      prompt = `@${job.agent} Create a ${levelPart}${durationPart}demo guide on "${b.topic}"`;
-    } else if (job.agent === "hackathon-conductor") {
-      prompt = `@${job.agent} Create a ${levelPart}${durationPart}hackathon on "${b.topic}"`;
-    } else if (job.agent === "ai-brainstorming") {
-      prompt = `@${job.agent} Brainstorm AI project ideas for "${b.topic}"`;
-    } else if (job.agent === "ai-solution-architect") {
-      prompt = `@${job.agent} Design an architecture for "${b.topic}"`;
-    } else if (job.agent === "ai-implementor") {
-      let archRef = "";
-      if (b.architectureDocs?.length) {
-        archRef = ` Read and use these architecture documents as your foundation: ${b.architectureDocs.join(", ")}.`;
-      } else if (b.architecturePath) {
-        archRef = ` Use the existing architecture at ${b.architecturePath} as the foundation.`;
-      }
-      prompt = `@${job.agent} Build a full project for "${b.topic}".${archRef}`;
-    } else if (job.agent === "ai-demo-conductor") {
-      let projRef = "";
-      if (b.projectDocs?.length) {
-        projRef = ` The project files are: ${b.projectDocs.join(", ")}.`;
-      } else if (b.projectPath) {
-        projRef = ` The project is at ${b.projectPath}.`;
-      }
-      prompt = `@${job.agent} Create demos for "${b.topic}".${projRef}`;
-    } else {
-      prompt = `@${job.agent} Create ${levelPart}${durationPart}content about "${b.topic}"`;
-    }
-
-    if (b.audience) prompt += ` for ${b.audience}`;
-    if (b.notes) prompt += `. ${b.notes}`;
-
-    // Send the prompt now — WS is already connected
-    sendMessage(prompt);
-  }, [job?.id, job?.status]);
 
   useEffect(() => {
     if (job?.pendingInput?.[0]?.question) {
@@ -793,24 +814,34 @@ export function AgentWorkspace() {
 
   const meta = AGENT_META[job.agent] || { icon: "", label: job.agent, color: "#0078D4" };
 
-  // Filter to only meaningful events for the activity feed.
-  // - ask_user tool events are redundant with the waiting_for_input card that follows them
-  // - Deduplicate waiting_for_input events with the same question text (keep first with real text)
+  // Filter events for the activity feed, respecting verbose mode setting.
+  // When verbose is ON, include detailed events like deltas, usage, phase changes, etc.
+  // When verbose is OFF, only show high-level meaningful events.
   const feedEvents = useMemo(() => {
     const isAskUserTool = (e: JobEvent) =>
       (e.type === "tool_started" || e.type === "tool_completed") &&
       String((e.data as any).tool || "").toLowerCase() === "ask_user";
 
-    const base = job.events.filter(
-      (e) =>
-        e.type !== "delta" &&
-        e.type !== "reasoning_delta" &&
-        e.type !== "usage" &&
-        e.type !== "phase_changed" &&
-        e.type !== "turn_started" &&
-        e.type !== "input_resolved" &&
-        !isAskUserTool(e),
-    );
+    // Events that are always noise — never shown
+    const alwaysSkip = new Set([
+      "pong", "heartbeat", "session_snapshot", "session_state_changed",
+    ]);
+
+    // Events only shown when verbose mode is enabled
+    const verboseOnly = new Set([
+      "delta", "reasoning_delta", "usage", "phase_changed",
+      "turn_started", "turn_ended", "input_resolved",
+      "assistant_intent", "assistant_reasoning",
+      "compaction_start", "compaction_complete",
+      "session_handoff", "subagent_selected", "subagent_deselected",
+    ]);
+
+    const base = job.events.filter((e) => {
+      if (alwaysSkip.has(e.type)) return false;
+      if (isAskUserTool(e)) return false;
+      if (!verboseMode && verboseOnly.has(e.type)) return false;
+      return true;
+    });
 
     // Deduplicate waiting_for_input: if multiple appear in a row (or near
     // each other) for the same question, keep only the one with real text.
@@ -830,7 +861,7 @@ export function AgentWorkspace() {
       seenQuestions.add(q);
       return true;
     });
-  }, [job.events.length]);
+  }, [job.events.length, verboseMode]);
 
   // Build a map from tool_started events to their matching tool_completed events.
   // We match by tool name, pairing the most recent unmatched start with its completion.
@@ -891,9 +922,11 @@ export function AgentWorkspace() {
   // Build display groups: standalone events + subagent groups with nested tool calls.
   // A SubagentGroup spans from subagent_started to subagent_completed, collecting
   // any tool_started/tool_completed events with a matching _subagent tag.
+  // In verbose mode, consecutive delta/reasoning_delta events are accumulated into text blocks.
   type DisplayItem =
     | { kind: "event"; event: JobEvent }
-    | { kind: "subagent"; name: string; events: JobEvent[]; isComplete: boolean; id: number };
+    | { kind: "subagent"; name: string; events: JobEvent[]; isComplete: boolean; id: number }
+    | { kind: "delta-block"; text: string; blockKind: "delta" | "reasoning"; startTime: number; endTime: number; id: number };
 
   const displayGroups = useMemo<DisplayItem[]>(() => {
     const result: DisplayItem[] = [];
@@ -939,8 +972,37 @@ export function AgentWorkspace() {
       result.push({ kind: "subagent", name, events: group.events, isComplete: jobIsDone, id: group.id });
     }
 
+    // In verbose mode, accumulate consecutive standalone delta/reasoning_delta events into text blocks
+    if (verboseMode) {
+      const accumulated: DisplayItem[] = [];
+      let currentBlock: { text: string; blockKind: "delta" | "reasoning"; startTime: number; endTime: number; id: number } | null = null;
+
+      for (const item of result) {
+        if (item.kind === "event" && (item.event.type === "delta" || item.event.type === "reasoning_delta")) {
+          const content = String((item.event.data as any).content || "");
+          if (!content) continue;
+          const bk = item.event.type === "reasoning_delta" ? "reasoning" as const : "delta" as const;
+          if (currentBlock && currentBlock.blockKind === bk) {
+            currentBlock.text += content;
+            currentBlock.endTime = item.event.time;
+          } else {
+            if (currentBlock) accumulated.push({ kind: "delta-block", ...currentBlock });
+            currentBlock = { text: content, blockKind: bk, startTime: item.event.time, endTime: item.event.time, id: item.event.id };
+          }
+        } else {
+          if (currentBlock) {
+            accumulated.push({ kind: "delta-block", ...currentBlock });
+            currentBlock = null;
+          }
+          accumulated.push(item);
+        }
+      }
+      if (currentBlock) accumulated.push({ kind: "delta-block", ...currentBlock });
+      return accumulated;
+    }
+
     return result;
-  }, [displayEvents.length, job.status]);
+  }, [displayEvents.length, job.status, verboseMode]);
 
   // Auto-scroll the activity feed to the bottom when new events arrive
   useEffect(() => {
@@ -1062,6 +1124,14 @@ export function AgentWorkspace() {
           <Text size={200} style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-secondary)" }}>
             <Timer20Regular style={{ width: 14, height: 14 }} /> {formatElapsed(job.completedAt ? job.completedAt - job.startedAt : elapsed)}
           </Text>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+            <Text size={200} style={{ color: "var(--text-secondary)" }}>Verbose</Text>
+            <Switch
+              checked={verboseMode}
+              onChange={(_, d) => setVerboseMode(d.checked as boolean)}
+              style={{ margin: 0 }}
+            />
+          </div>
         </div>
 
         {/* Activity feed */}
@@ -1097,6 +1167,33 @@ export function AgentWorkspace() {
                   completionMap={completionMap}
                   isComplete={item.isComplete}
                 />
+              ) : item.kind === "delta-block" ? (
+                <div
+                  key={`db-${item.id}`}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 6,
+                    fontSize: 13,
+                    lineHeight: 1.6,
+                    maxHeight: 200,
+                    overflow: "auto",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    ...(item.blockKind === "reasoning"
+                      ? {
+                          fontStyle: "italic",
+                          color: "#888",
+                          fontFamily: "'Cascadia Code', 'Fira Code', monospace",
+                          background: "rgba(0,0,0,0.03)",
+                        }
+                      : {
+                          color: "var(--text-primary)",
+                          background: "rgba(0, 120, 212, 0.04)",
+                        }),
+                  }}
+                >
+                  {item.text}
+                </div>
               ) : (
                 <EventCard
                   key={item.event.id}

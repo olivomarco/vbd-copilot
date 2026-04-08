@@ -917,12 +917,12 @@ async def list_outputs_grouped() -> JSONResponse:
             if not file_list:
                 continue
 
-            # Skip incomplete projects that only have docs/brainstorming
-            # artifacts but no actual solution (no infra/, src/, tests/,
-            # scripts/, or .github/ directories).
-            _SOLUTION_DIRS = {"infra", "src", "tests", "scripts", ".github"}
-            has_any_solution_dir = any((d / sd).is_dir() for sd in _SOLUTION_DIRS)
-            if not has_any_solution_dir:
+            # Skip projects that have no recognised content directories
+            # at all (empty scaffolds).  Projects with only docs/ are
+            # valid — they represent early-stage brainstorming output.
+            _CONTENT_DIRS = {"infra", "src", "tests", "scripts", ".github", "docs", "demos", "slides"}
+            has_any_content_dir = any((d / sd).is_dir() for sd in _CONTENT_DIRS)
+            if not has_any_content_dir:
                 continue
 
             title = d.name.replace("-", " ").replace("_", " ")

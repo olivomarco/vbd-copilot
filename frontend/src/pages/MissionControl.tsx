@@ -24,11 +24,10 @@ import {
   Play20Regular,
   Rocket20Regular,
   Warning20Regular,
-  ChevronDown12Regular,
-  ChevronRight12Regular,
 } from "@fluentui/react-icons";
 import { useJobStore, type Job } from "@/stores/jobStore";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useAutoSendBrief } from "@/hooks/useAutoSendBrief";
 import { AGENT_META } from "@/api/types";
 import { useState, useEffect } from "react";
 import { BriefForm } from "@/components/brief/BriefForm";
@@ -36,7 +35,7 @@ import type { AgentType } from "@/api/types";
 import type { SessionInfo, Turn } from "@/api/types";
 import { AgentIcon } from "@/components/common/AgentIcon";
 import { listSessions, getSessionTurns, resumeSession as apiResumeSession, getSessionStatus } from "@/api/client";
-import { LiveActivityLog } from "@/components/mission/LiveActivityLog";
+
 
 function formatElapsed(job: Job): string {
   const ms = (job.completedAt || Date.now()) - job.startedAt;
@@ -252,25 +251,16 @@ function JobCard({ job }: { job: Job }) {
 }
 
 /**
- * LiveJobCard — wraps a running/waiting job card, connects WebSocket,
- * and renders a collapsible LiveActivityLog below the job summary.
+ * LiveJobCard — wraps a running/waiting job card and connects WebSocket.
  */
 function LiveJobCard({ job }: { job: Job }) {
   const navigate = useNavigate();
   const meta = AGENT_META[job.agent] || { icon: "", label: job.agent, color: "#666" };
-  const events = useJobStore((s) => s.jobs[job.id]?.events ?? []);
   const isLive = job.status === "running" || job.status === "queued" || job.status === "waiting";
-  const [logOpen, setLogOpen] = useState(false);
 
-  // Connect WebSocket for this job
-  useWebSocket(isLive ? job.id : null);
-
-  // Auto-expand only when the job is waiting for input (needs attention)
-  useEffect(() => {
-    if (isLive && job.status === "waiting" && !logOpen) {
-      setLogOpen(true);
-    }
-  }, [job.status === "waiting", isLive]);
+  // Connect WebSocket for this job & auto-send brief if not yet sent
+  const { sendMessage } = useWebSocket(isLive ? job.id : null);
+  useAutoSendBrief(isLive ? job.id : null, sendMessage);
 
   return (
     <Card
@@ -415,32 +405,7 @@ function LiveJobCard({ job }: { job: Job }) {
         )}
       </div>
 
-      {/* Collapsible Activity Log */}
-      {events.length > 0 && (
-        <div style={{ marginTop: 8, borderTop: "1px solid var(--border)", paddingTop: 6 }}>
-          <div
-            onClick={() => setLogOpen(!logOpen)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              cursor: "pointer",
-              userSelect: "none",
-              padding: "2px 0",
-            }}
-          >
-            <span style={{ fontSize: 10, color: "var(--text-secondary)", display: "inline-flex" }}>
-              {logOpen ? <ChevronDown12Regular /> : <ChevronRight12Regular />}
-            </span>
-            <Text size={200} style={{ color: "var(--text-secondary)", textTransform: "uppercase", fontSize: 10, letterSpacing: "0.04em", fontWeight: 600 }}>
-              Activity Log
-            </Text>
-          </div>
-          {logOpen && (
-            <LiveActivityLog events={events} isRunning={isLive} />
-          )}
-        </div>
-      )}
+
     </Card>
   );
 }
