@@ -1,19 +1,58 @@
 import { create } from "zustand";
 
-interface SettingsStore {
+const STORAGE_KEY = "csa-copilot-settings";
+
+interface PersistedSettings {
   theme: "light" | "dark" | "system";
   sidebarCollapsed: boolean;
   verboseMode: boolean;
+}
+
+interface SettingsStore extends PersistedSettings {
   setTheme: (t: "light" | "dark" | "system") => void;
   toggleSidebar: () => void;
   setVerboseMode: (v: boolean) => void;
 }
 
-export const useSettingsStore = create<SettingsStore>((set) => ({
+const DEFAULTS: PersistedSettings = {
   theme: "light",
   sidebarCollapsed: false,
   verboseMode: false,
-  setTheme: (theme) => set({ theme }),
-  toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
-  setVerboseMode: (verboseMode) => set({ verboseMode }),
+};
+
+function readSettings(): PersistedSettings {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULTS;
+    return { ...DEFAULTS, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULTS;
+  }
+}
+
+function writeSettings(patch: Partial<PersistedSettings>) {
+  try {
+    const current = readSettings();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, ...patch }));
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+export const useSettingsStore = create<SettingsStore>((set) => ({
+  ...readSettings(),
+  setTheme: (theme) => {
+    writeSettings({ theme });
+    set({ theme });
+  },
+  toggleSidebar: () =>
+    set((s) => {
+      const sidebarCollapsed = !s.sidebarCollapsed;
+      writeSettings({ sidebarCollapsed });
+      return { sidebarCollapsed };
+    }),
+  setVerboseMode: (verboseMode) => {
+    writeSettings({ verboseMode });
+    set({ verboseMode });
+  },
 }));
