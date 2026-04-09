@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Text, Card, Button, Badge, Tooltip } from "@fluentui/react-components";
-import { ArrowRight16Regular, ChevronLeft20Regular, ChevronRight20Regular, LockClosed16Regular, Warning20Regular } from "@fluentui/react-icons";
+import { ArrowRight16Regular, ChevronLeft20Regular, ChevronRight20Regular, Dismiss16Regular, LockClosed16Regular, Warning20Regular } from "@fluentui/react-icons";
 import { AGENT_META, type AgentType, type ContentLevel } from "@/api/types";
 import { useOutputStore } from "@/stores/outputStore";
 import React, { useEffect, useState, useRef, useCallback } from "react";
@@ -69,6 +69,7 @@ export function Launchpad() {
   const [briefAgent, setBriefAgent] = useState<AgentType | null>(null);
   const [briefInitial, setBriefInitial] = useState<Partial<{ topic: string; contentLevel: ContentLevel; duration: string; notes: string }> | undefined>(undefined);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const [experimentalDismissed, setExperimentalDismissed] = useState(() => localStorage.getItem("experimental-warning-dismissed") === "1");
   const [hasArchitectures, setHasArchitectures] = useState<boolean | null>(null); // null = loading
   const [hasProjects, setHasProjects] = useState<boolean | null>(null); // null = loading
   const [funPhrase] = useState(() => FUN_PHRASES[Math.floor(Math.random() * FUN_PHRASES.length)]);
@@ -143,43 +144,72 @@ export function Launchpad() {
       </div>
 
       {/* ── Experimental Warning ── */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 12,
-          padding: "14px 18px",
-          marginBottom: 24,
-          background: "linear-gradient(135deg, #FFF4E5 0%, #FFF0DB 100%)",
-          border: "1px solid #FFB90060",
-          borderLeft: "4px solid #F25022",
-          borderRadius: 10,
-        }}
-      >
+      {!experimentalDismissed && (
         <div
           style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            background: "#F2502218",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            marginTop: 1,
+            alignItems: "flex-start",
+            gap: 12,
+            padding: "14px 18px",
+            marginBottom: 24,
+            background: "linear-gradient(135deg, #FFF4E5 0%, #FFF0DB 100%)",
+            border: "1px solid #FFB90060",
+            borderLeft: "4px solid #F25022",
+            borderRadius: 10,
+            position: "relative",
           }}
         >
-          <Warning20Regular style={{ color: "#F25022" }} />
+          <button
+            onClick={() => {
+              setExperimentalDismissed(true);
+              localStorage.setItem("experimental-warning-dismissed", "1");
+            }}
+            aria-label="Dismiss"
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 4,
+              borderRadius: 4,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#6B3A00",
+              opacity: 0.6,
+            }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.opacity = "1")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.opacity = "0.6")}
+          >
+            <Dismiss16Regular />
+          </button>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              background: "#F2502218",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              marginTop: 1,
+            }}
+          >
+            <Warning20Regular style={{ color: "#F25022" }} />
+          </div>
+          <div style={{ paddingRight: 20 }}>
+            <Text weight="semibold" size={300} style={{ display: "block", color: "#6B3A00" }}>
+              Experimental Interface
+            </Text>
+            <Text size={200} style={{ color: "#6B3A00CC", display: "block", marginTop: 2, lineHeight: 1.45 }}>
+              The Desktop / Web UI is experimental — it works for most flows but may have rough edges, missing features, or unexpected behaviour. The CLI is the stable, battle-tested path. Fall back to it if something breaks.
+            </Text>
+          </div>
         </div>
-        <div>
-          <Text weight="semibold" size={300} style={{ display: "block", color: "#6B3A00" }}>
-            Experimental Interface
-          </Text>
-          <Text size={200} style={{ color: "#6B3A00CC", display: "block", marginTop: 2, lineHeight: 1.45 }}>
-            The Desktop / Web UI is experimental — it works for most flows but may have rough edges, missing features, or unexpected behaviour. The CLI is the stable, battle-tested path. Fall back to it if something breaks.
-          </Text>
-        </div>
-      </div>
+      )}
 
       {/* ── Fun phrase ── */}
       <div
