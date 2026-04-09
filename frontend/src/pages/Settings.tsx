@@ -48,7 +48,7 @@ export function Settings() {
   }
 
   return (
-    <div style={{ padding: "32px 48px", maxWidth: 900, margin: "0 auto" }}>
+    <div className="page-container" style={{ padding: "32px 48px", maxWidth: 900, margin: "0 auto" }}>
       <Text
         as="h1"
         size={700}

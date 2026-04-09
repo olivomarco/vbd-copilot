@@ -10,7 +10,19 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 export function Shell({ children }: { children: ReactNode }) {
   const collapsed = useSettingsStore((s) => s.sidebarCollapsed);
+  const setSidebarCollapsed = useSettingsStore((s) => s.setSidebarCollapsed);
   useKeyboardShortcuts();
+
+  // Auto-collapse sidebar when window is narrow
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 860px)");
+    const handle = (e: MediaQueryListEvent | MediaQueryList) => {
+      if (e.matches) setSidebarCollapsed(true);
+    };
+    handle(mq);
+    mq.addEventListener("change", handle);
+    return () => mq.removeEventListener("change", handle);
+  }, [setSidebarCollapsed]);
 
   const allJobs = Object.values(useJobStore((s) => s.jobs));
   const hasRunning = allJobs.some(

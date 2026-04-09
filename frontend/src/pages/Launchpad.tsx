@@ -96,7 +96,7 @@ export function Launchpad() {
   const recentOutputs = outputs.slice(0, 6);
 
   return (
-    <div style={{ padding: "40px 48px", maxWidth: 1200, margin: "0 auto" }}>
+    <div className="page-container" style={{ padding: "40px 48px", maxWidth: 1200, margin: "0 auto" }}>
       {/* Hero */}
       <div
         data-tutorial="launchpad-hero"
@@ -215,6 +215,7 @@ export function Launchpad() {
 
       <div
         data-tutorial="content-tools"
+        className="content-grid-3"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(3, 1fr)",
@@ -291,9 +292,11 @@ export function Launchpad() {
 
       <div
         data-tutorial="ai-workflow"
+        className="pipeline-row"
         style={{
           display: "flex",
           alignItems: "stretch",
+          gap: 8,
           marginBottom: 48,
         }}
       >
@@ -402,6 +405,7 @@ export function Launchpad() {
                 {wrappedCard}
                 {i < PIPELINE_AGENTS.length - 1 && (
                   <div
+                    className="pipeline-arrow"
                     style={{
                       display: "flex",
                       alignItems: "center",

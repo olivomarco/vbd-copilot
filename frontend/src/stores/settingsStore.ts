@@ -11,6 +11,7 @@ interface PersistedSettings {
 interface SettingsStore extends PersistedSettings {
   setTheme: (t: "light" | "dark" | "system") => void;
   toggleSidebar: () => void;
+  setSidebarCollapsed: (v: boolean) => void;
   setVerboseMode: (v: boolean) => void;
 }
 
@@ -51,6 +52,10 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
       writeSettings({ sidebarCollapsed });
       return { sidebarCollapsed };
     }),
+  setSidebarCollapsed: (sidebarCollapsed) => {
+    writeSettings({ sidebarCollapsed });
+    set({ sidebarCollapsed });
+  },
   setVerboseMode: (verboseMode) => {
     writeSettings({ verboseMode });
     set({ verboseMode });

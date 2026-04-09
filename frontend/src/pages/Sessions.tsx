@@ -310,7 +310,7 @@ export function Sessions() {
   });
 
   return (
-    <div style={{ padding: "32px 48px", maxWidth: 1200, margin: "0 auto" }}>
+    <div className="page-container" style={{ padding: "32px 48px", maxWidth: 1200, margin: "0 auto" }}>
       <div
         style={{
           display: "flex",

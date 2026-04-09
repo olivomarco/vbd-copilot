@@ -1098,6 +1098,7 @@ export function AgentWorkspace() {
 
         {/* Stats bar */}
         <div
+          className="stats-bar"
           style={{
             display: "flex",
             alignItems: "center",

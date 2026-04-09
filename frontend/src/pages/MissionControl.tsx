@@ -580,8 +580,9 @@ export function MissionControl() {
   });
 
   return (
-    <div style={{ padding: "32px 48px", maxWidth: 1000, margin: "0 auto" }}>
+    <div className="page-container" style={{ padding: "32px 48px", maxWidth: 1000, margin: "0 auto" }}>
       <div
+        className="header-row"
         style={{
           display: "flex",
           alignItems: "center",

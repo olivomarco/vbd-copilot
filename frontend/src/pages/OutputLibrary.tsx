@@ -160,9 +160,10 @@ export function OutputLibrary() {
   };
 
   return (
-    <div style={{ padding: "32px 48px", maxWidth: 1400, margin: "0 auto" }}>
+    <div className="page-container" style={{ padding: "32px 48px", maxWidth: 1400, margin: "0 auto" }}>
       {/* Header */}
       <div
+        className="header-row"
         style={{
           display: "flex",
           alignItems: "center",
@@ -179,6 +180,7 @@ export function OutputLibrary() {
           Output Library
         </Text>
         <Input
+          className="search-input"
           contentBefore={<Search20Regular />}
           placeholder="Search outputs..."
           value={searchQuery}
