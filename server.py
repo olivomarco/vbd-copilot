@@ -58,8 +58,13 @@ _ASK_USER_TIMEOUT = 7200.0  # 2 hours
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    from server_adapter import start_heartbeat, stop_heartbeat
+    from server_adapter import (
+        install_task_keeping_factory,
+        start_heartbeat,
+        stop_heartbeat,
+    )
 
+    install_task_keeping_factory(asyncio.get_running_loop())
     start_heartbeat()
     yield
     stop_heartbeat()
@@ -388,7 +393,7 @@ async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONRes
 
 @app.delete("/sessions/{session_id}")
 async def end_session(session_id: str) -> JSONResponse:
-    from server_adapter import unregister_event_handler, emit_state_changed
+    from server_adapter import destroy_connection, emit_state_changed
 
     if _event_store:
         full_id = _event_store.resolve_prefix("sessions", session_id) or session_id
@@ -396,7 +401,7 @@ async def end_session(session_id: str) -> JSONResponse:
         _event_store.end_session(full_id, resumable=False)
     session = _session_map.pop(session_id, None)
     if session:
-        unregister_event_handler(session_id)
+        destroy_connection(session_id)
         with contextlib.suppress(Exception):
             session._event_handlers.clear()
     return JSONResponse(content={"ok": True})
@@ -1436,15 +1441,19 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
         _send,
         _envelope,
         register_event_handler,
-        unregister_event_handler,
     )
     from agents import DEFAULT_TIMEOUT
     from router import route_to_agent
 
     await websocket.accept()
-    is_first_ws = add_ws(session_id, websocket)
-    if is_first_ws:
-        ws_reset(session_id)
+    add_ws(session_id, websocket)
+    # Do NOT call ws_reset on reconnect.  The SessionConnection is now
+    # preserved across WS disconnects, so ``is_first_ws`` simply means
+    # "first WS after all previous ones closed" — NOT "brand-new session".
+    # Resetting per-turn state here would clear seen_event_ids (causing
+    # duplicate events) and drain the input_queue (losing user responses).
+    # Per-turn state is already reset in the ``message`` handler when a
+    # new turn begins.
 
     # Look up or create session
     session = _session_map.get(session_id)
@@ -1550,22 +1559,16 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
     # surviving across WS reconnections.
     register_event_handler(session_id, session)
 
-    # Send session snapshot to reconnecting clients (replaces individual
-    # pending_input / last_done replays with a single structured message).
-    # Also send when ``is_first_ws`` is True but the SessionConnection was
-    # preserved across a watcher→workspace handoff (pending_input is set).
-    # Without this the workspace WS would miss the pending question.
-    conn_check = get_connection(session_id)
-    should_snapshot = (not is_first_ws) or (
-        conn_check is not None and conn_check.pending_input is not None
-    )
-    if should_snapshot:
-        snapshot = build_snapshot(session_id)
-        if snapshot:
-            try:
-                await websocket.send_text(json.dumps(snapshot, ensure_ascii=False))
-            except Exception:
-                pass
+    # Send session snapshot to every connecting client.  The SessionConnection
+    # is preserved across WS disconnects, so even the "first" WS after a gap
+    # is really a reconnect that needs current state (pending_input, last_done,
+    # output_files).  The snapshot is cheap and idempotent.
+    snapshot = build_snapshot(session_id)
+    if snapshot:
+        try:
+            await websocket.send_text(json.dumps(snapshot, ensure_ascii=False))
+        except Exception:
+            pass
 
     current_turn_task: asyncio.Task[Any] | None = None
 
@@ -1768,12 +1771,10 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
         log.error("WebSocket error: %s", exc)
     finally:
         remove_ws(session_id, websocket)
-        # Unregister the event handler only when ALL WebSockets for the session
-        # are gone. This matches CLI behavior where the handler persists for
-        # the session lifetime.
-        remaining = get_connection(session_id)
-        if not remaining:
-            unregister_event_handler(session_id)
+        # Do NOT unregister the event handler here.  The handler must stay
+        # registered for the lifetime of the SDK session so events arriving
+        # between WS disconnect and reconnect are still processed.  Full
+        # cleanup happens only in destroy_connection() (session deletion).
 
 
 # ---------------------------------------------------------------------------

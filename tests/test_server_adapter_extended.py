@@ -403,8 +403,9 @@ class TestSessionConnectionCleanup:
         _get_or_create("s1")
         add_ws("s1", ws)
         remove_ws("s1", ws)
-        # Connection should be removed
-        assert "s1" not in _connections
+        # Connection is preserved (handler stays registered) — only
+        # destroy_connection() removes it from the registry.
+        assert "s1" in _connections
 
 
 # ---------------------------------------------------------------------------

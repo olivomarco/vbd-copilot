@@ -68,6 +68,9 @@ def test_websocket_allows_user_response_while_turn_is_waiting(client):
         )
 
         first = ws.receive_json()
+        # First message may be a session_snapshot (always sent on connect)
+        if first.get("type") == "session_snapshot" or (first.get("v") == 1 and first.get("type") == "session_snapshot"):
+            first = ws.receive_json()
         assert first["type"] == "turn_started"
 
         waiting = ws.receive_json()

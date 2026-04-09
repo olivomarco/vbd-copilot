@@ -140,7 +140,8 @@ class TestPublicFunctionDelegation:
         sa.add_ws("s2", "ws1")
         assert sa.get_connection("s2") is not None
         sa.remove_ws("s2", "ws1")
-        assert sa.get_connection("s2") is None
+        # Connection is preserved — only destroy_connection removes it.
+        assert sa.get_connection("s2") is not None
 
     def test_cancel_flag(self):
         sa.add_ws("s3", "ws1")
@@ -247,12 +248,13 @@ class TestConcurrentConnectionPreservation:
         assert conn.pending_input == {"question": "What topic?"}
 
     def test_remove_ws_cleans_up_when_idle(self):
-        """Connection IS cleaned up when no lock and no pending input."""
+        """Connection is preserved even when idle — handler must stay registered."""
         sa.add_ws("idle-1", "ws-watcher")
         assert sa.get_connection("idle-1") is not None
 
         sa.remove_ws("idle-1", "ws-watcher")
-        assert sa.get_connection("idle-1") is None
+        # Connection preserved (no websockets, but handler stays active)
+        assert sa.get_connection("idle-1") is not None
 
     def test_new_ws_reuses_preserved_connection(self):
         """A new WS joining a preserved connection shares the same queue."""

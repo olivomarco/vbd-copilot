@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+import uuid
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -16,6 +17,7 @@ from server_adapter import (
     _make_ws_handler,
     add_ws,
     build_snapshot,
+    destroy_connection,
     emit_state_changed,
     get_accumulated_response,
     get_cancel_flag,
@@ -149,7 +151,9 @@ class TestConnectionRegistry:
         add_ws("s3", ws)
         is_empty = remove_ws("s3", ws)
         assert is_empty is True
-        assert get_connection("s3") is None  # cleaned up from registry
+        # Connection is preserved (handler stays registered) — only
+        # destroy_connection() removes it from the registry.
+        assert get_connection("s3") is not None
 
     def test_remove_ws_keeps_connection_with_remaining(self):
         ws1, ws2 = object(), object()
@@ -161,6 +165,16 @@ class TestConnectionRegistry:
     def test_remove_ws_unknown_session(self):
         ws = object()
         assert remove_ws("ghost", ws) is True
+
+    def test_destroy_connection_removes_from_registry(self):
+        ws = object()
+        add_ws("s-destroy", ws)
+        assert get_connection("s-destroy") is not None
+        destroy_connection("s-destroy")
+        assert get_connection("s-destroy") is None
+
+    def test_destroy_connection_unknown_session_is_noop(self):
+        destroy_connection("nonexistent")  # should not raise
 
 
 # ===================================================================
@@ -533,7 +547,7 @@ class _FakeSessionEventType:
 def _make_event(etype, **data_attrs):
     """Build a fake event compatible with _handler's expectations."""
     data = SimpleNamespace(**data_attrs)
-    return SimpleNamespace(type=etype, id=str(id(data)), data=data)
+    return SimpleNamespace(type=etype, id=str(uuid.uuid4()), data=data)
 
 
 @pytest.fixture

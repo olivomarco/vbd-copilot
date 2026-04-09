@@ -123,7 +123,7 @@ class SessionConnection:
                     break
 
     def cleanup(self) -> None:
-        """Full cleanup when all clients disconnect."""
+        """Full cleanup when session is destroyed."""
         self.reset_turn()
         self.pending_input = None
         self.last_done = None
@@ -148,6 +148,47 @@ _connections: dict[str, SessionConnection] = {}
 # tasks created via asyncio.ensure_future() can be garbage-collected
 # mid-execution, silently dropping WebSocket sends.
 _background_tasks: set[asyncio.Task[Any]] = set()
+
+
+# ---------------------------------------------------------------------------
+# Task-keeping factory — prevents GC of ALL tasks, including SDK internals
+# ---------------------------------------------------------------------------
+# Python 3.12+ event loops only hold *weak* references to tasks.  The SDK's
+# JsonRpcClient._handle_request calls run_coroutine_threadsafe() and discards
+# the returned Future.  Under GC pressure (two concurrent sessions) the
+# underlying Task can be collected mid-execution, silently dropping tool-call
+# responses, user-input callbacks, and permission requests.
+#
+# Installing a custom task factory that keeps strong references guarantees
+# every task runs to completion.
+
+_all_tasks: set[asyncio.Task[Any]] = set()
+_task_factory_installed: bool = False
+
+
+def install_task_keeping_factory(loop: asyncio.AbstractEventLoop | None = None) -> None:
+    """Install a task factory that prevents GC of asyncio tasks.
+
+    Safe to call multiple times; only installs once per loop.
+    """
+    global _task_factory_installed
+    if _task_factory_installed:
+        return
+
+    target_loop = loop or asyncio.get_event_loop()
+
+    def _keeping_factory(
+        loop: asyncio.AbstractEventLoop,
+        coro: Any,
+        **kwargs: Any,
+    ) -> asyncio.Task[Any]:
+        task = asyncio.Task(coro, loop=loop, **kwargs)
+        _all_tasks.add(task)
+        task.add_done_callback(_all_tasks.discard)
+        return task
+
+    target_loop.set_task_factory(_keeping_factory)
+    _task_factory_installed = True
 
 # EventCollector reference — injected by server.py via set_collector()
 _collector: Any = None
@@ -219,25 +260,36 @@ def add_ws(session_id: str, ws: Any) -> bool:
 
 
 def remove_ws(session_id: str, ws: Any) -> bool:
-    """Remove a single WebSocket from a session.  Returns True if none remain."""
+    """Remove a single WebSocket from a session.  Returns True if none remain.
+
+    The SessionConnection and its SDK event handler are **preserved** even
+    when all WebSockets disconnect.  This is critical for multi-session
+    reliability: the SDK keeps dispatching events regardless of WS state,
+    and the handler must stay registered so that no events are lost during
+    reconnect windows.  When a new WS connects, ``add_ws`` puts it into
+    the existing conn and events resume flowing immediately.
+
+    Full cleanup only happens via :func:`destroy_connection` (called when
+    the session is explicitly deleted).
+    """
     sid = str(session_id)
     conn = _connections.get(sid)
     if conn is None:
         return True
     is_empty = conn.remove_ws(ws)
-    if is_empty:
-        # If a ``_user_input`` callback is actively waiting for a response
-        # (lock held) or there is a pending question that hasn't resolved
-        # yet, keep the SessionConnection alive.  A new WebSocket may
-        # reconnect shortly (e.g. the watcher→workspace handoff) and
-        # needs to find the *same* input_queue so the waiting callback
-        # can receive the answer.
-        if conn.ask_user_lock.locked() or conn.pending_input is not None:
-            pass  # preserve connection for the reconnecting client
-        else:
-            conn.cleanup()
-            _connections.pop(sid, None)
     return is_empty
+
+
+def destroy_connection(session_id: str) -> None:
+    """Fully tear down a session's connection state and event handler.
+
+    Called when a session is explicitly deleted — NOT on transient WS
+    disconnects.  This is the only path that unregisters the SDK event
+    handler and removes the SessionConnection from the registry.
+    """
+    conn = _connections.pop(session_id, None)
+    if conn:
+        conn.cleanup()
 
 
 def get_active_ws() -> Any | None:
@@ -469,6 +521,9 @@ def start_heartbeat() -> None:
     global _heartbeat_task
     if _heartbeat_task is None or _heartbeat_task.done():
         _heartbeat_task = asyncio.ensure_future(_heartbeat_loop())
+        # Also add to _all_tasks as a safety net
+        _all_tasks.add(_heartbeat_task)
+        _heartbeat_task.add_done_callback(_all_tasks.discard)
 
 
 def stop_heartbeat() -> None:
@@ -664,27 +719,30 @@ def _make_ws_handler(session_id: str):
             corr_id = str(uuid.uuid4())
             if conn:
                 conn.tool_starts[str(tool)] = (time.time(), corr_id)
-            # Persist to DB via collector
             sa_stack = conn.active_subagents if conn else []
             parent_sa = sa_stack[-1] if sa_stack else None
-            if _collector:
-                inv_id = _collector.on_tool_start(
-                    str(tool),
-                    args_str,
-                    subagent_name=parent_sa,
-                    session_id=session_id,
-                )
-                if inv_id and conn:
-                    conn.pending_invocations[str(tool)] = inv_id
             payload: dict[str, Any] = {"tool": str(tool), "args": args_str}
             if parent_sa:
                 payload["_subagent"] = parent_sa
+            # Always emit to WebSocket first — DB persistence must never block delivery
             emit("tool_started", payload, correlation_id=corr_id)
-            # Emit phase detection
             phase = _detect_phase(tool=str(tool))
             if phase and phase != last_phase:
                 last_phase = phase
                 emit("phase_changed", {"phase": phase})
+            # Best-effort DB persistence
+            try:
+                if _collector:
+                    inv_id = _collector.on_tool_start(
+                        str(tool),
+                        args_str,
+                        subagent_name=parent_sa,
+                        session_id=session_id,
+                    )
+                    if inv_id and conn:
+                        conn.pending_invocations[str(tool)] = inv_id
+            except Exception:
+                log.debug("collector.on_tool_start failed", exc_info=True)
             return
 
         if etype == SessionEventType.TOOL_EXECUTION_COMPLETE:
@@ -701,11 +759,6 @@ def _make_ws_handler(session_id: str):
             duration_ms = int((time.time() - started) * 1000)
             output_raw = getattr(d, "output", None)
             output_str = str(output_raw)[:500] if output_raw else None
-            # Persist to DB via collector
-            if _collector and conn:
-                inv_id = conn.pending_invocations.pop(str(tool), None)
-                if inv_id:
-                    _collector.on_tool_end(inv_id, output=output_str, status="success")
             payload = {
                 "tool": str(tool),
                 "duration_ms": duration_ms,
@@ -715,6 +768,16 @@ def _make_ws_handler(session_id: str):
             if sa_stack:
                 payload["_subagent"] = sa_stack[-1]
             emit("tool_completed", payload, correlation_id=corr_id)
+            # Best-effort DB persistence
+            try:
+                if _collector and conn:
+                    inv_id = conn.pending_invocations.pop(str(tool), None)
+                    if inv_id:
+                        _collector.on_tool_end(
+                            inv_id, output=output_str, status="success"
+                        )
+            except Exception:
+                log.debug("collector.on_tool_end failed", exc_info=True)
             return
 
         # -- Tool partial/progress events --------------------------------
@@ -746,16 +809,21 @@ def _make_ws_handler(session_id: str):
             if conn:
                 conn.active_subagents.append(str(name))
                 conn.subagent_correlations[str(name)] = corr_id
-            # Persist to DB via collector
-            if _collector:
-                inv_id = _collector.on_subagent_start(str(name), session_id=session_id)
-                if inv_id and conn:
-                    conn.pending_invocations[f"subagent:{name}"] = inv_id
             emit("subagent_started", {"agent": str(name)}, correlation_id=corr_id)
             phase = _detect_phase(agent=str(name))
             if phase and phase != last_phase:
                 last_phase = phase
                 emit("phase_changed", {"phase": phase})
+            # Best-effort DB persistence
+            try:
+                if _collector:
+                    inv_id = _collector.on_subagent_start(
+                        str(name), session_id=session_id
+                    )
+                    if inv_id and conn:
+                        conn.pending_invocations[f"subagent:{name}"] = inv_id
+            except Exception:
+                log.debug("collector.on_subagent_start failed", exc_info=True)
             return
 
         if etype == SessionEventType.SUBAGENT_COMPLETED:
@@ -769,12 +837,15 @@ def _make_ws_handler(session_id: str):
                 except ValueError:
                     if sa_stack:
                         sa_stack.pop()
-            # Persist to DB via collector
-            if _collector and conn:
-                inv_id = conn.pending_invocations.pop(f"subagent:{name}", None)
-                if inv_id:
-                    _collector.on_subagent_end(inv_id, status="success")
             emit("subagent_completed", {"agent": str(name)}, correlation_id=corr_id)
+            # Best-effort DB persistence
+            try:
+                if _collector and conn:
+                    inv_id = conn.pending_invocations.pop(f"subagent:{name}", None)
+                    if inv_id:
+                        _collector.on_subagent_end(inv_id, status="success")
+            except Exception:
+                log.debug("collector.on_subagent_end failed", exc_info=True)
             return
 
         # SUBAGENT_FAILED — forward the error to the frontend
@@ -793,20 +864,23 @@ def _make_ws_handler(session_id: str):
                 except ValueError:
                     if sa_stack:
                         sa_stack.pop()
-            # Persist to DB via collector
-            if _collector and conn:
-                inv_id = conn.pending_invocations.pop(f"subagent:{name}", None)
-                if inv_id:
-                    _collector.on_subagent_end(
-                        inv_id,
-                        status="error",
-                        error_message=str(error)[:500],
-                    )
             emit(
                 "subagent_failed",
                 {"agent": str(name), "error": str(error)},
                 correlation_id=corr_id,
             )
+            # Best-effort DB persistence
+            try:
+                if _collector and conn:
+                    inv_id = conn.pending_invocations.pop(f"subagent:{name}", None)
+                    if inv_id:
+                        _collector.on_subagent_end(
+                            inv_id,
+                            status="error",
+                            error_message=str(error)[:500],
+                        )
+            except Exception:
+                log.debug("collector.on_subagent_end failed", exc_info=True)
             return
 
         # SUBAGENT_SELECTED — notify frontend when the SDK picks a subagent
@@ -882,16 +956,6 @@ def _make_ws_handler(session_id: str):
             from pricing import estimate_cost
 
             cost = estimate_cost(model_name, input_t, output_t)
-            # Persist to DB via collector
-            if _collector:
-                _collector.on_usage(
-                    input_tokens=input_t,
-                    output_tokens=output_t,
-                    cache_read_tokens=cache_r,
-                    cache_write_tokens=cache_w,
-                    model=model_name,
-                    session_id=session_id,
-                )
             emit(
                 "usage",
                 {
@@ -902,6 +966,19 @@ def _make_ws_handler(session_id: str):
                     "estimated_cost_usd": cost,
                 },
             )
+            # Best-effort DB persistence
+            try:
+                if _collector:
+                    _collector.on_usage(
+                        input_tokens=input_t,
+                        output_tokens=output_t,
+                        cache_read_tokens=cache_r,
+                        cache_write_tokens=cache_w,
+                        model=model_name,
+                        session_id=session_id,
+                    )
+            except Exception:
+                log.debug("collector.on_usage failed", exc_info=True)
             return
 
         if etype == SessionEventType.SESSION_ERROR:

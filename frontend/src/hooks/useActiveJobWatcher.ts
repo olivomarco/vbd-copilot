@@ -83,8 +83,10 @@ export function useActiveJobWatcher() {
         // this session, skip everything except terminal events and file delivery.
         // waiting_for_input is explicitly skipped here — the workspace WS handles
         // it, and dual processing causes duplicate notifications and event cards.
+        // IMPORTANT: require OPEN (not just < CLOSING) — if we skip while the
+        // workspace WS is still CONNECTING, neither hook processes the event.
         const wsCheckJob = useJobStore.getState().getJob(id);
-        if (wsCheckJob?._ws && wsCheckJob._ws.readyState < WebSocket.CLOSING) {
+        if (wsCheckJob?._ws && wsCheckJob._ws.readyState === WebSocket.OPEN) {
           if (t !== "done" && t !== "cancelled" && t !== "new_files" && t !== "input_timed_out") return;
         }
 

@@ -56,7 +56,7 @@ export function useWebSocket(sessionId: string | null) {
     // Restore active subagent stack from server
     activeSubagentStack.current = [...(snap.active_subagents || [])];
 
-    // Restore pending input if server has one
+    // Restore pending input if server has one, or CLEAR if server resolved it
     if (snap.pending_input) {
       const q = snap.pending_input.question || "The agent has a question";
       const existingIdx = (currentJob.pendingInput || []).findIndex((p: any) => p.question === q);
@@ -73,6 +73,17 @@ export function useWebSocket(sessionId: string | null) {
         queue[existingIdx] = { question: q, choices: snap.pending_input.choices };
         updateJob(sid, { status: "waiting", pendingInput: queue });
       }
+    } else if (currentJob.pendingInput?.length) {
+      // Server has NO pending input but the frontend still does — the
+      // input was resolved while we were disconnected.  The input_resolved
+      // event was lost (no WS at the time), but the server state is
+      // authoritative.  Clear the stale question so the user doesn't get
+      // stuck on "waiting for confirmation" / have to submit twice.
+      clearInputNotification();
+      updateJob(sid, {
+        status: "running",
+        pendingInput: [],
+      });
     }
 
     // Restore done state if server says so.
@@ -157,8 +168,9 @@ export function useWebSocket(sessionId: string | null) {
 
       const job = useJobStore.getState().getJob(sid);
 
-      // Hydrate: fetch history for active jobs with few events (cold start / reconnect)
-      if (job && job.events.length < 5 && job.status !== "completed" && job.status !== "failed" && job.status !== "cancelled") {
+      // Hydrate: fetch history for active jobs on every (re)connect so events
+      // lost during WS disconnects are recovered from the server's DB.
+      if (job && job.status !== "completed" && job.status !== "failed" && job.status !== "cancelled") {
         getSessionEvents(sid)
           .then((serverEvents) => {
             const currentJob = useJobStore.getState().getJob(sid);
