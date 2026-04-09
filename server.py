@@ -920,7 +920,16 @@ async def list_outputs_grouped() -> JSONResponse:
             # Skip projects that have no recognised content directories
             # at all (empty scaffolds).  Projects with only docs/ are
             # valid — they represent early-stage brainstorming output.
-            _CONTENT_DIRS = {"infra", "src", "tests", "scripts", ".github", "docs", "demos", "slides"}
+            _CONTENT_DIRS = {
+                "infra",
+                "src",
+                "tests",
+                "scripts",
+                ".github",
+                "docs",
+                "demos",
+                "slides",
+            }
             has_any_content_dir = any((d / sd).is_dir() for sd in _CONTENT_DIRS)
             if not has_any_content_dir:
                 continue
@@ -1005,6 +1014,11 @@ async def delete_grouped_output(id: str) -> JSONResponse:
         raise HTTPException(status_code=400, detail="Invalid group id")
 
     category, slug = parts
+
+    # Defence-in-depth: reject slugs that could cause path traversal.
+    if ".." in slug or "/" in slug or "\\" in slug or "\x00" in slug:
+        raise HTTPException(status_code=400, detail="Invalid group id")
+
     outputs_resolved = _outputs_dir.resolve()
     deleted: list[str] = []
 
@@ -1044,11 +1058,23 @@ async def delete_grouped_output(id: str) -> JSONResponse:
     elif category == "demos":
         # Demo groups: {slug}-demos.md + optional companion directory
         demos_dir = outputs_resolved / "demos"
-        md_file = demos_dir / f"{slug}-demos.md"
+        md_file = (demos_dir / f"{slug}-demos.md").resolve()
+        try:
+            md_file.relative_to(outputs_resolved)
+        except ValueError:
+            raise HTTPException(
+                status_code=400, detail="Path outside outputs directory"
+            )
         if md_file.is_file():
             md_file.unlink()
             deleted.append(str(md_file))
-        companion = demos_dir / slug
+        companion = (demos_dir / slug).resolve()
+        try:
+            companion.relative_to(outputs_resolved)
+        except ValueError:
+            raise HTTPException(
+                status_code=400, detail="Path outside outputs directory"
+            )
         if companion.is_dir():
             shutil.rmtree(str(companion))
             deleted.append(str(companion))

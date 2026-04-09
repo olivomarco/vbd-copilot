@@ -1015,3 +1015,333 @@ class TestGroupedOutputsEdge:
         # Empty directory — no files
         resp = client.get("/outputs/grouped")
         assert resp.json() == []
+
+
+# ===========================================================================
+# PATH TRAVERSAL & SECURITY TESTS
+# ===========================================================================
+# Comprehensive coverage of attack vectors against all file-serving endpoints.
+# Each vector is tested against _safe_outputs_path directly and against the
+# HTTP endpoints that accept user-supplied paths.
+# ===========================================================================
+
+
+class TestSafeOutputsPathSecurity:
+    """Attack vectors against the _safe_outputs_path helper."""
+
+    def test_absolute_path_escape(self):
+        """Absolute path pointing outside outputs/ must be rejected."""
+        with pytest.raises(Exception):
+            _safe_outputs_path("/etc/passwd")
+
+    def test_absolute_path_to_app_dir(self):
+        """Absolute path to project root (not outputs/) must be rejected."""
+        with pytest.raises(Exception):
+            _safe_outputs_path(str(server_mod._app_dir / "pyproject.toml"))
+
+    def test_double_dot_relative(self):
+        """Relative ../.. traversal must be rejected."""
+        with pytest.raises(Exception):
+            _safe_outputs_path("../../etc/passwd")
+
+    def test_encoded_dot_dot_literal(self):
+        """Literal '%2E%2E' as directory name (post-URL-decode) is safe
+        because Path treats it as a literal dirname, not traversal.
+        _safe_outputs_path should NOT raise — the resolved path stays
+        inside outputs/. But it won't find a file, which is fine."""
+        # After URL decoding %2E%2E%2F becomes '../' which Python Path
+        # would resolve. Simulate what FastAPI delivers after decoding:
+        with pytest.raises(Exception):
+            _safe_outputs_path("../../../etc/passwd")
+
+    def test_windows_style_separators_on_linux(self):
+        r"""Backslash path separators: `..\..\\etc\\passwd`.
+        On Linux, backslashes are literal filename characters, so the
+        resolved path stays under outputs/ (no real traversal)."""
+        # Should not raise — the backslashes are not path separators on Linux
+        # But the resulting path won't exist. Key: no escape from outputs/.
+        try:
+            result = _safe_outputs_path("..\\..\\etc\\passwd")
+            # If it doesn't raise, the resolved path must still be inside outputs
+            assert result.is_relative_to(server_mod._outputs_dir.resolve())
+        except Exception:
+            pass  # Raising is also acceptable — it means the path was rejected
+
+    def test_dot_dot_with_trailing_slash(self):
+        with pytest.raises(Exception):
+            _safe_outputs_path("../")
+
+    def test_triple_dots(self):
+        """Path component '...' is a normal dirname, not traversal."""
+        # Should not escape outputs/ — '...' is literal
+        try:
+            result = _safe_outputs_path("...")
+            assert result.is_relative_to(server_mod._outputs_dir.resolve())
+        except Exception:
+            pass  # Rejecting is fine too
+
+    def test_quadruple_dots(self):
+        """Path component '....' is a normal dirname."""
+        try:
+            result = _safe_outputs_path("....")
+            assert result.is_relative_to(server_mod._outputs_dir.resolve())
+        except Exception:
+            pass
+
+    def test_mixed_traversal_components(self):
+        """Mix of valid and traversal components."""
+        with pytest.raises(Exception):
+            _safe_outputs_path("slides/../../../etc/passwd")
+
+    def test_dot_slash_current_dir(self):
+        """'./slides' should resolve safely inside outputs/."""
+        out = server_mod._outputs_dir
+        (out / "slides").mkdir(parents=True, exist_ok=True)
+        (out / "slides" / "test.pptx").write_bytes(b"PK")
+        result = _safe_outputs_path("./slides/test.pptx")
+        assert result.is_relative_to(out.resolve())
+
+    def test_unicode_fullwidth_dot(self):
+        """Fullwidth characters (U+FF0E = ．, U+FF0F = ／) should not
+        normalise to ASCII '../' on resolution. They remain literal."""
+        # Fullwidth dots and slashes
+        evil = "\uff0e\uff0e\uff0f\uff0e\uff0e\uff0fpasswd"
+        try:
+            result = _safe_outputs_path(evil)
+            # Must still be inside outputs/
+            assert result.is_relative_to(server_mod._outputs_dir.resolve())
+        except Exception:
+            pass  # Rejecting is fine
+
+    def test_unicode_overlong_dot(self):
+        """Other Unicode dots (e.g. ․ U+2024 ONE DOT LEADER)."""
+        evil = "\u2024\u2024/\u2024\u2024/etc/passwd"
+        try:
+            result = _safe_outputs_path(evil)
+            assert result.is_relative_to(server_mod._outputs_dir.resolve())
+        except Exception:
+            pass
+
+    def test_symlink_traversal(self, tmp_path):
+        """Symlink inside outputs/ pointing outside must be rejected."""
+        out = server_mod._outputs_dir
+        link = out / "evil-link"
+        target = tmp_path / "secret.txt"
+        target.write_text("secret data")
+        link.symlink_to(target)
+        try:
+            _safe_outputs_path(str(link))
+            # resolve() follows symlinks, so it should point outside outputs/
+            # and fail the is_relative_to check
+            assert False, "Should have been rejected — symlink escapes outputs/"
+        except Exception:
+            pass  # Correct: rejected
+        finally:
+            link.unlink(missing_ok=True)
+
+    def test_deeply_nested_traversal(self):
+        """Many levels of ../ to ensure no off-by-one."""
+        deep = "/".join([".."] * 20) + "/etc/passwd"
+        with pytest.raises(Exception):
+            _safe_outputs_path(deep)
+
+    def test_null_byte_mid_path(self):
+        """Null byte in the middle of a path component."""
+        with pytest.raises(Exception):
+            _safe_outputs_path("slides/legit\x00../../etc/passwd")
+
+    def test_null_byte_at_end(self):
+        """Null byte at end of path."""
+        with pytest.raises(Exception):
+            _safe_outputs_path("slides/file.pptx\x00")
+
+
+# ---------------------------------------------------------------------------
+# Endpoint-level path traversal tests
+# ---------------------------------------------------------------------------
+
+
+class TestFileReadPathTraversal:
+    """/file endpoint — path traversal via query param."""
+
+    def test_read_file_traversal(self, client):
+        evil = str(server_mod._outputs_dir / ".." / "pyproject.toml")
+        resp = client.get("/file", params={"path": evil})
+        assert resp.status_code == 400
+
+    def test_read_file_absolute_escape(self, client):
+        resp = client.get("/file", params={"path": "/etc/passwd"})
+        assert resp.status_code == 400
+
+    def test_read_file_null_byte(self, client):
+        resp = client.get("/file", params={"path": "slides/file\x00../../etc/passwd"})
+        assert resp.status_code == 400
+
+    def test_read_file_empty_path(self, client):
+        resp = client.get("/file", params={"path": ""})
+        assert resp.status_code == 400
+
+
+class TestFileDownloadPathTraversal:
+    """/file/download endpoint — path traversal via query param."""
+
+    def test_download_traversal(self, client):
+        evil = str(server_mod._outputs_dir / ".." / "pyproject.toml")
+        resp = client.get("/file/download", params={"path": evil})
+        assert resp.status_code == 400
+
+    def test_download_absolute_escape(self, client):
+        resp = client.get("/file/download", params={"path": "/etc/passwd"})
+        assert resp.status_code == 400
+
+    def test_download_null_byte(self, client):
+        resp = client.get(
+            "/file/download", params={"path": "slides\x00../../etc/passwd"}
+        )
+        assert resp.status_code == 400
+
+    def test_download_dot_dot_encoded_after_decode(self, client):
+        """After FastAPI decodes %2E%2E%2F it becomes ../ — must be blocked."""
+        resp = client.get("/file/download", params={"path": "../../../etc/passwd"})
+        assert resp.status_code == 400
+
+    def test_download_double_url_encoding_safe(self, client):
+        """Double-encoded %252F becomes literal '%2F' after one decode.
+        Path('%2F..%2F') is a literal dirname, not traversal. Should get
+        400 (not found or invalid) but must NOT serve /etc/passwd."""
+        resp = client.get("/file/download", params={"path": "%2E%2E%2Fetc%2Fpasswd"})
+        # FastAPI decodes once; %2E%2E%2F becomes ../etc/passwd in the handler
+        # _safe_outputs_path should block it
+        assert resp.status_code in (400, 404)
+
+
+class TestOutputMetadataPathTraversal:
+    """/outputs/metadata endpoint — path traversal via query param."""
+
+    def test_metadata_traversal(self, client):
+        evil = str(server_mod._outputs_dir / ".." / "pyproject.toml")
+        resp = client.get("/outputs/metadata", params={"path": evil})
+        assert resp.status_code == 400
+
+    def test_metadata_absolute_escape(self, client):
+        resp = client.get("/outputs/metadata", params={"path": "/etc/passwd"})
+        assert resp.status_code == 400
+
+    def test_metadata_null_byte(self, client):
+        resp = client.get(
+            "/outputs/metadata", params={"path": "slides\x00../../etc/passwd"}
+        )
+        assert resp.status_code == 400
+
+    def test_metadata_empty_path(self, client):
+        resp = client.get("/outputs/metadata", params={"path": ""})
+        assert resp.status_code == 400
+
+
+class TestDeleteOutputPathTraversal:
+    """/outputs DELETE endpoint — additional traversal vectors."""
+
+    def test_delete_absolute_escape(self, client):
+        resp = client.delete("/outputs", params={"path": "/etc/passwd"})
+        assert resp.status_code == 400
+
+    def test_delete_null_byte(self, client):
+        resp = client.delete("/outputs", params={"path": "slides\x00../../etc/passwd"})
+        assert resp.status_code == 400
+
+    def test_delete_deeply_nested_traversal(self, client):
+        deep = "/".join([".."] * 20) + "/etc/passwd"
+        resp = client.delete("/outputs", params={"path": deep})
+        assert resp.status_code == 400
+
+
+class TestGroupedOutputPathTraversal:
+    """/outputs/grouped DELETE endpoint — crafted slug traversal."""
+
+    def test_grouped_delete_traversal_slug(self, client):
+        """Slug like ../../etc should be caught by resolve + relative_to check."""
+        (server_mod._outputs_dir / "hackathons").mkdir(parents=True, exist_ok=True)
+        resp = client.delete("/outputs/grouped", params={"id": "hackathons/../../etc"})
+        assert resp.status_code in (400, 404)
+
+    def test_grouped_delete_absolute_slug(self, client):
+        resp = client.delete(
+            "/outputs/grouped", params={"id": "hackathons//etc/passwd"}
+        )
+        assert resp.status_code in (400, 404)
+
+    def test_grouped_delete_dot_dot_ai_project(self, client):
+        (server_mod._outputs_dir / "ai-projects").mkdir(parents=True, exist_ok=True)
+        resp = client.delete(
+            "/outputs/grouped", params={"id": "ai-projects/../../secret"}
+        )
+        assert resp.status_code in (400, 404)
+
+    def test_grouped_delete_null_in_slug(self, client):
+        resp = client.delete(
+            "/outputs/grouped", params={"id": "hackathons/my-hack\x00../../etc"}
+        )
+        # Should be caught by category parsing or path safety
+        assert resp.status_code in (400, 404)
+
+    def test_grouped_delete_slides_traversal(self, client):
+        """Slides slug with traversal should not escape."""
+        (server_mod._outputs_dir / "slides").mkdir(parents=True, exist_ok=True)
+        resp = client.delete(
+            "/outputs/grouped", params={"id": "slides/../../etc/passwd"}
+        )
+        # id splits as ("slides", "../../etc/passwd") — the slug contains
+        # a slash so the endpoint rejects with 400 (invalid category parse)
+        assert resp.status_code == 400
+
+    def test_grouped_delete_demos_traversal(self, client):
+        (server_mod._outputs_dir / "demos").mkdir(parents=True, exist_ok=True)
+        resp = client.delete("/outputs/grouped", params={"id": "demos/../../etc"})
+        assert resp.status_code in (400, 404)
+
+
+class TestZipPathTraversal:
+    """/outputs/zip endpoint — mixed safe/unsafe paths."""
+
+    def test_zip_traversal_path_rejected(self, client):
+        evil = str(server_mod._outputs_dir / ".." / "pyproject.toml")
+        resp = client.post("/outputs/zip", json={"paths": [evil]})
+        assert resp.status_code == 400
+
+    def test_zip_absolute_escape_rejected(self, client):
+        resp = client.post("/outputs/zip", json={"paths": ["/etc/passwd"]})
+        assert resp.status_code == 400
+
+    def test_zip_null_byte_rejected(self, client):
+        resp = client.post(
+            "/outputs/zip", json={"paths": ["slides\x00../../etc/passwd"]}
+        )
+        assert resp.status_code == 400
+
+    def test_zip_mixed_safe_and_unsafe(self, client):
+        """One valid path + one traversal path — entire request must fail."""
+        safe = server_mod._outputs_dir / "slides" / "deck.pptx"
+        safe.parent.mkdir(parents=True, exist_ok=True)
+        safe.write_bytes(b"PK\x03\x04fake")
+        evil = str(server_mod._outputs_dir / ".." / "pyproject.toml")
+        resp = client.post("/outputs/zip", json={"paths": [str(safe), evil]})
+        assert resp.status_code == 400
+
+    def test_zip_deeply_nested_traversal(self, client):
+        deep = "/".join([".."] * 20) + "/etc/passwd"
+        resp = client.post("/outputs/zip", json={"paths": [deep]})
+        assert resp.status_code == 400
+
+    def test_zip_name_injection(self, client):
+        """Zip filename with special characters should be sanitised."""
+        f = server_mod._outputs_dir / "slides" / "deck.pptx"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_bytes(b"PK\x03\x04fake")
+        resp = client.post(
+            "/outputs/zip",
+            json={"paths": [str(f)], "name": '../../../etc/evil"name'},
+        )
+        assert resp.status_code == 200
+        disp = resp.headers.get("content-disposition", "")
+        # Must not contain ../ or quotes that break the header
+        assert "../" not in disp

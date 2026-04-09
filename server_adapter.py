@@ -80,7 +80,9 @@ class SessionConnection:
         self.response_buffer: list[str] = []
         self.output_files: list[str] = []
         self.ask_user_lock: asyncio.Lock = asyncio.Lock()
-        self.pending_invocations: dict[str, str] = {}  # tool/subagent key -> invocation_id
+        self.pending_invocations: dict[
+            str, str
+        ] = {}  # tool/subagent key -> invocation_id
 
     def next_seq(self) -> int:
         """Return the next monotonic sequence number."""
@@ -155,6 +157,7 @@ def set_collector(collector: Any) -> None:
     """Inject the EventCollector so WS handlers can persist events to DB."""
     global _collector
     _collector = collector
+
 
 # Legacy single-session aliases (used by terminal mode / backward compat)
 _active_ws: Any | None = None
@@ -666,7 +669,8 @@ def _make_ws_handler(session_id: str):
             parent_sa = sa_stack[-1] if sa_stack else None
             if _collector:
                 inv_id = _collector.on_tool_start(
-                    str(tool), args_str,
+                    str(tool),
+                    args_str,
                     subagent_name=parent_sa,
                     session_id=session_id,
                 )
@@ -701,9 +705,7 @@ def _make_ws_handler(session_id: str):
             if _collector and conn:
                 inv_id = conn.pending_invocations.pop(str(tool), None)
                 if inv_id:
-                    _collector.on_tool_end(
-                        inv_id, output=output_str, status="success"
-                    )
+                    _collector.on_tool_end(inv_id, output=output_str, status="success")
             payload = {
                 "tool": str(tool),
                 "duration_ms": duration_ms,
@@ -746,9 +748,7 @@ def _make_ws_handler(session_id: str):
                 conn.subagent_correlations[str(name)] = corr_id
             # Persist to DB via collector
             if _collector:
-                inv_id = _collector.on_subagent_start(
-                    str(name), session_id=session_id
-                )
+                inv_id = _collector.on_subagent_start(str(name), session_id=session_id)
                 if inv_id and conn:
                     conn.pending_invocations[f"subagent:{name}"] = inv_id
             emit("subagent_started", {"agent": str(name)}, correlation_id=corr_id)
@@ -798,7 +798,8 @@ def _make_ws_handler(session_id: str):
                 inv_id = conn.pending_invocations.pop(f"subagent:{name}", None)
                 if inv_id:
                     _collector.on_subagent_end(
-                        inv_id, status="error",
+                        inv_id,
+                        status="error",
                         error_message=str(error)[:500],
                     )
             emit(
