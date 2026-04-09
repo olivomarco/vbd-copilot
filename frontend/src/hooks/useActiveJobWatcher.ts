@@ -41,19 +41,18 @@ export function useActiveJobWatcher() {
       if (!isLive) continue;
 
       // If the AgentWorkspace's useWebSocket already has a WS **fully
-      // connected** (OPEN), close our watcher connection so only one WS
-      // is active per session.  We specifically require OPEN (readyState
-      // === 1) rather than < CLOSING — if we close the watcher while the
-      // workspace WS is still CONNECTING, there is a window where the
-      // server sees 0 WebSockets, destroys the SessionConnection, and
-      // the _user_input callback loses its input_queue.
+      // connected** (OPEN), keep our watcher WS alive as a backup
+      // transport — but skip creating a new one if we already have one.
+      // Having two WSes receiving the same events is fine: the processing
+      // gate below skips most events when the workspace WS is active,
+      // and the store's pushEvent dedup handles the rest.
+      //
+      // CRITICAL: Do NOT close the watcher WS here.  If the workspace WS
+      // drops briefly (reconnect, stale timeout, tab throttle), the
+      // watcher provides continuity — without it, _send() sees 0 WSes
+      // and silently drops events, causing permanent gaps in the feed.
       if (job._ws && job._ws.readyState === WebSocket.OPEN) {
         liveIds.add(id);
-        const existing = connections.current.get(id);
-        if (existing) {
-          existing.close();
-          connections.current.delete(id);
-        }
         continue;
       }
 
