@@ -190,6 +190,7 @@ def install_task_keeping_factory(loop: asyncio.AbstractEventLoop | None = None) 
     target_loop.set_task_factory(_keeping_factory)
     _task_factory_installed = True
 
+
 # EventCollector reference — injected by server.py via set_collector()
 _collector: Any = None
 
