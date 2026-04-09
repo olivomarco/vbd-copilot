@@ -85,6 +85,26 @@ Bonus: Switched from deprecated `@app.on_event("startup/shutdown")` to `lifespan
 
 **Impact:** Informs next sprint priorities. Cost savings from fixing model/timeout parsing (#1) are immediate.
 
+### 2026-04-07: Forward verbose/debug SDK events + frontend LiveActivityLog
+
+**By:** McManus (Backend & CLI Dev), Redfoot (Full-Stack Frontend Dev)
+
+**What:** Backend now forwards 11 additional SDK event types over WebSocket (reasoning deltas, tool progress, intent, compaction, turn start/end, handoff, subagent deselected). Frontend adds verbose mode toggle in Settings and a LiveActivityLog component in MissionControl — running jobs show collapsible activity feeds with always-visible critical events and verbose-only debug events. 200-event cap with auto-scroll.
+
+**Why:** Frontend had no WebSocket in MissionControl — jobs appeared "stuck" when waiting for input. Verbose mode gives the same event visibility as CLI `/debug` mode.
+
+**Impact:** server_adapter.py (11 new event handlers), settingsStore.ts, Settings.tsx, MissionControl.tsx, new LiveActivityLog.tsx. No API changes. Backward compatible — verbose defaults to off.
+
+### 2026-04-09: Path traversal fix in grouped delete (demos branch) + security hardening
+
+**By:** Keaton (Lead), McManus (Backend & CLI Dev), Hockney (Tester)
+
+**What:** Found and fixed a HIGH-severity path traversal vulnerability in `DELETE /outputs/grouped` demos branch. The `slug` from user input was used directly in `Path()` construction without `resolve()` + `relative_to()` validation — allowing `../../` to escape `outputs/` and delete arbitrary directories via `shutil.rmtree`. Hackathons/ai-projects branches already had the guard; demos was missed. Fix adds defence-in-depth slug validation (rejects `..`, `/`, `\`, null bytes) plus `resolve()` + `relative_to()` containment matching the other branches. 48 security tests added covering all file-serving endpoints — no additional vulnerabilities found. All 142 tests pass.
+
+**Why:** Security audit requested by Marco Olivo. All file-handling endpoints reviewed for traversal, symlink, double-encoding, and null byte attacks.
+
+**Impact:** server.py `delete_grouped_output()` patched. test_server_extended.py +48 tests. Two LOW findings noted: grouped delete responses leak absolute paths; `rglob()` follows symlinks in metadata. Critical contract reaffirmed: any new endpoint touching file paths MUST use `_safe_outputs_path()` or replicate `resolve()` + `is_relative_to()`.
+
 ## Governance
 
 - All meaningful changes require team consensus

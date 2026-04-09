@@ -101,3 +101,19 @@ Phase 1 completed by McManus + Redfoot + Hockney in parallel:
 - **Frontend** unwraps envelopes with backward compat, ID-based dedup, snapshot hydration, dual-WS bug fixed
 - **34 new tests** in `tests/test_server_adapter.py`, 346 total passing
 - Decisions recorded: SessionConnection pattern, envelope protocol structure, frontend backward-compat strategy
+
+## Security Review — Path Traversal Analysis (2026-04-09)
+
+Reviewed all file-path-accepting endpoints in `server.py` for path traversal, double-encoding, symlink, and null byte attacks.
+
+### Key Findings
+- **HIGH:** `DELETE /outputs/grouped` demos branch — `slug` from user input used directly in `Path()` construction without `resolve()` + `relative_to()` check. Can escape `outputs/` via `../../`. The hackathons/ai-projects branches have proper guards; demos was missed. Fix: add same containment check.
+- **LOW:** Grouped delete responses leak absolute server paths (all branches). Single-file `DELETE /outputs` correctly returns relative paths.
+- **LOW:** `GET /outputs` follows symlinks via `rglob()`, can leak external file metadata. Content reads are safe via `_safe_outputs_path()`.
+- **SAFE:** `_safe_outputs_path()` is correct — handles null bytes, symlinks, double-encoding, `..` traversal. Covers `/file`, `/file/download`, `DELETE /outputs`, `/outputs/zip`, `/outputs/metadata`, `/preview/pptx`.
+- **SAFE:** Double-encoding is not exploitable — Starlette decodes once, `%252F` becomes literal `%2F` which `Path()` treats as filename chars.
+- **SAFE:** ZIP arcname uses relative paths only.
+
+### Architecture Pattern
+- **Critical contract:** Any new endpoint that touches file paths MUST use `_safe_outputs_path()` or replicate `resolve()` + `is_relative_to(outputs_resolved)`. No exceptions.
+- The demos grouped delete is the one place this contract was broken.

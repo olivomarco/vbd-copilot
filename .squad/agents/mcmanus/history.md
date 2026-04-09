@@ -159,3 +159,16 @@
 - All new event types use `hasattr(SessionEventType, "EVENT_NAME")` guards for backward compat with older SDK versions.
 - Events logically grouped: reasoning/intent near streaming deltas, tool partial/progress near tool lifecycle, session/turn/subagent near their siblings.
 - Attribute names match ui.py patterns exactly (e.g., `d.partial_output`, `d.progress_message`, `d.intent`, `d.reasoning_text`, `d.post_compaction_tokens`).
+
+## Security Audit — Path Traversal in server.py (2026-04-09)
+
+### What was done
+- **Full code-level security audit** of every endpoint in `server.py` that handles paths or file identifiers.
+- **Vulnerability found and fixed**: `delete_grouped_output` demos branch lacked `resolve()` + `relative_to()` validation. A crafted slug like `../../../../etc` could escape the outputs directory and delete arbitrary directories via `shutil.rmtree`. Hackathons/ai-projects branches already had the check; demos did not.
+- **Defence-in-depth slug check added**: all branches now reject slugs containing `..`, `/`, `\`, or null bytes before any path construction.
+- **Confirmed secure**: `_safe_outputs_path()` (covers `/file`, `/file/download`, `DELETE /outputs`, `/outputs/metadata`, `/preview/pptx`, `/outputs/zip`), `resolve_prefix()` in store.py (parameterized SQL, whitelist table names), session ID handling, WebSocket message parsing.
+
+### Key patterns
+- `Path.resolve()` follows symlinks, but `is_relative_to(outputs_resolved)` catches symlink escapes because the resolved target won't be under outputs/.
+- FastAPI/Starlette auto-decodes query params once — `%2F` becomes `/` before reaching Python. Double-encoding (`%252F`) becomes literal `%2F` (a filename, not separator). No bypass.
+- `resolve_prefix()` LIKE with user-supplied prefix is safe: parameterized query prevents injection, wildcard characters (`%`, `_`) could broaden matching but only return row IDs already accessible to the caller.

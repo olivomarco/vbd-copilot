@@ -12,7 +12,27 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
-## Phase 2 Tests — 2026-04-07
+## Path Traversal Security Audit — 2026-04-09
+
+Added 48 security-focused tests to `test_server_extended.py` covering path traversal attack vectors across all file-serving endpoints. 8 new test classes:
+
+- **TestSafeOutputsPathSecurity** (16 tests): Direct attacks against `_safe_outputs_path` — absolute path escape, `../../` traversal, encoded dot-dot, Windows backslashes, triple/quad dots, Unicode fullwidth characters, symlink traversal, null bytes (mid-path + end), deeply nested `../`, mixed traversal components.
+- **TestFileReadPathTraversal** (4 tests): `/file` endpoint — traversal, absolute escape, null byte, empty path.
+- **TestFileDownloadPathTraversal** (5 tests): `/file/download` endpoint — traversal, absolute escape, null byte, decoded `%2E%2E%2F`, double URL encoding.
+- **TestOutputMetadataPathTraversal** (4 tests): `/outputs/metadata` — traversal, absolute, null byte, empty.
+- **TestDeleteOutputPathTraversal** (3 tests): `/outputs` DELETE — absolute, null byte, deeply nested.
+- **TestGroupedOutputPathTraversal** (6 tests): `/outputs/grouped` DELETE with crafted slugs — `hackathons/../../etc`, absolute slug, ai-project traversal, null in slug, slides traversal, demos traversal.
+- **TestZipPathTraversal** (6 tests): `/outputs/zip` — traversal, absolute, null byte, mixed safe+unsafe paths, deep nesting, filename injection in Content-Disposition header.
+
+**Key findings:**
+- **No vulnerabilities discovered.** The `_safe_outputs_path()` function is well-designed: it resolves paths (normalizing `../`), then checks `is_relative_to(outputs_resolved)`. This catches all tested vectors.
+- The `/outputs/grouped` DELETE endpoint has separate `resolve().relative_to()` checks for hackathon/ai-project categories — also solid.
+- Symlink traversal is correctly blocked because `resolve()` follows symlinks before the `is_relative_to` check.
+- Zip filename injection is sanitised via regex `re.sub(r"[^\w\-.]", "_", ...)`.
+- On Linux, backslash-based paths (`..\\..\\`) are treated as literal filenames, not directory separators — no traversal risk.
+- Unicode fullwidth dots/slashes (U+FF0E, U+FF0F) are not normalised to ASCII by Python's `Path.resolve()` — they remain harmless literal characters.
+
+All 142 server tests pass (1.56s). No regressions.
 
 Added 11 tests across three files covering McManus's Phase 2 backend changes:
 
