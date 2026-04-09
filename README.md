@@ -21,6 +21,9 @@ cd vbd-copilot
 ./scripts/dev.sh --cli        # CLI (Docker)
 ```
 
+> [!NOTE]
+> **Windows users:** see [docs/INSTALLATION.md](docs/INSTALLATION.md#option-c--cli-via-docker) for Windows-specific Docker commands (`$(gh auth token)` doesn't work in CMD).
+
 > [!TIP]
 > `setup.sh` checks prerequisites (`gh`, `uv`, `node`) and installs everything. Pass `--with-system-deps` to also install LibreOffice and Poppler (PPTX thumbnails).
 

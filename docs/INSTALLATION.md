@@ -167,11 +167,25 @@ cd vbd-copilot
 # Build the image (first time only, ~1 GB)
 docker build -t csa-copilot .
 
-# Run the CLI
+# Run the CLI (macOS / Linux)
 docker run -it --rm \
   -e GITHUB_TOKEN=$(gh auth token) \
   -v "$(pwd)/outputs:/app/outputs" \
   csa-copilot
+```
+
+**Windows (CMD):** The `$(…)` syntax doesn't work in CMD. Copy your token manually:
+
+```cmd
+gh auth token
+# Copy the output, then:
+docker run -it --rm -e GITHUB_TOKEN=YOUR_TOKEN_HERE -v "%cd%/outputs:/app/outputs" csa-copilot
+```
+
+**Windows (PowerShell):**
+
+```powershell
+docker run -it --rm -e GITHUB_TOKEN=$(gh auth token) -v "${PWD}/outputs:/app/outputs" csa-copilot
 ```
 
 | Parameter | Purpose |
