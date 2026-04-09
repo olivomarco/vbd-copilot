@@ -57,6 +57,7 @@ class SessionConnection:
         "response_buffer",
         "output_files",
         "ask_user_lock",
+        "pending_invocations",
     )
 
     def __init__(self, session_id: str) -> None:
@@ -79,6 +80,7 @@ class SessionConnection:
         self.response_buffer: list[str] = []
         self.output_files: list[str] = []
         self.ask_user_lock: asyncio.Lock = asyncio.Lock()
+        self.pending_invocations: dict[str, str] = {}  # tool/subagent key -> invocation_id
 
     def next_seq(self) -> int:
         """Return the next monotonic sequence number."""
@@ -105,6 +107,7 @@ class SessionConnection:
         self.subagent_correlations.clear()
         self._seq = 0
         self.response_buffer.clear()
+        self.pending_invocations.clear()
         # Drain input queue ONLY if no _user_input callback is actively
         # waiting for a response.  When the lock is held a callback is
         # blocked on ``input_queue.get()``; draining the queue would
@@ -137,6 +140,21 @@ class SessionConnection:
 # ---------------------------------------------------------------------------
 
 _connections: dict[str, SessionConnection] = {}
+
+# Strong reference set for fire-and-forget asyncio tasks.
+# Python 3.12+ only keeps weak references to tasks; without this set,
+# tasks created via asyncio.ensure_future() can be garbage-collected
+# mid-execution, silently dropping WebSocket sends.
+_background_tasks: set[asyncio.Task[Any]] = set()
+
+# EventCollector reference — injected by server.py via set_collector()
+_collector: Any = None
+
+
+def set_collector(collector: Any) -> None:
+    """Inject the EventCollector so WS handlers can persist events to DB."""
+    global _collector
+    _collector = collector
 
 # Legacy single-session aliases (used by terminal mode / backward compat)
 _active_ws: Any | None = None
@@ -481,14 +499,21 @@ def _send(payload: dict[str, Any], session_id: str | None = None) -> None:
             return
 
     text = json.dumps(payload, ensure_ascii=False)
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.get_event_loop()
     dead: list[Any] = []
 
-    async def _safe_send(ws: Any) -> None:
+    async def _safe_send(ws: Any, sid: str | None) -> None:
         try:
             await ws.send_text(text)
         except (RuntimeError, Exception):
-            dead.append(ws)
+            # Clean up dead WebSocket
+            if sid:
+                c = _connections.get(sid)
+                if c:
+                    c.websockets.discard(ws)
 
     for ws in list(ws_set):  # list() to avoid mutation during iteration
         try:
@@ -497,7 +522,9 @@ def _send(payload: dict[str, Any], session_id: str | None = None) -> None:
                 dead.append(ws)
                 continue
             if loop.is_running():
-                asyncio.ensure_future(_safe_send(ws))
+                task = loop.create_task(_safe_send(ws, session_id))
+                _background_tasks.add(task)
+                task.add_done_callback(_background_tasks.discard)
         except RuntimeError:
             dead.append(ws)
     # Clean up dead connections
@@ -634,10 +661,20 @@ def _make_ws_handler(session_id: str):
             corr_id = str(uuid.uuid4())
             if conn:
                 conn.tool_starts[str(tool)] = (time.time(), corr_id)
-            payload: dict[str, Any] = {"tool": str(tool), "args": args_str}
+            # Persist to DB via collector
             sa_stack = conn.active_subagents if conn else []
-            if sa_stack:
-                payload["_subagent"] = sa_stack[-1]
+            parent_sa = sa_stack[-1] if sa_stack else None
+            if _collector:
+                inv_id = _collector.on_tool_start(
+                    str(tool), args_str,
+                    subagent_name=parent_sa,
+                    session_id=session_id,
+                )
+                if inv_id and conn:
+                    conn.pending_invocations[str(tool)] = inv_id
+            payload: dict[str, Any] = {"tool": str(tool), "args": args_str}
+            if parent_sa:
+                payload["_subagent"] = parent_sa
             emit("tool_started", payload, correlation_id=corr_id)
             # Emit phase detection
             phase = _detect_phase(tool=str(tool))
@@ -660,6 +697,13 @@ def _make_ws_handler(session_id: str):
             duration_ms = int((time.time() - started) * 1000)
             output_raw = getattr(d, "output", None)
             output_str = str(output_raw)[:500] if output_raw else None
+            # Persist to DB via collector
+            if _collector and conn:
+                inv_id = conn.pending_invocations.pop(str(tool), None)
+                if inv_id:
+                    _collector.on_tool_end(
+                        inv_id, output=output_str, status="success"
+                    )
             payload = {
                 "tool": str(tool),
                 "duration_ms": duration_ms,
@@ -700,6 +744,13 @@ def _make_ws_handler(session_id: str):
             if conn:
                 conn.active_subagents.append(str(name))
                 conn.subagent_correlations[str(name)] = corr_id
+            # Persist to DB via collector
+            if _collector:
+                inv_id = _collector.on_subagent_start(
+                    str(name), session_id=session_id
+                )
+                if inv_id and conn:
+                    conn.pending_invocations[f"subagent:{name}"] = inv_id
             emit("subagent_started", {"agent": str(name)}, correlation_id=corr_id)
             phase = _detect_phase(agent=str(name))
             if phase and phase != last_phase:
@@ -718,6 +769,11 @@ def _make_ws_handler(session_id: str):
                 except ValueError:
                     if sa_stack:
                         sa_stack.pop()
+            # Persist to DB via collector
+            if _collector and conn:
+                inv_id = conn.pending_invocations.pop(f"subagent:{name}", None)
+                if inv_id:
+                    _collector.on_subagent_end(inv_id, status="success")
             emit("subagent_completed", {"agent": str(name)}, correlation_id=corr_id)
             return
 
@@ -737,6 +793,14 @@ def _make_ws_handler(session_id: str):
                 except ValueError:
                     if sa_stack:
                         sa_stack.pop()
+            # Persist to DB via collector
+            if _collector and conn:
+                inv_id = conn.pending_invocations.pop(f"subagent:{name}", None)
+                if inv_id:
+                    _collector.on_subagent_end(
+                        inv_id, status="error",
+                        error_message=str(error)[:500],
+                    )
             emit(
                 "subagent_failed",
                 {"agent": str(name), "error": str(error)},
@@ -817,6 +881,16 @@ def _make_ws_handler(session_id: str):
             from pricing import estimate_cost
 
             cost = estimate_cost(model_name, input_t, output_t)
+            # Persist to DB via collector
+            if _collector:
+                _collector.on_usage(
+                    input_tokens=input_t,
+                    output_tokens=output_t,
+                    cache_read_tokens=cache_r,
+                    cache_write_tokens=cache_w,
+                    model=model_name,
+                    session_id=session_id,
+                )
             emit(
                 "usage",
                 {

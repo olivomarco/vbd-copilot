@@ -2,6 +2,9 @@
 
 The collector is frontend-agnostic: it maintains lightweight in-memory
 state to track the current turn and pending invocations.
+
+State is tracked per-session so multiple concurrent sessions never
+interfere with each other.
 """
 
 from __future__ import annotations
@@ -17,12 +20,28 @@ log = logging.getLogger(__name__)
 class EventCollector:
     """Maps high-level events (turn start, tool call, etc.) to
     :class:`EventStore` writes.
+
+    All mutable state is keyed per-session so concurrent sessions are
+    fully isolated.
     """
 
     def __init__(self, store: EventStore) -> None:
         self._store = store
-        self._current_turn_id: str | None = None
-        self._current_session_id: str | None = None
+        # Per-session tracking: session_id -> current turn_id
+        self._session_turns: dict[str, str] = {}
+
+    # ── Internal helpers ──────────────────────────────────────────────────
+
+    def _resolve_turn(self, session_id: str | None) -> tuple[str | None, str | None]:
+        """Return (session_id, turn_id) for the given or most-recent session."""
+        if session_id:
+            turn_id = self._session_turns.get(session_id)
+            return session_id, turn_id
+        # Legacy single-session fallback: use the sole entry if exactly one
+        if len(self._session_turns) == 1:
+            sid = next(iter(self._session_turns))
+            return sid, self._session_turns[sid]
+        return None, None
 
     # ── Session lifecycle ─────────────────────────────────────────────────
 
@@ -35,7 +54,6 @@ class EventCollector:
         frontend: str = "cli",
         server_mode: str = "stdio",
     ) -> None:
-        self._current_session_id = session_id
         self._store.start_session(
             session_id,
             agent=agent,
@@ -46,9 +64,7 @@ class EventCollector:
 
     def on_session_ended(self, session_id: str, *, resumable: bool = False) -> None:
         self._store.end_session(session_id, resumable=resumable)
-        if self._current_session_id == session_id:
-            self._current_session_id = None
-            self._current_turn_id = None
+        self._session_turns.pop(session_id, None)
 
     # ── Turn lifecycle ────────────────────────────────────────────────────
 
@@ -67,8 +83,7 @@ class EventCollector:
             model=model,
             user_prompt=user_prompt,
         )
-        self._current_turn_id = turn_id
-        self._current_session_id = session_id
+        self._session_turns[session_id] = turn_id
         return turn_id
 
     def on_turn_end(
@@ -98,10 +113,10 @@ class EventCollector:
             subagent_count=subagent_count,
             status=status,
         )
-        # Update session counters using the actual stored values
-        session_id = self._current_session_id
+        # Look up the owning session from the turn row, not from mutable state
+        turn = self._store.get_turn(turn_id)
+        session_id = turn["session_id"] if turn else None
         if session_id:
-            turn = self._store.get_turn(turn_id)
             actual_in = turn["input_tokens"] if turn else input_tokens
             actual_out = turn["output_tokens"] if turn else output_tokens
             self._store.update_session_counters(
@@ -110,8 +125,11 @@ class EventCollector:
                 input_tokens_delta=actual_in,
                 output_tokens_delta=actual_out,
             )
-        if self._current_turn_id == turn_id:
-            self._current_turn_id = None
+        # Clear this session's current turn if it matches
+        for sid, tid in list(self._session_turns.items()):
+            if tid == turn_id:
+                del self._session_turns[sid]
+                break
 
     # ── Token usage update (mid-turn, from ASSISTANT_USAGE events) ────────
 
@@ -123,13 +141,14 @@ class EventCollector:
         cache_read_tokens: int = 0,
         cache_write_tokens: int = 0,
         model: str = "",
+        session_id: str | None = None,
     ) -> None:
         """Record token usage for the current turn.
 
         Called when an ``ASSISTANT_USAGE`` event fires mid-stream.
         Overwrites (not increments) the turn's token fields.
         """
-        turn_id = self._current_turn_id
+        _, turn_id = self._resolve_turn(session_id)
         if not turn_id:
             return
         cost = estimate_cost(model, input_tokens, output_tokens)
@@ -155,15 +174,15 @@ class EventCollector:
         tool_name: str,
         args: str = "{}",
         subagent_name: str | None = None,
+        session_id: str | None = None,
     ) -> str | None:
         """Record the start of a tool call.  Returns invocation ID."""
-        turn_id = self._current_turn_id
-        session_id = self._current_session_id
-        if not turn_id or not session_id:
+        sid, turn_id = self._resolve_turn(session_id)
+        if not turn_id or not sid:
             return None
         inv_id = self._store.record_invocation(
             turn_id=turn_id,
-            session_id=session_id,
+            session_id=sid,
             inv_type="tool_call",
             name=tool_name,
             input_data=args,
@@ -191,14 +210,17 @@ class EventCollector:
 
     # ── Subagent invocations ──────────────────────────────────────────────
 
-    def on_subagent_start(self, agent_name: str) -> str | None:
-        turn_id = self._current_turn_id
-        session_id = self._current_session_id
-        if not turn_id or not session_id:
+    def on_subagent_start(
+        self,
+        agent_name: str,
+        session_id: str | None = None,
+    ) -> str | None:
+        sid, turn_id = self._resolve_turn(session_id)
+        if not turn_id or not sid:
             return None
         inv_id = self._store.record_invocation(
             turn_id=turn_id,
-            session_id=session_id,
+            session_id=sid,
             inv_type="subagent",
             name=agent_name,
         )

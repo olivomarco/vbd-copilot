@@ -1825,3 +1825,9 @@ def configure(
     _collector = collector
     _app_dir = app_dir
     _outputs_dir = outputs_dir
+
+    # Also inject the collector into the WS adapter so event handlers
+    # can persist tool/subagent/usage events to the DB.
+    from server_adapter import set_collector as _set_adapter_collector
+
+    _set_adapter_collector(collector)

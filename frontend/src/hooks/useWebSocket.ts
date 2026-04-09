@@ -691,6 +691,60 @@ export function useWebSocket(sessionId: string | null) {
     return () => clearInterval(interval);
   }, [sessionId, connect]);
 
+  // When the tab/window regains visibility, immediately check whether the
+  // session completed while we were off-screen. Browsers throttle or freeze
+  // WebSocket traffic for background tabs, so the "done" event can be lost.
+  useEffect(() => {
+    if (!sessionId) return;
+    const sid = sessionId;
+
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      const job = useJobStore.getState().getJob(sid);
+      if (!job) return;
+      if (job.status === "completed" || job.status === "failed" || job.status === "cancelled") return;
+
+      getSessionStatus(sid)
+        .then((srv) => {
+          const freshJob = useJobStore.getState().getJob(sid);
+          if (!freshJob || freshJob.status === "completed" || freshJob.status === "failed" || freshJob.status === "cancelled") return;
+
+          if (srv.status === "ended" || (!srv.in_memory && !srv.has_running_turn)) {
+            jobDone.current = true;
+            clearInputNotification();
+            notifyJobCompleted(freshJob.title || "Your content is ready");
+            updateJob(sid, {
+              status: "completed",
+              phase: "done",
+              completedAt: Date.now(),
+              pendingInput: [],
+            });
+
+            // Restore output files from server if we missed the new_files event
+            if (srv.output_files && srv.output_files.length > 0) {
+              const existingFiles = new Set(freshJob.outputFiles);
+              const newFiles = srv.output_files.filter((f: string) => !existingFiles.has(f));
+              if (newFiles.length > 0) {
+                updateJob(sid, { outputFiles: [...freshJob.outputFiles, ...newFiles] });
+                pushEvent(sid, { type: "new_files", data: { files: newFiles } });
+              }
+            }
+          } else if (srv.status === "active" && srv.in_memory) {
+            // Session still alive — ensure WS is connected
+            const ws = wsRef.current;
+            if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+              reconnectAttempts.current = 0;
+              connect(sid);
+            }
+          }
+        })
+        .catch(() => { /* server unreachable — WS reconnect will handle it */ });
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [sessionId, connect]);
+
   const safeSend = useCallback((data: string) => {
     let ws = wsRef.current;
 

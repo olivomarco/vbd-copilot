@@ -79,12 +79,44 @@ export function CompletionToast() {
   const openInLibrary = (job: Job, key: number) => {
     const primaryFile = job.outputFiles[0] || "";
     const isPptx = primaryFile.endsWith(".pptx");
-    const isMd = primaryFile.endsWith(".md");
-    const path = isPptx
-      ? `/library/slides?path=${encodeURIComponent(primaryFile)}`
-      : isMd
-        ? `/library/markdown?path=${encodeURIComponent(primaryFile)}`
-        : "/library";
+
+    // Derive the route matching OutputLibrary's handlePreview logic.
+    // Parse the path to find the category segment after "outputs/".
+    let path: string;
+    if (isPptx) {
+      path = `/library/slides?path=${encodeURIComponent(primaryFile)}`;
+    } else {
+      // Extract category + slug from the outputs directory structure:
+      //   .../outputs/demos/{slug}-demos.md        → demos/{slug}
+      //   .../outputs/hackathons/{event}/...        → hackathons/{event}
+      //   .../outputs/ai-projects/{project}/...     → ai-projects/{project}
+      const outputsIdx = primaryFile.lastIndexOf("/outputs/");
+      const afterOutputs = outputsIdx >= 0 ? primaryFile.slice(outputsIdx + "/outputs/".length) : "";
+      const segments = afterOutputs.split("/");
+      const category = segments[0]; // demos | hackathons | ai-projects | slides
+
+      if (category === "demos" && job.outputFiles.length === 1 && primaryFile.endsWith(".md")) {
+        // Single-file demo → markdown viewer
+        path = `/library/markdown?path=${encodeURIComponent(primaryFile)}`;
+      } else if (category && segments.length >= 2) {
+        // Multi-file demos, hackathons, ai-projects → project explorer
+        let slug: string;
+        if (category === "demos") {
+          // slug from the md filename: {slug}-demos.md
+          const mdFile = job.outputFiles.find((f) => f.endsWith("-demos.md"));
+          const mdName = mdFile ? mdFile.split("/").pop()!.replace("-demos.md", "") : segments[1];
+          slug = mdName;
+        } else {
+          // hackathons / ai-projects: slug is the subfolder name
+          slug = segments[1];
+        }
+        const groupId = `${category}/${slug}`;
+        path = `/library/project?path=${encodeURIComponent(primaryFile)}&id=${encodeURIComponent(groupId)}`;
+      } else {
+        path = "/library";
+      }
+    }
+
     dismiss(key, job.id);
     navigate(path);
   };
