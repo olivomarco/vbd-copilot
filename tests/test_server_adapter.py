@@ -87,10 +87,20 @@ class TestSessionConnectionInit:
         conn.reset_turn()
 
         assert conn.cancel_flag is False
-        assert len(conn.seen_event_ids) == 0
+        # seen_event_ids is pruned only when over 5000, not cleared on every reset
+        assert len(conn.seen_event_ids) == 1
         assert len(conn.tool_starts) == 0
         assert len(conn.active_subagents) == 0
         assert conn._seq == 0
+
+    def test_reset_turn_prunes_large_seen_event_ids(self):
+        """seen_event_ids is pruned when it exceeds 5000 entries."""
+        conn = SessionConnection("s1")
+        for i in range(5500):
+            conn.seen_event_ids.add(f"evt-{i}")
+        assert len(conn.seen_event_ids) == 5500
+        conn.reset_turn()
+        assert len(conn.seen_event_ids) == 0  # cleared because >5000
 
     def test_reset_turn_preserves_pending_input(self):
         conn = SessionConnection("s1")
@@ -356,7 +366,8 @@ class TestWsReset:
         ws_reset("reset-1")
 
         assert conn.cancel_flag is False
-        assert len(conn.seen_event_ids) == 0
+        # seen_event_ids is preserved (pruned only when >5000)
+        assert len(conn.seen_event_ids) == 1
         assert len(conn.tool_starts) == 0
         assert conn._seq == 0
 

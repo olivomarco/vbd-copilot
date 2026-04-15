@@ -24,18 +24,41 @@ const _cleanupDone = (() => {
     const jobs = useJobStore.getState().jobs;
     for (const [id, job] of Object.entries(jobs)) {
       if (job.status === "running" || job.status === "queued" || job.status === "waiting") {
-        // Ask the server if the session is still alive before marking it dead.
-        try {
-          const srv = await getSessionStatus(id);
-          if (srv.status === "active" && srv.in_memory) {
-            // Server confirms this session is still running — leave it alone.
-            continue;
+        // Ask the server if the session is still alive with retries.
+        let serverReachable = false;
+        let serverSaysAlive = false;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const srv = await getSessionStatus(id);
+            serverReachable = true;
+            if (srv.status === "active" && (srv.in_memory || srv.has_running_turn)) {
+              serverSaysAlive = true;
+            }
+            break;
+          } catch {
+            // Wait before retry: 1s, 3s, 5s
+            if (attempt < 2) await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
           }
-        } catch {
-          // Server unreachable — fall through to local heuristic.
         }
 
-        // Server says session is ended (or server is unreachable).
+        if (serverSaysAlive) {
+          // Server confirms this session is still running — leave it alone.
+          continue;
+        }
+
+        if (!serverReachable) {
+          // Server unreachable after retries — mark as stale, NOT terminal.
+          // The session may still be alive; the WS reconnect will recover it.
+          useJobStore.getState().updateJob(id, {
+            progress: {
+              ...job.progress,
+              currentStep: "Server unreachable — reconnecting…",
+            },
+          });
+          continue;
+        }
+
+        // Server says session is ended.
         const hadWork = job.progress.toolCalls > 0 || job.events.length > 5;
         useJobStore.getState().updateJob(id, {
           status: hadWork ? "completed" : "cancelled",

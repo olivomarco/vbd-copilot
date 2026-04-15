@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import time
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -62,11 +63,15 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
         install_task_keeping_factory,
         start_heartbeat,
         stop_heartbeat,
+        start_reaper,
+        stop_reaper,
     )
 
     install_task_keeping_factory(asyncio.get_running_loop())
     start_heartbeat()
+    start_reaper()
     yield
+    stop_reaper()
     stop_heartbeat()
 
 
@@ -234,19 +239,25 @@ async def create_session(body: CreateSessionRequest) -> JSONResponse:
         sid = _sid_ref[0] if _sid_ref else None
         lock = get_ask_user_lock(sid) if sid else asyncio.Lock()
         question = request.get("question", "")
-        log.info("[ask_user] Waiting for lock (sid=%s, q=%s)", sid, question[:60])
+        request_id = str(uuid.uuid4())
+        log.info("[ask_user] Waiting for lock (sid=%s, q=%s, rid=%s)", sid, question[:60], request_id[:8])
         async with lock:
-            log.info("[ask_user] Lock acquired (sid=%s, q=%s)", sid, question[:60])
+            log.info("[ask_user] Lock acquired (sid=%s, q=%s, rid=%s)", sid, question[:60], request_id[:8])
             choices = request.get("choices")
-            payload_data = {"question": question, "choices": choices}
+            payload_data = {"question": question, "choices": choices, "request_id": request_id}
             conn = get_connection(sid) if sid else None
             if sid:
                 set_pending_input(sid, payload_data)
+                conn_obj = get_connection(sid)
+                if conn_obj:
+                    conn_obj.pending_input_request_id = request_id
             _send(_envelope(conn, "waiting_for_input", payload_data), sid)
             timed_out = False
             try:
                 answer = await pop_user_response(
-                    timeout=_ASK_USER_TIMEOUT, session_id=sid
+                    timeout=_ASK_USER_TIMEOUT,
+                    session_id=sid,
+                    expected_request_id=request_id,
                 )
             except asyncio.TimeoutError:
                 answer = ""
@@ -255,12 +266,15 @@ async def create_session(body: CreateSessionRequest) -> JSONResponse:
             finally:
                 if sid:
                     set_pending_input(sid, None)
+                    conn_obj = get_connection(sid)
+                    if conn_obj:
+                        conn_obj.pending_input_request_id = None
                     if timed_out:
                         _send(
-                            _envelope(conn, "input_timed_out", {"question": question}),
+                            _envelope(conn, "input_timed_out", {"question": question, "request_id": request_id}),
                             sid,
                         )
-                    _send(_envelope(conn, "input_resolved", {}), sid)
+                    _send(_envelope(conn, "input_resolved", {"request_id": request_id}), sid)
             log.info("[ask_user] Lock releasing (sid=%s, q=%s)", sid, question[:60])
         return UserInputResponse(answer=answer, wasFreeform=True)
 
@@ -333,31 +347,36 @@ async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONRes
         )
 
         lock = get_ask_user_lock(full_id)
+        request_id = str(uuid.uuid4())
         async with lock:
             question = request.get("question", "")
             choices = request.get("choices")
-            payload_data = {"question": question, "choices": choices}
+            payload_data = {"question": question, "choices": choices, "request_id": request_id}
             conn = get_connection(full_id)
             set_pending_input(full_id, payload_data)
+            if conn:
+                conn.pending_input_request_id = request_id
             _send(_envelope(conn, "waiting_for_input", payload_data), full_id)
             timed_out = False
             try:
                 answer = await pop_user_response(
-                    timeout=_ASK_USER_TIMEOUT, session_id=full_id
+                    timeout=_ASK_USER_TIMEOUT,
+                    session_id=full_id,
+                    expected_request_id=request_id,
                 )
             except asyncio.TimeoutError:
                 answer = ""
                 timed_out = True
             finally:
                 set_pending_input(full_id, None)
+                if conn:
+                    conn.pending_input_request_id = None
                 if timed_out:
                     _send(
-                        _envelope(conn, "input_timed_out", {"question": question}),
+                        _envelope(conn, "input_timed_out", {"question": question, "request_id": request_id}),
                         full_id,
                     )
-                _send(_envelope(conn, "input_resolved", {}), full_id)
-        return UserInputResponse(answer=answer, wasFreeform=True)
-
+                _send(_envelope(conn, "input_resolved", {"request_id": request_id}), full_id)
     try:
         session = await _copilot_client.resume_session(
             full_id,
@@ -450,7 +469,7 @@ async def get_turn_invocations(session_id: str, turn_number: int) -> JSONRespons
 @app.get("/sessions/{session_id}/status")
 async def get_session_status(session_id: str) -> JSONResponse:
     """Lightweight status check for frontend reconnect polling."""
-    from server_adapter import get_connection, get_pending_input, get_output_files
+    from server_adapter import get_connection, get_pending_input, get_output_files, has_active_turn
 
     store = _store()
     full_id = store.resolve_prefix("sessions", session_id)
@@ -464,6 +483,7 @@ async def get_session_status(session_id: str) -> JSONResponse:
     in_memory = full_id in _session_map
     conn = get_connection(full_id)
     has_ws = conn is not None and bool(conn.websockets)
+    running_turn = has_active_turn(full_id)
     pending = get_pending_input(full_id)
 
     # Output files: prefer in-memory snapshot, fall back to DB
@@ -486,7 +506,7 @@ async def get_session_status(session_id: str) -> JSONResponse:
             "session_id": full_id,
             "status": detail.get("status", "ended"),
             "in_memory": in_memory,
-            "has_running_turn": in_memory and has_ws,
+            "has_running_turn": in_memory and (running_turn or has_ws),
             "turn_count": detail.get("turn_count", 0),
             "resumable": bool(detail.get("resumable", 0)),
             "pending_input": pending,
@@ -1441,6 +1461,10 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
         _send,
         _envelope,
         register_event_handler,
+        send_direct,
+        get_turn_task,
+        set_turn_task,
+        get_turn_lock,
     )
     from agents import DEFAULT_TIMEOUT
     from router import route_to_agent
@@ -1479,36 +1503,44 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                 )
 
                 lock = get_ask_user_lock(session_id)
+                request_id = str(uuid.uuid4())
                 async with lock:
                     question = request.get("question", "")
                     choices = request.get("choices")
-                    payload_data = {"question": question, "choices": choices}
+                    payload_data = {"question": question, "choices": choices, "request_id": request_id}
                     conn = _gc(session_id)
                     set_pending_input(session_id, payload_data)
+                    if conn:
+                        conn.pending_input_request_id = request_id
                     _send(
                         _envelope(conn, "waiting_for_input", payload_data), session_id
                     )
                     timed_out = False
                     try:
                         answer = await pop_user_response(
-                            timeout=_ASK_USER_TIMEOUT, session_id=session_id
+                            timeout=_ASK_USER_TIMEOUT,
+                            session_id=session_id,
+                            expected_request_id=request_id,
                         )
                     except asyncio.TimeoutError:
                         answer = ""
                         timed_out = True
                     finally:
                         set_pending_input(session_id, None)
+                        conn_inner = _gc(session_id)
+                        if conn_inner:
+                            conn_inner.pending_input_request_id = None
                         if timed_out:
                             _send(
                                 _envelope(
                                     _gc(session_id),
                                     "input_timed_out",
-                                    {"question": question},
+                                    {"question": question, "request_id": request_id},
                                 ),
                                 session_id,
                             )
                         _send(
-                            _envelope(_gc(session_id), "input_resolved", {}), session_id
+                            _envelope(_gc(session_id), "input_resolved", {"request_id": request_id}), session_id
                         )
                 return UserInputResponse(answer=answer, wasFreeform=True)
 
@@ -1528,55 +1560,47 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                 _session_map[session_id] = session
             except Exception as exc:
                 conn = get_connection(session_id)
-                await websocket.send_text(
-                    json.dumps(
-                        _envelope(
-                            conn,
-                            "error",
-                            {"message": f"Failed to create session: {exc}"},
-                        ),
-                        ensure_ascii=False,
-                    )
+                await send_direct(
+                    websocket,
+                    _envelope(
+                        conn,
+                        "error",
+                        {"message": f"Failed to create session: {exc}"},
+                    ),
+                    session_id,
                 )
                 await websocket.close()
                 set_active_ws(session_id, None)
                 return
         else:
             conn = get_connection(session_id)
-            await websocket.send_text(
-                json.dumps(
-                    _envelope(conn, "error", {"message": "Copilot client not ready"}),
-                    ensure_ascii=False,
-                )
+            await send_direct(
+                websocket,
+                _envelope(conn, "error", {"message": "Copilot client not ready"}),
+                session_id,
             )
             await websocket.close()
             set_active_ws(session_id, None)
             return
 
     # Register per-session WS event handler (idempotent — safe on reconnect).
-    # In the CLI, session.on(handle_event) is called once and persists.
-    # Here we match that: one handler per session, registered on first WS connect,
-    # surviving across WS reconnections.
     register_event_handler(session_id, session)
 
-    # Send session snapshot to every connecting client.  The SessionConnection
-    # is preserved across WS disconnects, so even the "first" WS after a gap
-    # is really a reconnect that needs current state (pending_input, last_done,
-    # output_files).  The snapshot is cheap and idempotent.
+    # Send session snapshot via the serialized send queue.
     snapshot = build_snapshot(session_id)
     if snapshot:
         try:
-            await websocket.send_text(json.dumps(snapshot, ensure_ascii=False))
+            await send_direct(websocket, snapshot, session_id)
         except Exception:
             pass
 
-    current_turn_task: asyncio.Task[Any] | None = None
+    # Turn task is now stored in SessionConnection (Fix 1: atomic turn claiming).
+    # No local current_turn_task variable — all WS handlers for the same session
+    # share the same conn.current_turn_task via get_turn_task/set_turn_task.
 
     async def _run_turn(
         clean: str, agent_name: str | None, turn_id: str | None
     ) -> None:
-        nonlocal current_turn_task
-
         before_time = time.time()
         turn_status = "success"
         try:
@@ -1646,8 +1670,8 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                 if file_paths:
                     _collector._store.set_turn_output_files(turn_id, file_paths)
 
-            if current_turn_task is asyncio.current_task():
-                current_turn_task = None
+            if get_turn_task(session_id) is asyncio.current_task():
+                set_turn_task(session_id, None)
 
     try:
         while True:
@@ -1656,11 +1680,10 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                 msg = json.loads(raw)
             except json.JSONDecodeError:
                 conn = get_connection(session_id)
-                await websocket.send_text(
-                    json.dumps(
-                        _envelope(conn, "error", {"message": "Invalid JSON"}),
-                        ensure_ascii=False,
-                    )
+                await send_direct(
+                    websocket,
+                    _envelope(conn, "error", {"message": "Invalid JSON"}),
+                    session_id,
                 )
                 continue
 
@@ -1671,65 +1694,73 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                 if not content:
                     continue
 
-                if current_turn_task and not current_turn_task.done():
+                # Atomic turn claiming: acquire lock, check, and claim
+                # before any await (routing, collector) to prevent two
+                # WS connections from starting competing turns.
+                turn_lock = get_turn_lock(session_id)
+                async with turn_lock:
+                    existing = get_turn_task(session_id)
+                    if existing is not None:
+                        conn = get_connection(session_id)
+                        _send(
+                            _envelope(
+                                conn,
+                                "error",
+                                {
+                                    "message": "A turn is already running. Respond to the active prompt or cancel it first.",
+                                },
+                            ),
+                            session_id,
+                        )
+                        continue
+
+                    ws_reset(session_id)
+
+                    # Determine agent via router
+                    try:
+                        agent_name = await route_to_agent(session, content)
+                    except Exception:
+                        agent_name = None
+
+                    from agents import DEFAULT_MODEL as _dm
+
+                    if agent_name:
+                        if _event_store:
+                            _event_store.update_session_agent(session_id, agent_name)
+                            _event_store.update_session_model(session_id, _dm)
+
+                    # Strip @mention prefix
+                    clean = content
+                    if content.startswith("@") and " " in content:
+                        clean = content.split(" ", 1)[1]
+
+                    turn_id = None
+                    if _collector:
+                        turn_id = _collector.on_turn_start(
+                            session_id,
+                            agent=agent_name or "copilot",
+                            model=_dm,
+                            user_prompt=clean,
+                        )
+
                     conn = get_connection(session_id)
                     _send(
-                        _envelope(
-                            conn,
-                            "error",
-                            {
-                                "message": "A turn is already running. Respond to the active prompt or cancel it first.",
-                            },
-                        ),
-                        session_id,
+                        _envelope(conn, "turn_started", {"agent": agent_name}), session_id
                     )
-                    continue
+                    # Clear stale done status from previous turn
+                    from server_adapter import clear_last_done
 
-                ws_reset(session_id)
-
-                # Determine agent via router
-                try:
-                    agent_name = await route_to_agent(session, content)
-                except Exception:
-                    agent_name = None
-
-                from agents import DEFAULT_MODEL as _dm
-
-                if agent_name:
-                    if _event_store:
-                        _event_store.update_session_agent(session_id, agent_name)
-                        _event_store.update_session_model(session_id, _dm)
-
-                # Strip @mention prefix
-                clean = content
-                if content.startswith("@") and " " in content:
-                    clean = content.split(" ", 1)[1]
-
-                turn_id = None
-                if _collector:
-                    turn_id = _collector.on_turn_start(
-                        session_id,
-                        agent=agent_name or "copilot",
-                        model=_dm,
-                        user_prompt=clean,
+                    clear_last_done(session_id)
+                    task = asyncio.create_task(
+                        _run_turn(clean, agent_name, turn_id)
                     )
-
-                conn = get_connection(session_id)
-                _send(
-                    _envelope(conn, "turn_started", {"agent": agent_name}), session_id
-                )
-                # Clear stale done status from previous turn so it isn't replayed
-                from server_adapter import clear_last_done
-
-                clear_last_done(session_id)
-                current_turn_task = asyncio.create_task(
-                    _run_turn(clean, agent_name, turn_id)
-                )
+                    set_turn_task(session_id, task)
 
             elif msg_type == "cancel":
                 set_cancel_flag(True, session_id)
-                if current_turn_task and not current_turn_task.done():
-                    current_turn_task.cancel()
+                active = get_turn_task(session_id)
+                if active is not None:
+                    active.cancel()
 
             elif msg_type == "user_response":
                 content = str(msg.get("content", "")).strip()
@@ -1746,7 +1777,8 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                         session_id,
                     )
                     continue
-                push_user_response(content, session_id)
+                request_id = msg.get("request_id")
+                push_user_response(content, session_id, request_id=request_id)
 
             elif msg_type == "ping":
                 conn = get_connection(session_id)
@@ -1754,15 +1786,14 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
 
             else:
                 conn = get_connection(session_id)
-                await websocket.send_text(
-                    json.dumps(
-                        _envelope(
-                            conn,
-                            "error",
-                            {"message": f"Unknown message type: {msg_type}"},
-                        ),
-                        ensure_ascii=False,
-                    )
+                await send_direct(
+                    websocket,
+                    _envelope(
+                        conn,
+                        "error",
+                        {"message": f"Unknown message type: {msg_type}"},
+                    ),
+                    session_id,
                 )
 
     except WebSocketDisconnect:

@@ -239,7 +239,14 @@ export function useWebSocket(sessionId: string | null) {
 
       // Dedup by envelope ID
       if (msgId && seenIds.current.has(msgId)) return;
-      if (msgId) seenIds.current.add(msgId);
+      if (msgId) {
+        seenIds.current.add(msgId);
+        // Prune dedup set to prevent unbounded growth (Fix 4)
+        if (seenIds.current.size > 6000) {
+          const entries = Array.from(seenIds.current);
+          seenIds.current = new Set(entries.slice(-5000));
+        }
+      }
 
       // Handle session_snapshot — initialize state from server
       if (t === "session_snapshot") {
@@ -406,6 +413,7 @@ export function useWebSocket(sessionId: string | null) {
           // this is a genuinely new question — add to pendingInput queue.
           const question = msg.question || "The agent has a question";
           const choices = msg.choices || undefined;
+          const requestId = msg.request_id || undefined;
           const currentJob = useJobStore.getState().getJob(sid);
           const prevQueue = currentJob?.pendingInput || [];
           // Guard against the watcher hook having already queued this question
@@ -413,7 +421,7 @@ export function useWebSocket(sessionId: string | null) {
           if (!alreadyNotified) {
             updateJob(sid, {
               status: "waiting",
-              pendingInput: [...prevQueue, { question, choices }],
+              pendingInput: [...prevQueue, { question, choices, requestId }],
             });
             void notifyInputRequired();
           } else {
@@ -815,13 +823,14 @@ export function useWebSocket(sessionId: string | null) {
       if (currentQuestion && currentQuestion === lastAnsweredQuestion.current) return;
       lastAnsweredQuestion.current = currentQuestion;
 
-      safeSend(JSON.stringify({ type: "user_response", content: normalized }));
+      // Include request_id so the server can correlate with the correct prompt
+      const requestId = currentJob?.pendingInput?.[0]?.requestId;
+      const payload: Record<string, string> = { type: "user_response", content: normalized };
+      if (requestId) payload.request_id = requestId;
+      safeSend(JSON.stringify(payload));
       // Push the response as an event so it appears in the activity feed
       pushEvent(sessionId, { type: "user_response", data: { content: normalized, origin } });
       // Mark the first item as submitted rather than removing it.
-      // The card stays visible in a "sent" state until the backend confirms
-      // via `input_resolved`. This prevents silent loss if the WS message
-      // never reaches the server.
       const queue = currentJob?.pendingInput || [];
       if (queue.length > 0) {
         const updated = [{ ...queue[0], submitted: true, submittedAt: Date.now() }, ...queue.slice(1)];

@@ -57,7 +57,8 @@ class TestSessionConnection:
         conn._seq = 5
         conn.reset_turn()
         assert conn.cancel_flag is False
-        assert len(conn.seen_event_ids) == 0
+        # seen_event_ids is preserved (pruned only when >5000)
+        assert len(conn.seen_event_ids) == 1
         assert len(conn.tool_starts) == 0
         assert len(conn.active_subagents) == 0
         assert len(conn.subagent_correlations) == 0
@@ -178,7 +179,8 @@ class TestPublicFunctionDelegation:
         conn._seq = 10
         sa.ws_reset("s6")
         assert conn.cancel_flag is False
-        assert len(conn.seen_event_ids) == 0
+        # seen_event_ids is preserved (pruned only when >5000)
+        assert len(conn.seen_event_ids) == 1
         assert conn._seq == 0
 
     def test_ws_reset_legacy(self):

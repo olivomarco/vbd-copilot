@@ -109,6 +109,8 @@ export interface Job {
   pendingInput?: {
     question: string;
     choices?: string[];
+    /** Server-generated request ID for correlating responses. */
+    requestId?: string;
     /** True after the user sent a response; cleared by `input_resolved`. */
     submitted?: boolean;
     /** Epoch ms when the response was sent — drives retry timeout. */

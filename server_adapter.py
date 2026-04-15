@@ -45,6 +45,7 @@ class SessionConnection:
         "cancel_flag",
         "input_queue",
         "pending_input",
+        "pending_input_request_id",
         "last_done",
         "active_subagents",
         "subagent_correlations",
@@ -58,14 +59,19 @@ class SessionConnection:
         "output_files",
         "ask_user_lock",
         "pending_invocations",
+        "current_turn_task",
+        "turn_lock",
+        "_send_queues",
+        "_send_workers",
     )
 
     def __init__(self, session_id: str) -> None:
         self.session_id = session_id
         self.websockets: set[Any] = set()
         self.cancel_flag: bool = False
-        self.input_queue: asyncio.Queue[str] = asyncio.Queue()
+        self.input_queue: asyncio.Queue[tuple[str, str | None]] = asyncio.Queue()
         self.pending_input: dict[str, Any] | None = None
+        self.pending_input_request_id: str | None = None
         self.last_done: dict[str, Any] | None = None
         self.active_subagents: list[str] = []
         self.subagent_correlations: dict[str, str] = {}  # agent_name -> correlation_id
@@ -83,6 +89,11 @@ class SessionConnection:
         self.pending_invocations: dict[
             str, str
         ] = {}  # tool/subagent key -> invocation_id
+        self.current_turn_task: asyncio.Task[Any] | None = None
+        self.turn_lock: asyncio.Lock = asyncio.Lock()
+        # Per-WS ordered send queues (Fix 2: serialize sends)
+        self._send_queues: dict[Any, asyncio.Queue[str]] = {}
+        self._send_workers: dict[Any, asyncio.Task[Any]] = {}
 
     def next_seq(self) -> int:
         """Return the next monotonic sequence number."""
@@ -98,12 +109,19 @@ class SessionConnection:
     def remove_ws(self, ws: Any) -> bool:
         """Remove a WebSocket. Returns True if no connections remain."""
         self.websockets.discard(ws)
+        # Clean up per-WS send queue and worker
+        worker = self._send_workers.pop(ws, None)
+        if worker and not worker.done():
+            worker.cancel()
+        self._send_queues.pop(ws, None)
         return len(self.websockets) == 0
 
     def reset_turn(self) -> None:
         """Clear per-turn state for a new turn."""
         self.cancel_flag = False
-        self.seen_event_ids.clear()
+        # Bound seen_event_ids to prevent unbounded growth (Fix 4)
+        if len(self.seen_event_ids) > 5000:
+            self.seen_event_ids.clear()
         self.tool_starts.clear()
         self.active_subagents.clear()
         self.subagent_correlations.clear()
@@ -124,13 +142,24 @@ class SessionConnection:
 
     def cleanup(self) -> None:
         """Full cleanup when session is destroyed."""
+        # Cancel active turn task on explicit session deletion
+        if self.current_turn_task and not self.current_turn_task.done():
+            self.current_turn_task.cancel()
+            self.current_turn_task = None
         self.reset_turn()
         self.pending_input = None
+        self.pending_input_request_id = None
         self.last_done = None
         if self.event_handler_unsub is not None:
             with contextlib.suppress(Exception):
                 self.event_handler_unsub()
             self.event_handler_unsub = None
+        # Clean up all send workers
+        for worker in self._send_workers.values():
+            if not worker.done():
+                worker.cancel()
+        self._send_workers.clear()
+        self._send_queues.clear()
 
     def get_response_text(self) -> str:
         """Return accumulated assistant response text."""
@@ -391,23 +420,47 @@ def unregister_event_handler(session_id: str) -> None:
         conn.event_handler_unsub = None
 
 
-def push_user_response(content: str, session_id: str | None = None) -> None:
+def push_user_response(
+    content: str, session_id: str | None = None, request_id: str | None = None
+) -> None:
     """Push a user response for the current waiting_for_input prompt."""
     if session_id:
         conn = _get_or_create(session_id)
         conn.pending_input = None  # clear pending input on response
-        conn.input_queue.put_nowait(content)
+        conn.pending_input_request_id = None
+        conn.input_queue.put_nowait((content, request_id))
     else:
         _user_input_queue.put_nowait(content)
 
 
 async def pop_user_response(
-    timeout: float = 300.0, session_id: str | None = None
+    timeout: float = 300.0,
+    session_id: str | None = None,
+    expected_request_id: str | None = None,
 ) -> str:
-    """Block until the renderer sends a user_response message."""
+    """Block until the renderer sends a user_response message.
+
+    If *expected_request_id* is provided, discard any queued responses
+    whose request_id does not match (stale responses from a previous
+    prompt).  This prevents late/duplicate answers from satisfying the
+    wrong question.
+    """
     if session_id:
         conn = _get_or_create(session_id)
-        return await asyncio.wait_for(conn.input_queue.get(), timeout=timeout)
+
+        async def _get_matching() -> str:
+            while True:
+                content, rid = await conn.input_queue.get()
+                # Accept if: no expected ID, no provided ID, or IDs match
+                if expected_request_id is None or rid is None or rid == expected_request_id:
+                    return content
+                log.warning(
+                    "[ask_user] Discarding stale response (expected=%s, got=%s)",
+                    expected_request_id,
+                    rid,
+                )
+
+        return await asyncio.wait_for(_get_matching(), timeout=timeout)
     return await asyncio.wait_for(_user_input_queue.get(), timeout=timeout)
 
 
@@ -415,6 +468,96 @@ def get_accumulated_response(session_id: str) -> str:
     """Return the accumulated assistant response text for a session."""
     conn = _connections.get(session_id)
     return conn.get_response_text() if conn else ""
+
+
+# ---------------------------------------------------------------------------
+# Turn task management (Fix 1: atomic turn claiming)
+# ---------------------------------------------------------------------------
+
+
+def get_turn_task(session_id: str) -> asyncio.Task[Any] | None:
+    """Return the active turn task for a session, or None."""
+    conn = _connections.get(session_id)
+    if conn is None:
+        return None
+    task = conn.current_turn_task
+    if task is not None and task.done():
+        conn.current_turn_task = None
+        return None
+    return task
+
+
+def set_turn_task(session_id: str, task: asyncio.Task[Any] | None) -> None:
+    """Set the active turn task for a session."""
+    conn = _connections.get(session_id)
+    if conn:
+        conn.current_turn_task = task
+
+
+def get_turn_lock(session_id: str) -> asyncio.Lock:
+    """Return the per-session lock for atomic turn claiming."""
+    conn = _get_or_create(session_id)
+    return conn.turn_lock
+
+
+def has_active_turn(session_id: str) -> bool:
+    """Return True if a turn is currently running for this session."""
+    return get_turn_task(session_id) is not None
+
+
+# ---------------------------------------------------------------------------
+# Idle session reaper (Fix 4: memory cleanup)
+# ---------------------------------------------------------------------------
+
+_reaper_task: asyncio.Task[Any] | None = None
+_REAPER_INTERVAL_S = 300  # 5 minutes
+_IDLE_EXPIRY_S = 7200  # 2 hours (matches _ASK_USER_TIMEOUT)
+
+
+async def _reaper_loop() -> None:
+    """Periodically remove abandoned SessionConnections."""
+    while True:
+        await asyncio.sleep(_REAPER_INTERVAL_S)
+        now = time.time()
+        to_remove: list[str] = []
+        for sid, conn in list(_connections.items()):
+            # Never reap sessions that are still active
+            if conn.websockets:
+                continue
+            if conn.pending_input is not None:
+                continue
+            if conn.ask_user_lock.locked():
+                continue
+            if conn.current_turn_task and not conn.current_turn_task.done():
+                continue
+            if conn.event_handler_unsub is not None:
+                # Session still registered with SDK — only reap if idle long enough
+                idle_since = max(conn.last_event_time, conn.created_at)
+                if now - idle_since < _IDLE_EXPIRY_S:
+                    continue
+            to_remove.append(sid)
+        for sid in to_remove:
+            conn = _connections.pop(sid, None)
+            if conn:
+                conn.cleanup()
+                log.debug("Reaped idle session connection: %s", sid)
+
+
+def start_reaper() -> None:
+    """Start the idle session reaper (call once at server startup)."""
+    global _reaper_task
+    if _reaper_task is None or _reaper_task.done():
+        _reaper_task = asyncio.ensure_future(_reaper_loop())
+        _all_tasks.add(_reaper_task)
+        _reaper_task.add_done_callback(_all_tasks.discard)
+
+
+def stop_reaper() -> None:
+    """Stop the idle session reaper."""
+    global _reaper_task
+    if _reaper_task and not _reaper_task.done():
+        _reaper_task.cancel()
+        _reaper_task = None
 
 
 # ---------------------------------------------------------------------------
@@ -453,8 +596,9 @@ def build_snapshot(session_id: str) -> dict[str, Any] | None:
     conn = _connections.get(session_id)
     if conn is None:
         return None
+    has_turn = conn.current_turn_task is not None and not conn.current_turn_task.done()
     status = (
-        "waiting" if conn.pending_input else ("active" if conn.websockets else "idle")
+        "waiting" if conn.pending_input else ("active" if (conn.websockets or has_turn) else "idle")
     )
     return _envelope(
         conn,
@@ -463,9 +607,11 @@ def build_snapshot(session_id: str) -> dict[str, Any] | None:
             "session_id": session_id,
             "status": status,
             "pending_input": conn.pending_input,
+            "pending_input_request_id": conn.pending_input_request_id,
             "last_done": conn.last_done,
             "active_subagents": list(conn.active_subagents),
             "output_files": conn.output_files,
+            "has_running_turn": has_turn,
             "seq": conn._seq,
         },
     )
@@ -536,17 +682,53 @@ def stop_heartbeat() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Helper: send a JSON message over a WebSocket (fire-and-forget)
+# Helper: send a JSON message over a WebSocket (serialized per-WS)
 # ---------------------------------------------------------------------------
+
+_MAX_SEND_QUEUE = 500  # drop oldest if a slow client falls behind
+
+
+def _ensure_send_worker(conn: SessionConnection, ws: Any, session_id: str) -> None:
+    """Lazily create a per-WS send worker that drains the send queue in order."""
+    if ws in conn._send_workers and not conn._send_workers[ws].done():
+        return  # already running
+
+    q = conn._send_queues.setdefault(ws, asyncio.Queue())
+
+    async def _worker() -> None:
+        try:
+            while True:
+                text = await q.get()
+                try:
+                    await ws.send_text(text)
+                except (RuntimeError, Exception):
+                    # WS is dead — clean up and exit
+                    conn.websockets.discard(ws)
+                    break
+        except asyncio.CancelledError:
+            pass
+        finally:
+            conn._send_queues.pop(ws, None)
+            conn._send_workers.pop(ws, None)
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return
+    task = loop.create_task(_worker())
+    conn._send_workers[ws] = task
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 def _send(payload: dict[str, Any], session_id: str | None = None) -> None:
     """Fan out a JSON message to all WebSockets subscribed to a session.
 
-    Accepts both raw dicts (backward compat from server.py) and enveloped
-    messages produced by ``_envelope()``.
+    Messages are serialized per-WS via ordered send queues so events
+    always arrive in the order they were emitted.
     """
     ws_set: set[Any] | None = None
+    conn: SessionConnection | None = None
     if session_id:
         conn = _connections.get(session_id)
         ws_set = conn.websockets if conn else None
@@ -558,21 +740,7 @@ def _send(payload: dict[str, Any], session_id: str | None = None) -> None:
             return
 
     text = json.dumps(payload, ensure_ascii=False)
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = asyncio.get_event_loop()
     dead: list[Any] = []
-
-    async def _safe_send(ws: Any, sid: str | None) -> None:
-        try:
-            await ws.send_text(text)
-        except (RuntimeError, Exception):
-            # Clean up dead WebSocket
-            if sid:
-                c = _connections.get(sid)
-                if c:
-                    c.websockets.discard(ws)
 
     for ws in list(ws_set):  # list() to avoid mutation during iteration
         try:
@@ -580,18 +748,61 @@ def _send(payload: dict[str, Any], session_id: str | None = None) -> None:
             if hasattr(ws, "client_state") and ws.client_state.name == "DISCONNECTED":
                 dead.append(ws)
                 continue
-            if loop.is_running():
-                task = loop.create_task(_safe_send(ws, session_id))
-                _background_tasks.add(task)
-                task.add_done_callback(_background_tasks.discard)
+            if conn:
+                _ensure_send_worker(conn, ws, session_id or "")
+                q = conn._send_queues.get(ws)
+                if q:
+                    # Drop oldest messages if queue is too large (slow client)
+                    if q.qsize() >= _MAX_SEND_QUEUE:
+                        try:
+                            q.get_nowait()
+                        except asyncio.QueueEmpty:
+                            pass
+                    q.put_nowait(text)
+            else:
+                # Legacy path — no conn, fire-and-forget
+                try:
+                    loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    continue
+
+                async def _safe_send(w: Any, t: str) -> None:
+                    try:
+                        await w.send_text(t)
+                    except (RuntimeError, Exception):
+                        pass
+
+                if loop.is_running():
+                    task = loop.create_task(_safe_send(ws, text))
+                    _background_tasks.add(task)
+                    task.add_done_callback(_background_tasks.discard)
         except RuntimeError:
             dead.append(ws)
     # Clean up dead connections
-    if dead and session_id:
-        conn = _connections.get(session_id)
-        if conn:
-            for ws in dead:
-                conn.websockets.discard(ws)
+    if dead and session_id and conn:
+        for ws in dead:
+            conn.websockets.discard(ws)
+
+
+async def send_direct(
+    ws: Any, payload: dict[str, Any], session_id: str | None = None
+) -> None:
+    """Send a message to a specific WebSocket, using the serialized queue.
+
+    Use this instead of ``await ws.send_text(...)`` so all sends on a
+    given WS are ordered.  Falls back to direct send if no session
+    connection exists.
+    """
+    text = json.dumps(payload, ensure_ascii=False)
+    conn = _connections.get(session_id) if session_id else None
+    if conn:
+        _ensure_send_worker(conn, ws, session_id or "")
+        q = conn._send_queues.get(ws)
+        if q:
+            q.put_nowait(text)
+            return
+    # Fallback: direct send (legacy / no conn)
+    await ws.send_text(text)
 
 
 # ---------------------------------------------------------------------------

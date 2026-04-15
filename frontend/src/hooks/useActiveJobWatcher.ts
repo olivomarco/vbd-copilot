@@ -78,25 +78,71 @@ export function useActiveJobWatcher() {
         const msg = isEnvelope ? raw.data : raw;
         const msgId: string | null = isEnvelope ? raw.id : null;
 
-        // If the workspace WS (from AgentWorkspace or LiveJobCard) is handling
-        // this session, skip everything except terminal events and file delivery.
-        // waiting_for_input is explicitly skipped here — the workspace WS handles
-        // it, and dual processing causes duplicate notifications and event cards.
-        // IMPORTANT: require OPEN (not just < CLOSING) — if we skip while the
-        // workspace WS is still CONNECTING, neither hook processes the event.
+        // Handle session_snapshot — restore critical state (Fix 5)
+        if (t === "session_snapshot") {
+          const currentJob = useJobStore.getState().getJob(id);
+          if (!currentJob) return;
+          // Only process if the workspace WS is NOT active (it handles snapshots itself)
+          if (currentJob._ws && currentJob._ws.readyState === WebSocket.OPEN) return;
+
+          // Restore pending input
+          if (msg.pending_input) {
+            const q = msg.pending_input.question || "The agent has a question";
+            const alreadyQueued = (currentJob.pendingInput || []).some((p: any) => p.question === q);
+            if (!alreadyQueued) {
+              updateJob(id, {
+                status: "waiting",
+                pendingInput: [
+                  ...(currentJob.pendingInput || []),
+                  { question: q, choices: msg.pending_input.choices, requestId: msg.pending_input_request_id },
+                ],
+              });
+              void notifyInputRequired();
+            }
+          } else if (currentJob.pendingInput?.length && !currentJob.pendingInput[0].submitted) {
+            clearInputNotification();
+            updateJob(id, { status: "running", pendingInput: [] });
+          }
+
+          // Restore terminal state from snapshot
+          if (msg.last_done && currentJob.status !== "completed" && currentJob.status !== "failed" && currentJob.status !== "cancelled") {
+            const doneStatus = msg.last_done.status as string | undefined;
+            if (doneStatus && doneStatus !== "timeout") {
+              const jobStatus = doneStatus === "success" ? "completed" as const
+                : doneStatus === "cancelled" ? "cancelled" as const
+                : "failed" as const;
+              clearInputNotification();
+              updateJob(id, { status: jobStatus, phase: "done", completedAt: Date.now(), pendingInput: [] });
+              if (jobStatus === "completed") notifyJobCompleted(currentJob.title || "Your content is ready");
+            }
+          }
+
+          // Restore output files
+          if (msg.output_files?.length) {
+            const existing = new Set(currentJob.outputFiles);
+            const newFiles = (msg.output_files as string[]).filter((f: string) => !existing.has(f));
+            if (newFiles.length > 0) {
+              updateJob(id, { outputFiles: [...currentJob.outputFiles, ...newFiles] });
+            }
+          }
+          return;
+        }
+
+        // If the workspace WS is handling this session, skip most events.
         const wsCheckJob = useJobStore.getState().getJob(id);
         if (wsCheckJob?._ws && wsCheckJob._ws.readyState === WebSocket.OPEN) {
           if (t !== "done" && t !== "cancelled" && t !== "new_files" && t !== "input_timed_out") return;
         }
 
-        // Even without the workspace WS, guard against race conditions where
-        // both hooks process the same waiting_for_input nearly simultaneously.
-        // Use envelope ID dedup to prevent double-processing.
+        // Guard against race conditions for waiting_for_input.
         if (t === "waiting_for_input" && msgId) {
           if (seenWaitingIds.current.has(msgId)) return;
           seenWaitingIds.current.add(msgId);
-          // Also check if the event is already in the job's events list
-          // (the workspace WS may have pushed it just before us)
+          // Prune dedup set (Fix 4)
+          if (seenWaitingIds.current.size > 200) {
+            const entries = Array.from(seenWaitingIds.current);
+            seenWaitingIds.current = new Set(entries.slice(-100));
+          }
           const raceCheckJob = useJobStore.getState().getJob(id);
           if (raceCheckJob) {
             const alreadyInFeed = raceCheckJob.events.some(
@@ -123,6 +169,7 @@ export function useActiveJobWatcher() {
         if (t === "waiting_for_input") {
           const question = msg.question || "The agent has a question";
           const choices = msg.choices || undefined;
+          const requestId = msg.request_id || undefined;
           const currentJob = useJobStore.getState().getJob(id);
           if (!currentJob) return;
 
@@ -136,7 +183,7 @@ export function useActiveJobWatcher() {
             status: "waiting",
             pendingInput: [
               ...(currentJob.pendingInput || []),
-              { question, choices },
+              { question, choices, requestId },
             ],
           });
           // NOTE: Do NOT pushEvent here. The useWebSocket hook (from
