@@ -336,7 +336,6 @@ async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONRes
         return PermissionRequestResult(kind="approved")
 
     async def _user_input(request: Any, _inv: Any) -> Any:
-        from copilot.types import UserInputResponse
         from server_adapter import (
             _send,
             _envelope,

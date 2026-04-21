@@ -11,12 +11,9 @@ import pytest
 
 import server_adapter
 from server_adapter import (
-    SessionConnection,
     _connections,
     _get_or_create,
     _make_ws_handler,
-    _detect_phase,
-    add_ws,
     install_task_keeping_factory,
     set_collector,
     stop_heartbeat,
