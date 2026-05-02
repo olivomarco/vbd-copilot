@@ -404,7 +404,7 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
                 <div
                   style={{
                     padding: "16px",
-                    background: "#fff5e6",
+                    background: "var(--bg-warning)",
                     borderRadius: 8,
                     border: "1px solid rgba(255, 185, 0, 0.3)",
                     fontSize: 13,
@@ -514,7 +514,7 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
                 <div
                   style={{
                     padding: "16px",
-                    background: "#fff5e6",
+                    background: "var(--bg-warning)",
                     borderRadius: 8,
                     border: "1px solid rgba(255, 185, 0, 0.3)",
                     fontSize: 13,

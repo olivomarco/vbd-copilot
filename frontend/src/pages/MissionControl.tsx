@@ -56,7 +56,7 @@ function JobCard({ job }: { job: Job }) {
   return (
     <Card
       style={{
-        border: job.status === "waiting" ? "2px solid #FFB900" : "1px solid #edebe9",
+        border: job.status === "waiting" ? "2px solid #FFB900" : "1px solid var(--border-subtle)",
         borderRadius: 10,
         padding: "14px 18px",
         cursor: "pointer",
@@ -187,7 +187,7 @@ function JobCard({ job }: { job: Job }) {
           style={{
             marginTop: 10,
             padding: "8px 12px",
-            background: "#fffbf0",
+            background: "var(--bg-hint)",
             borderRadius: 6,
             fontSize: 13,
             display: "flex",
@@ -229,7 +229,7 @@ function JobCard({ job }: { job: Job }) {
             style={{
               marginTop: 10,
               padding: "6px 12px",
-              background: "linear-gradient(135deg, #f0fff0 0%, #f5fef5 100%)",
+              background: "var(--bg-success-gradient)",
               borderRadius: 6,
               border: "1px solid rgba(127, 186, 0, 0.2)",
               display: "flex",
@@ -264,7 +264,7 @@ function LiveJobCard({ job }: { job: Job }) {
   return (
     <Card
       style={{
-        border: job.status === "waiting" ? "2px solid #FFB900" : "1px solid #edebe9",
+        border: job.status === "waiting" ? "2px solid #FFB900" : "1px solid var(--border-subtle)",
         borderRadius: 10,
         padding: "14px 18px",
         transition: "all 0.15s ease",
@@ -388,7 +388,7 @@ function LiveJobCard({ job }: { job: Job }) {
             style={{
               marginTop: 10,
               padding: "8px 12px",
-              background: "#fffbf0",
+              background: "var(--bg-hint)",
               borderRadius: 6,
               fontSize: 13,
               display: "flex",

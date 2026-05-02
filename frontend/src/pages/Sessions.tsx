@@ -126,7 +126,7 @@ function SessionRow({ session, onResume, onView }: { session: SessionInfo; onRes
         <div
           style={{
             padding: "0 16px 16px 48px",
-            borderTop: "1px solid #f3f2f1",
+            borderTop: "1px solid var(--border-subtle)",
           }}
         >
           <div style={{ display: "flex", gap: 24, marginTop: 12, marginBottom: 16, flexWrap: "wrap" }}>

@@ -117,7 +117,7 @@ function SubagentEvent({ type, data }: { type: string; data: Record<string, unkn
   if (type === "subagent_completed") {
     return (
       <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <CheckmarkCircle20Regular style={{ fontSize: 14, color: "#107c10" }} />
+        <CheckmarkCircle20Regular style={{ fontSize: 14, color: "var(--text-success)" }} />
         <span>Subagent <strong>{name}</strong> completed</span>
       </span>
     );
@@ -140,7 +140,7 @@ function WaitingEvent({ data }: { data: Record<string, unknown> }) {
         alignItems: "center",
         gap: 6,
         padding: "4px 8px",
-        background: "#fff8e1",
+        background: "var(--bg-caution)",
         borderRadius: 4,
         border: "1px solid #ffe082",
       }}
@@ -182,7 +182,7 @@ function ToolEvent({ type, data }: { type: string; data: Record<string, unknown>
         )}
         <Wrench20Regular style={{ fontSize: 14, color: "#0078d4", flexShrink: 0 }} />
         <strong style={{ color: "#0078d4" }}>{toolName}</strong>
-        {isComplete && <CheckmarkCircle20Regular style={{ fontSize: 12, color: "#107c10" }} />}
+        {isComplete && <CheckmarkCircle20Regular style={{ fontSize: 12, color: "var(--text-success)" }} />}
         {duration && (
           <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{duration}</span>
         )}
@@ -471,7 +471,7 @@ function CompactEventRow({ event, verbose }: { event: JobEvent; verbose: boolean
 
     case "done":
       return (
-        <span style={{ display: "flex", alignItems: "center", gap: 4, color: "#107c10", fontWeight: 600 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-success)", fontWeight: 600 }}>
           <CheckmarkCircle20Regular style={{ fontSize: 14 }} />
           Job completed
         </span>
@@ -499,7 +499,7 @@ function CompactEventRow({ event, verbose }: { event: JobEvent; verbose: boolean
       const visible = files.filter((f) => !/\/generate_.*\.py$/.test(f));
       if (visible.length === 0) return null;
       return (
-        <span style={{ display: "flex", alignItems: "center", gap: 4, color: "#107c10" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-success)" }}>
           <FolderOpen20Regular style={{ fontSize: 14 }} />
           {visible.length === 1
             ? `Created: ${(visible[0].split("/").pop() || visible[0])}`

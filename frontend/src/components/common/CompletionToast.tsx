@@ -153,7 +153,7 @@ export function CompletionToast() {
             key={key}
             style={{
               pointerEvents: "auto",
-              background: "white",
+              background: "var(--bg-card-elevated)",
               borderRadius: 12,
               boxShadow:
                 "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)",
@@ -186,7 +186,7 @@ export function CompletionToast() {
                     width: 32,
                     height: 32,
                     borderRadius: "50%",
-                    background: "#f0fff0",
+                    background: "var(--bg-success)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -206,7 +206,7 @@ export function CompletionToast() {
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
-                      color: "#107C10",
+                      color: "var(--text-success)",
                     }}
                   >
                     Content ready
@@ -249,7 +249,7 @@ export function CompletionToast() {
                   alignItems: "center",
                   gap: 8,
                   padding: "8px 10px",
-                  background: "#f9f9f9",
+                  background: "var(--bg-subtle)",
                   borderRadius: 8,
                   marginBottom: 10,
                   fontSize: 12,

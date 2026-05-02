@@ -174,14 +174,14 @@ class _ThemeAccessor:
 T = _ThemeAccessor()
 
 # Typography Scale (pt) -- consistent hierarchy for all text
-TEXT_DISPLAY = 46  # Hero / title slides
-TEXT_H1 = 32  # Primary headings
-TEXT_H2 = 28  # Slide titles (standard slides)
-TEXT_H3 = 20  # Sub-headings / card headers
-TEXT_BODY = 14  # Body copy
-TEXT_BODY_SM = 12  # Secondary body / descriptions
-TEXT_CAPTION = 10  # Captions, annotations, footnotes
-TEXT_MICRO = 8  # Tiny labels, watermarks
+TEXT_DISPLAY = 48  # Hero / title slides
+TEXT_H1 = 34  # Primary headings
+TEXT_H2 = 30  # Slide titles (standard slides)
+TEXT_H3 = 22  # Sub-headings / card headers
+TEXT_BODY = 16  # Body copy
+TEXT_BODY_SM = 14  # Secondary body / descriptions
+TEXT_CAPTION = 12  # Captions, annotations, footnotes
+TEXT_MICRO = 9  # Tiny labels, watermarks
 
 # Spacing Grid (multiples of 0.08" base unit -- 8pt grid)
 SPACE_XS = Inches(0.08)  # Tight: internal padding
@@ -1293,37 +1293,36 @@ def add_arrow_up(
 
 
 def add_header_card(
-    slide, left, top, width, height, header_text, color, header_height=Inches(0.5)
+    slide, left, top, width, height, header_text, color, header_height=Inches(0.6)
 ):
-    """Add a rounded card with a colored header banner and white body.
+    """Add a rounded card with a gradient header banner and body.
 
-    Layers a colored rounded rect (full height) behind a white rounded rect
-    (offset below the header), creating a seamless colored header with rounded
-    top corners. Returns (header_shape, body_shape) for further content placement.
+    Fluent-upgraded: header uses a gradient fill (color → darkened) for depth.
+    Returns (header_shape, body_shape) for further content placement.
 
     Content area starts at: top + header_height + Inches(0.1)
     """
-    # 1. Full-height colored card (peek shows as header + provides outer border)
-    header_fill = _tone_for_dark(color)
+    # 1. Full-height base card
+    base_fill = _t(MS_WHITE, _DARK_CARD_BG)
     header_shape = add_rounded_card(
-        slide, left, top, width, height, fill=header_fill, border=header_fill
+        slide, left, top, width, height, fill=base_fill, border=None
     )
-    # 2. White body card overlaid, offset below header (no border -- the outer
-    #    card's border already frames the card; a body border creates an ugly
-    #    straight line at the header/body junction)
+    add_shadow(header_shape, blur_pt=6, offset_pt=3, opacity=0.15)
+    # 2. Gradient header band (rounded top, straight bottom)
+    band = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE, left, top, width, header_height
+    )
+    band.line.fill.background()
+    dark_color = _t(_darken_color(color, 0.28), _darken_color(color, 0.15))
+    add_gradient_fill(band, color, dark_color, angle_deg=135)
+    # 3. White body overlay below header
     body_top = top + header_height
     body_height = height - header_height
     body_shape = add_rounded_card(
-        slide,
-        left,
-        body_top,
-        width,
-        body_height,
-        fill=_t(MS_WHITE, _DARK_CARD_BG),
-        border=None,
-        corner_radius=0.0,
+        slide, left, body_top, width, body_height,
+        fill=_t(MS_WHITE, _DARK_CARD_BG), border=None, corner_radius=0.0,
     )
-    # 3. Header text
+    # 4. Header text
     header_tb = add_textbox(
         slide,
         header_text,
@@ -1331,13 +1330,13 @@ def add_header_card(
         top + Inches(0.05),
         width - Inches(0.3),
         header_height,
-        font_size=15,
+        font_size=18,
         color=MS_WHITE,
         bold=True,
         alignment=PP_ALIGN.CENTER,
         shrink_to_fit=True,
     )
-    group_shapes(slide, [header_shape, body_shape, header_tb])
+    group_shapes(slide, [header_shape, band, body_shape, header_tb])
     return header_shape, body_shape
 
 
@@ -1352,13 +1351,18 @@ def add_elevated_card(
     corner_radius=0.05,
     shadow="medium",
 ):
-    """Add a rounded card with a drop shadow for visual depth.
+    """Add a rounded card with elevation. Fluent-upgraded: auto-glass on dark theme.
 
-    Combines add_rounded_card with add_shadow for easy elevation.
-    Use instead of add_rounded_card when the card needs to visually "pop".
+    On dark theme returns a glass card (semi-transparent + luminous border + glow).
+    On light theme returns a clean elevated card with drop shadow.
 
     shadow: "paper" | "subtle" | "medium" | "strong" | "deep" | None
     """
+    if _ACTIVE_THEME == "dark":
+        return add_glass_card(
+            slide, left, top, width, height,
+            tint_color=_DARK_CARD_BG, corner_radius=corner_radius,
+        )
     card = add_rounded_card(
         slide, left, top, width, height, fill, border, corner_radius
     )
@@ -1506,9 +1510,9 @@ def add_checklist(
     top,
     width,
     height=None,
-    font_size=13,
+    font_size=16,
     check_color=MS_GREEN,
-    spacing=Pt(10),
+    spacing=Pt(12),
 ):
     """Add a checklist with native PowerPoint bullet characters.
 
@@ -1837,7 +1841,7 @@ def add_code_block(slide, code, left, top, width, height=None, language=""):
         margin_h = margin_top_in + 0.08
         height = Inches(text_h + margin_h)
     shapes_to_group = []
-    # Rounded dark background
+    # Flat (no-radius) dark background -- rounded corners clash with the straight blue accent bar
     bg = add_rounded_card(
         slide,
         left,
@@ -1846,7 +1850,7 @@ def add_code_block(slide, code, left, top, width, height=None, language=""):
         height,
         fill=_t(MS_CODE_BG, _DARK_CODE_BG),
         border=None,
-        corner_radius=0.05,
+        corner_radius=0,
     )
     shapes_to_group.append(bg)
     # Blue left accent bar
@@ -1911,11 +1915,11 @@ def add_styled_table(
     width,
     col_widths=None,
     header_color=MS_DARK_BLUE,
-    font_size=12,
+    font_size=15,
 ):
     """Add a professionally styled table with alternating rows."""
     rows, cols = len(data), len(data[0])
-    ts = slide.shapes.add_table(rows, cols, left, top, width, Inches(0.38 * rows))
+    ts = slide.shapes.add_table(rows, cols, left, top, width, Inches(0.46 * rows))
     table = ts.table
     if col_widths:
         for i, w in enumerate(col_widths):
@@ -2121,27 +2125,29 @@ def add_card_grid(
             fill=_t(MS_WHITE, _DARK_CARD_BG), border=None,
             corner_radius=0.05, shadow="subtle"
         )
-        # Colored header band with icon + title
+        # Gradient header band
         _header_h = int(ch * 0.28)
-        s2 = add_rect(slide, x, y, card_w, _header_h, color)
+        hdr = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y, card_w, _header_h)
+        hdr.line.fill.background()
+        add_gradient_fill(hdr, color, _darken_color(color, 0.30), angle_deg=135)
         s3 = add_icon_circle(
             slide, x + Inches(0.15), y + int(ch * 0.04), Inches(0.44),
-            _darken_color(color, 0.18), str(i + 1)
+            _darken_color(color, 0.25), str(i + 1)
         )
         s4 = add_textbox(
             slide, title,
             x + Inches(0.69), y + int(ch * 0.04),
             card_w - Inches(0.87), int(ch * 0.22),
-            font_size=14, color=MS_WHITE, bold=True, shrink_to_fit=True,
+            font_size=15, color=MS_WHITE, bold=True, shrink_to_fit=True,
         )
         s5 = add_textbox(
             slide, desc,
             x + Inches(0.2), y + _header_h + Inches(0.12),
             card_w - Inches(0.4), int(ch) - _header_h - int(Inches(0.2)),
-            font_size=12, color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED), shrink_to_fit=True,
+            font_size=13, color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED), shrink_to_fit=True,
         )
         last_shape = s1
-        group_shapes(slide, [s1, s2, s3, s4, s5])
+        group_shapes(slide, [s1, hdr, s3, s4, s5])
     return ElementBox(last_shape, left, top, total_w, total_h)
 
 
@@ -2153,72 +2159,10 @@ def add_pillar_cards(
     height=Inches(5.2),
     min_gap=Inches(0.15),
 ):
-    """Add vertical pillar cards with proportional internal layout.
-
-    All internal offsets (circle, title, description) are derived from ``height``
-    so the cards never overflow regardless of how tall or short they are.
-
-    pillars = [(color, num, title, desc), ...].
-    Returns an ElementBox(shape, left, top, width, height).
-    """
-    n = len(pillars)
-    card_w = (CONTENT_WIDTH - (n - 1) * min_gap) / n
-    if card_w < MIN_CARD_WIDTH:
-        warnings.warn(
-            f'pptx_utils: pillar card width ({float(card_w) / 914400:.2f}") is below '
-            f'minimum readable width ({float(MIN_CARD_WIDTH) / 914400:.2f}"). '
-            f"Consider reducing the number of pillars (currently {n}).",
-            stacklevel=2,
-        )
-    _validate_bounds(left, top, CONTENT_WIDTH, height, "add_pillar_cards")
-    h = float(height)  # EMU
-    # Proportional breakpoints (fraction of total card height)
-    circle_r = Inches(0.4)
-    circle_top = top + h * 0.07
-    title_top = top + h * 0.30
-    title_h = h * 0.18
-    desc_top = top + h * 0.52
-    desc_h = h * 0.44
-    for i, (color, num, title_text, desc) in enumerate(pillars):
-        x = left + i * (card_w + min_gap)
-        # Elevated white card with clean shadow
-        add_elevated_card(slide, x, top, card_w, height,
-            fill=_t(MS_WHITE, _DARK_CARD_BG), border=None,
-            corner_radius=0.05, shadow="subtle")
-        # Colored header band (top 22% of card)
-        _header_h = h * 0.22
-        add_rect(slide, x, top, card_w, _header_h, color)
-        # Icon circle centered horizontally, positioned in header band
-        add_icon_circle(
-            slide, x + card_w / 2 - circle_r, top + _header_h * 0.08,
-            circle_r * 2, _darken_color(color, 0.18), num
-        )
-        add_textbox(
-            slide,
-            title_text,
-            x + Inches(0.1),
-            title_top,
-            card_w - Inches(0.2),
-            title_h,
-            font_size=15,
-            color=_t(MS_DARK_BLUE, _DARK_TEXT),
-            bold=True,
-            alignment=PP_ALIGN.CENTER,
-            shrink_to_fit=True,
-        )
-        add_textbox(
-            slide,
-            desc,
-            x + Inches(0.1),
-            desc_top,
-            card_w - Inches(0.2),
-            desc_h,
-            font_size=11,
-            color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
-            alignment=PP_ALIGN.CENTER,
-            shrink_to_fit=True,
-        )
-    return ElementBox(None, left, top, CONTENT_WIDTH, height)
+    """Add vertical pillar cards. Delegates to add_gradient_pillar_cards (Fluent style)."""
+    return add_gradient_pillar_cards(
+        slide, pillars, left=left, top=top, height=height, min_gap=min_gap,
+    )
 
 
 def add_quote_block(
@@ -2307,81 +2251,11 @@ def add_stats_row(
     card_h=Inches(1.6),
     gap=Inches(0.25),
 ):
-    """Add a horizontal row of big-number statistics.
-
-    stats = [(value, label), ...] or [(value, label, color), ...]
-
-    Each stat is displayed as a large bold number with a small label below.
-    Cards are evenly distributed across the available width.
-
-    Example::
-        add_stats_row(slide, [
-            ("55%", "Faster Onboarding"),
-            ("3.2x", "Code Review Speed"),
-            ("40%", "Less Boilerplate"),
-        ])
-    """
-    if width is None:
-        width = CONTENT_WIDTH
-    n = len(stats)
-    card_w = (width - (n - 1) * gap) / n
-    if card_w < MIN_CARD_WIDTH:
-        warnings.warn(
-            f'pptx_utils: stats card width ({float(card_w) / 914400:.2f}") is below '
-            f"minimum readable width. Consider reducing items (currently {n}).",
-            stacklevel=2,
-        )
-    _validate_bounds(left, top, width, card_h, "add_stats_row")
-
-    cards = []
-    for i, stat in enumerate(stats):
-        value = stat[0]
-        label = stat[1]
-        color = stat[2] if len(stat) > 2 else MS_BLUE
-
-        x = left + i * (card_w + gap)
-
-        # Card with top accent and shadow
-        card = add_elevated_card(
-            slide,
-            x,
-            top,
-            card_w,
-            card_h,
-            fill=_t(MS_WHITE, _DARK_CARD_BG),
-            border=None,
-            shadow="subtle",
-        )
-        add_rect(slide, x, top, card_w, Inches(0.08), color)
-
-        # Text embedded in card with proportional spacing
-        ch = int(card_h)
-        # In dark mode the accent color may be too dark to read as text -- lighten it.
-        card_color = _t(color, _lighten_color(color, 0.60))
-
-        _set_shape_text(
-            card,
-            str(value),
-            font_size=40,
-            color=card_color,
-            bold=True,
-            alignment=PP_ALIGN.CENTER,
-            v_align="middle",
-            margin_left=SPACE_SM,
-            margin_right=SPACE_SM,
-            margin_top=int(ch * 0.06),
-            margin_bottom=int(ch * 0.08),
-        )
-        _add_shape_paragraph(
-            card,
-            label,
-            font_size=TEXT_BODY_SM,
-            color=_t(MS_DARK_BLUE, _DARK_TEXT),
-            alignment=PP_ALIGN.CENTER,
-            space_before=Pt(4),
-        )
-        cards.append(card)
-    return ElementBox(cards[0] if cards else None, left, top, width, card_h)
+    """Add a horizontal row of big-number statistics. Delegates to add_fluent_stats_row."""
+    return add_fluent_stats_row(
+        slide, stats, left=left, top=top,
+        width=width, card_h=card_h, gap=gap,
+    )
 
 
 def add_kpi_card(
@@ -2456,7 +2330,7 @@ def add_comparison_columns(
         col_w,
         height,
         header_color=left_color,
-        font_size=TEXT_BODY_SM,
+        font_size=TEXT_BODY,
     )
 
     # Right column
@@ -2470,7 +2344,7 @@ def add_comparison_columns(
         col_w,
         height,
         header_color=right_color,
-        font_size=TEXT_BODY_SM,
+        font_size=TEXT_BODY,
     )
 
     # VS divider circle (slightly larger, more prominent)
@@ -2732,9 +2606,12 @@ def add_layered_architecture(
 
     for i, (label, color) in enumerate(layers):
         y = top + i * (layer_h + gap)
-        # In dark mode tone down saturated fills so they look sophisticated,
-        # not garish.  Text color is recomputed against the toned fill.
-        bar_fill = _tone_for_dark(color)
+        # Dark mode: keep vivid colours as-is (they read well against dark BG),
+        # but aggressively lift near-black fills to a visible midtone.
+        if _ACTIVE_THEME == "dark":
+            bar_fill = _lighten_color(color, 0.48) if _luminance(color) < 0.10 else color
+        else:
+            bar_fill = color
         # Layer bar with subtle shadow
         bar = add_elevated_card(
             slide,
@@ -3057,7 +2934,7 @@ def add_swot_grid(
             cell_w,
             cell_h,
             header_color=color,
-            font_size=TEXT_BODY_SM,
+            font_size=TEXT_BODY,
         )
     return ElementBox(None, left, top, width, height)
 
@@ -3958,8 +3835,8 @@ def add_header_card_with_bullets(
     width,
     height,
     header_color=MS_BLUE,
-    header_height=Inches(0.5),
-    font_size=11,
+    header_height=Inches(0.6),
+    font_size=14,
     bullet_symbol="\u2022",
 ):
     """Add a card with a colored header banner and native-bulleted body.
@@ -4194,79 +4071,12 @@ def add_process_flow(
     colors=None,
     annotations=None,
 ):
-    """Add a horizontal process flow diagram with boxes and block arrows.
-
-    Matches the adoption strategy flow (screenshot 4):
-    [Hackathon] --> [Train the Trainers] --> [Scale-up]
-
-    steps = ["Hackathon", "Train the Trainers", "Scale-up"]
-    colors: list of RGBColor per step, or None for automatic dark-to-light.
-    annotations: optional list of (step_index, text) for bullets below a step.
-
-    Returns list of box shapes.
-    """
-    n = len(steps)
-    if colors is None:
-        palette = [MS_DARK_BLUE, MS_BLUE, MS_LIGHT_BLUE]
-        colors = [palette[i % len(palette)] for i in range(n)]
-
-    total_w = n * box_w + (n - 1) * arrow_w
-    _validate_bounds(left, top, total_w, box_h, "add_process_flow")
-    start_x = left + (CONTENT_WIDTH - total_w) / 2  # center the flow
-
-    boxes = []
-    for i, label in enumerate(steps):
-        x = start_x + i * (box_w + arrow_w)
-        text_color = MS_WHITE if colors[i] != MS_LIGHT_BLUE else MS_DARK_BLUE
-
-        # Box (text embedded in shape)
-        box = add_rounded_card(
-            slide, x, top, box_w, box_h, fill=colors[i], border=None, corner_radius=0.06
-        )
-        _set_shape_text(
-            box,
-            label,
-            font_size=18,
-            color=text_color,
-            bold=True,
-            alignment=PP_ALIGN.CENTER,
-            v_align="middle",
-            margin_left=Inches(0.1),
-            margin_right=Inches(0.1),
-            margin_top=Inches(0.1),
-            margin_bottom=Inches(0.1),
-        )
-        boxes.append(box)
-
-        # Arrow between steps
-        if i < n - 1:
-            arrow_x = x + box_w + Inches(0.05)
-            arrow_y = top + (box_h - Inches(0.5)) / 2
-            add_arrow_right(
-                slide,
-                arrow_x,
-                arrow_y,
-                width=arrow_w - Inches(0.1),
-                height=Inches(0.5),
-                color=_t(MS_DARK_BLUE, _DARK_TEXT_MUTED),
-            )
-
-    # Annotations below specific steps
-    if annotations:
-        for step_idx, text in annotations:
-            ax = start_x + step_idx * (box_w + arrow_w)
-            add_bullet_list(
-                slide,
-                text if isinstance(text, list) else [text],
-                ax,
-                top + box_h + Inches(0.3),
-                box_w,
-                font_size=12,
-                color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
-            )
-
-    anno_h = Inches(1.3) if annotations else 0
-    return ElementBox(boxes[0] if boxes else None, left, top, total_w, box_h + anno_h)
+    """Add a horizontal process flow diagram. Delegates to add_fluent_process_flow."""
+    return add_fluent_process_flow(
+        slide, steps, left=left, top=top,
+        box_w=box_w, box_h=box_h, arrow_w=arrow_w,
+        colors=colors, annotations=annotations,
+    )
 
 
 def add_process_flow_grouped(
@@ -4717,3 +4527,835 @@ def save_presentation(prs, output_path):
     print(f"\n  Presentation saved to: {output_path}")
     print(f"  Total slides: {len(prs.slides)}")
     return output_path
+
+
+# ═════════════════════════════════════════════════════════════
+# FLUENT MAXIMALIST — PREMIUM PRIMITIVES
+# ═════════════════════════════════════════════════════════════
+# These are additive, standalone primitives inspired by Microsoft Fluent Design:
+# layered acrylic, reveal highlights, colored glows, gradient depth, mica washes.
+# Use alongside the standard primitives when you want maximum visual impact.
+
+
+def add_inner_glow(shape, color=MS_BLUE, blur_pt=8, opacity=0.25):
+    """Add an inner glow (innerShdw) to a shape for a luminous reveal-highlight effect.
+
+    Simulates Fluent Design's "reveal" border — a soft colored light leaking
+    from inside the shape's edges, creating depth without external shadow.
+
+    Example::
+        card = add_rounded_card(slide, x, y, w, h)
+        add_inner_glow(card, color=MS_BLUE, blur_pt=10, opacity=0.30)
+    """
+    from lxml import etree
+    from pptx.oxml.ns import qn
+
+    spPr = shape._element.spPr
+    effectLst = spPr.find(qn("a:effectLst"))
+    if effectLst is None:
+        effectLst = etree.SubElement(spPr, qn("a:effectLst"))
+
+    innerShdw = etree.SubElement(effectLst, qn("a:innerShdw"))
+    innerShdw.set("blurRad", str(int(blur_pt * 12700)))
+    innerShdw.set("dist", "0")
+    innerShdw.set("dir", "0")
+
+    srgbClr = etree.SubElement(innerShdw, qn("a:srgbClr"))
+    srgbClr.set("val", "%02X%02X%02X" % (color[0], color[1], color[2]))
+    alpha = etree.SubElement(srgbClr, qn("a:alpha"))
+    alpha.set("val", str(int(opacity * 100000)))
+    return shape
+
+
+def add_colored_shadow(shape, color=MS_BLUE, blur_pt=12, offset_pt=4, opacity=0.30):
+    """Add a colored drop shadow (outer glow) to create a luminous floating effect.
+
+    Unlike the standard monochrome shadow, this uses the accent color itself,
+    creating a neon-like glow underneath the shape. Pairs beautifully with
+    dark slides.
+
+    Example::
+        card = add_rounded_card(slide, x, y, w, h, fill=MS_DARK_BLUE)
+        add_colored_shadow(card, color=MS_BLUE, blur_pt=16, opacity=0.35)
+    """
+    hex_color = "%02X%02X%02X" % (color[0], color[1], color[2])
+    return add_shadow(shape, blur_pt=blur_pt, offset_pt=offset_pt,
+                      opacity=opacity, color=hex_color)
+
+
+def set_shape_alpha(shape, alpha_pct):
+    """Set fill transparency on a shape (0 = opaque, 100 = fully transparent).
+
+    Used to create acrylic/frosted glass effects by making card fills
+    semi-transparent over patterned or gradient backgrounds.
+    """
+    from lxml import etree
+    from pptx.oxml.ns import qn
+
+    spPr = shape._element.spPr
+    solidFill = spPr.find(qn("a:solidFill"))
+    if solidFill is not None:
+        srgb = solidFill.find(qn("a:srgbClr"))
+        if srgb is not None:
+            # Remove existing alpha
+            for old in srgb.findall(qn("a:alpha")):
+                srgb.remove(old)
+            alpha = etree.SubElement(srgb, qn("a:alpha"))
+            alpha.set("val", str(int((100 - alpha_pct) * 1000)))
+    return shape
+
+
+def add_mica_background(slide, style="cool"):
+    """Apply a Fluent Mica-inspired gradient wash to the entire slide background.
+
+    Creates a subtle, atmospheric gradient that gives the slide depth without
+    competing with content. Like Mica in Windows 11 — you barely notice it,
+    but removing it makes everything feel flat.
+
+    style:
+        "cool"  — deep blue-to-indigo wash (default, elegant)
+        "warm"  — warm charcoal-to-slate wash
+        "aurora" — deep teal-to-purple (dramatic, keynote-style)
+        "mono"  — nearly-black with subtle gray shift (minimal)
+
+    Example::
+        slide = create_standard_slide(prs, "Architecture", page_num=3, total=10)
+        add_mica_background(slide, style="cool")  # adds depth under content
+    """
+    # Insert mica layer BEHIND all other content (position 0 in shapes)
+    styles = {
+        "cool": (
+            RGBColor(0x0D, 0x11, 0x1E),
+            RGBColor(0x12, 0x18, 0x2B),
+            RGBColor(0x0F, 0x14, 0x24),
+            135,
+        ),
+        "warm": (
+            RGBColor(0x1C, 0x1A, 0x1A),
+            RGBColor(0x22, 0x20, 0x28),
+            RGBColor(0x1A, 0x1D, 0x22),
+            90,
+        ),
+        "aurora": (
+            RGBColor(0x0A, 0x14, 0x1F),
+            RGBColor(0x14, 0x0E, 0x22),
+            RGBColor(0x0D, 0x18, 0x20),
+            160,
+        ),
+        "mono": (
+            RGBColor(0x18, 0x18, 0x1C),
+            RGBColor(0x1C, 0x1E, 0x24),
+            RGBColor(0x16, 0x18, 0x1E),
+            90,
+        ),
+    }
+    c1, c2, c3, angle = styles.get(style, styles["cool"])
+    bg_shape = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), SLIDE_WIDTH, SLIDE_HEIGHT
+    )
+    bg_shape.line.fill.background()
+    add_gradient_fill_3(bg_shape, c1, c2, c3, angle_deg=angle)
+    # Move to back (position 0) so it's behind everything
+    slide.shapes._spTree.remove(bg_shape._element)
+    slide.shapes._spTree.insert(2, bg_shape._element)
+    return bg_shape
+
+
+def add_glass_card(
+    slide,
+    left,
+    top,
+    width,
+    height,
+    tint_color=None,
+    blur_opacity=75,
+    border_glow=True,
+    glow_color=None,
+    corner_radius=0.05,
+):
+    """Add an acrylic/frosted-glass card — the signature Fluent Design element.
+
+    Creates a semi-transparent card with a luminous border and subtle colored
+    inner glow, simulating the layered acrylic material from Windows 11.
+    Looks stunning on dark slides with a mica background underneath.
+
+    tint_color: fill tint (default: dark card bg with alpha). Use dark colors.
+    blur_opacity: 0-100, how opaque the glass is (75 = slight transparency).
+    border_glow: whether to add the luminous edge highlight.
+    glow_color: accent color for inner glow (default: MS_BLUE / MS_LIGHT_BLUE).
+
+    Example::
+        add_mica_background(slide, "cool")
+        card = add_glass_card(slide, x, y, w, h, glow_color=MS_BLUE)
+        _set_shape_text(card, "Hello", font_size=18, color=_DARK_TEXT)
+    """
+    if tint_color is None:
+        tint_color = _t(RGBColor(0xF8, 0xF8, 0xFC), RGBColor(0x28, 0x2C, 0x3A))
+    if glow_color is None:
+        glow_color = _t(MS_BLUE, MS_LIGHT_BLUE)
+
+    card = add_rounded_card(
+        slide, left, top, width, height, fill=tint_color, corner_radius=corner_radius
+    )
+    # Semi-transparency (acrylic effect)
+    set_shape_alpha(card, 100 - blur_opacity)
+    # Subtle luminous border
+    card.line.color.rgb = _t(
+        RGBColor(0xE0, 0xE0, 0xE8), RGBColor(0x48, 0x4C, 0x5C)
+    )
+    card.line.width = Pt(0.75)
+    # Inner glow for the reveal-highlight effect
+    if border_glow:
+        add_inner_glow(card, color=glow_color, blur_pt=10, opacity=0.18)
+    # Soft colored shadow underneath (floating above mica)
+    add_colored_shadow(card, color=glow_color, blur_pt=14, offset_pt=3, opacity=0.15)
+    return card
+
+
+def add_glow_card(
+    slide,
+    left,
+    top,
+    width,
+    height,
+    fill=None,
+    glow_color=None,
+    corner_radius=0.05,
+    intensity="medium",
+):
+    """Add a card with a prominent colored outer glow — like a focused/selected state.
+
+    Creates visual hierarchy by making the card appear to emit light.
+    Perfect for hero cards, highlighted items, or "selected" states in grids.
+
+    intensity: "subtle" | "medium" | "strong" | "neon"
+
+    Example::
+        add_glow_card(slide, x, y, w, h,
+                      fill=MS_DARK_BLUE, glow_color=MS_BLUE, intensity="strong")
+    """
+    if fill is None:
+        fill = _t(MS_WHITE, _DARK_CARD_BG)
+    if glow_color is None:
+        glow_color = _t(MS_BLUE, MS_LIGHT_BLUE)
+
+    presets = {
+        "subtle": (8, 2, 0.18),
+        "medium": (14, 4, 0.28),
+        "strong": (20, 5, 0.38),
+        "neon": (28, 6, 0.50),
+    }
+    blur, offset, opacity = presets.get(intensity, presets["medium"])
+
+    card = add_rounded_card(
+        slide, left, top, width, height, fill=fill, corner_radius=corner_radius
+    )
+    # Luminous border highlight
+    card.line.color.rgb = glow_color
+    card.line.width = Pt(1.0)
+    # Colored outer glow
+    add_colored_shadow(card, color=glow_color, blur_pt=blur,
+                       offset_pt=offset, opacity=opacity)
+    return card
+
+
+def add_gradient_card(
+    slide,
+    left,
+    top,
+    width,
+    height,
+    color_start,
+    color_end,
+    angle_deg=90,
+    corner_radius=0.05,
+    shadow="subtle",
+):
+    """Add a card with a gradient fill. Already exists but re-exported for discoverability.
+
+    For premium layouts, use diagonal angles (135, 160) and pair with
+    add_inner_glow for a Fluent reveal effect.
+    """
+    shape = slide.shapes.add_shape(
+        MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height
+    )
+    shape.line.fill.background()
+    try:
+        shape.adjustments[0] = corner_radius
+    except Exception:
+        pass
+    add_gradient_fill(shape, color_start, color_end, angle_deg)
+    if shadow:
+        presets = {
+            "paper": (2, 1, 0.08),
+            "subtle": (4, 2, 0.12),
+            "medium": (6, 3, 0.18),
+            "strong": (12, 5, 0.25),
+            "deep": (20, 8, 0.30),
+        }
+        blur, offset, opacity = presets.get(shadow, presets["medium"])
+        add_shadow(shape, blur_pt=blur, offset_pt=offset, opacity=opacity)
+    return shape
+
+
+def add_accent_divider(
+    slide,
+    left,
+    top,
+    width,
+    color_start=None,
+    color_end=None,
+    height=Pt(3),
+    angle_deg=0,
+):
+    """Add a gradient accent line/divider — replaces boring solid-color rules.
+
+    A horizontal gradient bar that transitions between two accent colors.
+    Subtle but elevates the entire slide's feel. Use between sections.
+
+    Example::
+        add_accent_divider(slide, CONTENT_LEFT, Inches(3.5), CONTENT_WIDTH)
+    """
+    if color_start is None:
+        color_start = _t(MS_BLUE, MS_LIGHT_BLUE)
+    if color_end is None:
+        color_end = _t(MS_DARK_BLUE, RGBColor(0x38, 0x6E, 0xA8))
+
+    bar = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE, left, top, width, height
+    )
+    bar.line.fill.background()
+    add_gradient_fill(bar, color_start, color_end, angle_deg=angle_deg)
+    return bar
+
+
+def add_gradient_hero_stat(
+    slide,
+    metric,
+    label,
+    left,
+    top,
+    width=Inches(5.0),
+    height=Inches(3.2),
+    color_start=None,
+    color_end=None,
+    sublabel="",
+    trend="",
+    trend_positive=True,
+    glow=True,
+):
+    """Add a large hero metric card with a full gradient background and glow.
+
+    This is the "big moment" card — use for the single most important KPI
+    on a slide. Full gradient fill with colored shadow creates dramatic presence.
+
+    Example::
+        add_gradient_hero_stat(slide, "99.99%", "Platform Uptime",
+                               left, top, sublabel="Last 12 months",
+                               trend="+0.02%", trend_positive=True)
+    """
+    if color_start is None:
+        color_start = _t(MS_BLUE, RGBColor(0x00, 0x5A, 0xA0))
+    if color_end is None:
+        color_end = _t(MS_DARK_BLUE, RGBColor(0x14, 0x28, 0x45))
+
+    card = add_gradient_card(
+        slide, left, top, width, height,
+        color_start=color_start, color_end=color_end,
+        angle_deg=135, corner_radius=0.05, shadow=None,
+    )
+    # Luminous colored glow underneath
+    if glow:
+        glow_c = _t(MS_BLUE, MS_LIGHT_BLUE)
+        add_colored_shadow(card, color=glow_c, blur_pt=20, offset_pt=5, opacity=0.30)
+    else:
+        add_shadow(card, blur_pt=12, offset_pt=5, opacity=0.25)
+    # Inner reveal highlight
+    add_inner_glow(card, color=_t(MS_LIGHT_BLUE, MS_LIGHT_BLUE), blur_pt=12, opacity=0.12)
+    # Metric text (white on gradient — always high contrast)
+    h_emu = int(height)
+    _set_shape_text(
+        card,
+        str(metric),
+        font_size=52,
+        color=MS_WHITE,
+        bold=True,
+        alignment=PP_ALIGN.CENTER,
+        v_align="middle",
+        font_name=FONT_SEMIBOLD,
+        shrink_to_fit=True,
+        margin_top=int(h_emu * 0.10),
+        margin_bottom=int(h_emu * 0.08),
+    )
+    # Label
+    _add_shape_paragraph(
+        card, label,
+        font_size=16, color=RGBColor(0xCC, 0xE4, 0xFF),
+        alignment=PP_ALIGN.CENTER, space_before=Pt(4),
+    )
+    # Sublabel
+    if sublabel:
+        _add_shape_paragraph(
+            card, sublabel,
+            font_size=11, color=RGBColor(0x88, 0xB8, 0xE0),
+            alignment=PP_ALIGN.CENTER, space_before=Pt(3),
+        )
+    # Trend
+    if trend:
+        arrow = "\u25b2 " if trend_positive else "\u25bc "
+        t_color = RGBColor(0x6B, 0xFF, 0x6B) if trend_positive else RGBColor(0xFF, 0x7B, 0x7B)
+        _add_shape_paragraph(
+            card, arrow + trend,
+            font_size=13, color=t_color, bold=True,
+            alignment=PP_ALIGN.CENTER, space_before=Pt(6),
+        )
+    return ElementBox(card, left, top, width, height)
+
+
+def add_hero_quote(
+    slide,
+    quote,
+    attribution="",
+    left=CONTENT_LEFT,
+    top=Inches(1.5),
+    width=None,
+    accent_color=None,
+    style="dramatic",
+):
+    """Add a full-width dramatic quotation with gradient background and glowing accent.
+
+    Unlike the standard add_quote_block, this is designed to be THE content
+    on the slide — big, bold, unforgettable. Uses gradient fills and colored
+    glow effects for maximum visual impact.
+
+    style: "dramatic" (dark gradient + glow) | "editorial" (clean, large type)
+
+    Example::
+        slide = create_standard_slide(prs, "Customer Voice", page_num=5, total=10)
+        add_hero_quote(slide, "GitHub Copilot changed everything.",
+                       "— CTO, Contoso")
+    """
+    if width is None:
+        width = CONTENT_WIDTH
+    if accent_color is None:
+        accent_color = _t(MS_BLUE, MS_LIGHT_BLUE)
+
+    q_height = estimate_text_height(quote, 24, float(width) / 914400 - 1.5)
+    total_h = q_height + Inches(1.0)
+
+    if style == "dramatic":
+        # Full gradient background card
+        card = add_gradient_card(
+            slide, left, top, width, total_h,
+            color_start=_t(RGBColor(0xEF, 0xF6, 0xFC), RGBColor(0x14, 0x1C, 0x2E)),
+            color_end=_t(RGBColor(0xDE, 0xEC, 0xF9), RGBColor(0x0D, 0x14, 0x22)),
+            angle_deg=135, corner_radius=0.05, shadow=None,
+        )
+        add_colored_shadow(card, color=accent_color, blur_pt=16, offset_pt=3, opacity=0.20)
+        add_inner_glow(card, color=accent_color, blur_pt=8, opacity=0.12)
+    else:
+        # Editorial: clean elevated card
+        card = add_elevated_card(
+            slide, left, top, width, total_h,
+            fill=_t(MS_WHITE, _DARK_CARD_BG), shadow="medium",
+        )
+
+    # Gradient accent bar on left edge
+    accent_bar = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE, left, top, Pt(5), total_h
+    )
+    accent_bar.line.fill.background()
+    add_gradient_fill(accent_bar, accent_color,
+                      _darken_color(accent_color, 0.35), angle_deg=90)
+
+    # Giant decorative opening quote mark
+    add_textbox(
+        slide, "\u201c",
+        left + Inches(0.3), top - Inches(0.05),
+        Inches(0.8), Inches(1.0),
+        font_size=80, color=accent_color, bold=True,
+    )
+    # Quote text
+    add_textbox(
+        slide, quote,
+        left + Inches(0.9), top + Inches(0.25),
+        width - Inches(1.3), q_height,
+        font_size=24, color=_t(MS_DARK_BLUE, _DARK_TEXT),
+        italic=True, font_name=FONT_LIGHT, shrink_to_fit=True,
+    )
+    # Attribution
+    if attribution:
+        add_textbox(
+            slide, attribution,
+            left + Inches(0.9), top + q_height + Inches(0.3),
+            width - Inches(1.3), Inches(0.35),
+            font_size=13, color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
+            bold=True, font_name=FONT_SEMIBOLD,
+        )
+    return ElementBox(card, left, top, width, total_h)
+
+
+def add_reveal_card_grid(
+    slide,
+    cards,
+    left=CONTENT_LEFT,
+    top=CONTENT_TOP,
+    cols=3,
+    card_w=None,
+    card_h=Inches(2.4),
+    gap=Inches(0.25),
+    glow_color=None,
+):
+    """Add a grid of glass cards with inner-glow reveal highlights.
+
+    Each card gets the Fluent "reveal" treatment — subtle luminous edges
+    that make the grid feel alive and interactive. Cards use glass material
+    on dark themes and clean elevated material on light themes.
+
+    cards = [(icon_text, title, desc), ...]
+        icon_text: single emoji or short text for the icon circle
+        title: card heading
+        desc: card body text
+
+    Example::
+        add_reveal_card_grid(slide, [
+            ("\u2601", "Cloud Native", "Kubernetes at scale"),
+            ("\u26a1", "Real-time", "Sub-millisecond latency"),
+            ("\u2699", "Automated", "Zero-touch deployments"),
+        ])
+    """
+    if card_w is None:
+        card_w = (CONTENT_WIDTH - (cols - 1) * gap) / cols
+    if glow_color is None:
+        glow_color = _t(MS_BLUE, MS_LIGHT_BLUE)
+
+    n = len(cards)
+    rows = (n + cols - 1) // cols
+    total_w = cols * card_w + (cols - 1) * gap
+    total_h = rows * card_h + (rows - 1) * gap
+
+    for i, (icon_text, title, desc) in enumerate(cards):
+        col = i % cols
+        row = i // cols
+        x = left + col * (card_w + gap)
+        y = top + row * (card_h + gap)
+
+        # Glass card (dark) or elevated card (light)
+        if _ACTIVE_THEME == "dark":
+            card = add_glass_card(
+                slide, x, y, card_w, card_h,
+                glow_color=glow_color, blur_opacity=80,
+            )
+        else:
+            card = add_elevated_card(
+                slide, x, y, card_w, card_h,
+                fill=MS_WHITE, shadow="subtle",
+            )
+            add_inner_glow(card, color=glow_color, blur_pt=6, opacity=0.10)
+
+        # Icon circle (top-center) — fill is always dark so emoji/text pop out
+        circle_size = Inches(0.72)
+        cx = x + card_w / 2 - circle_size / 2
+        cy = y + Inches(0.2)
+        circle_fill = _t(MS_DARK_BLUE, RGBColor(0x08, 0x18, 0x30))
+        add_icon_circle(slide, cx, cy, circle_size, circle_fill, icon_text,
+                        text_color=_t(MS_WHITE, glow_color))
+
+        # Title
+        add_textbox(
+            slide, title,
+            x + Inches(0.15), y + Inches(1.05),
+            card_w - Inches(0.3), Inches(0.45),
+            font_size=15, color=_t(MS_DARK_BLUE, _DARK_TEXT),
+            bold=True, alignment=PP_ALIGN.CENTER, shrink_to_fit=True,
+        )
+        # Description
+        add_textbox(
+            slide, desc,
+            x + Inches(0.15), y + Inches(1.55),
+            card_w - Inches(0.3), card_h - Inches(1.75),
+            font_size=13, color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
+            alignment=PP_ALIGN.CENTER, shrink_to_fit=True,
+        )
+
+    return ElementBox(None, left, top, total_w, total_h)
+
+
+def add_gradient_pillar_cards(
+    slide,
+    pillars,
+    left=CONTENT_LEFT,
+    top=CONTENT_TOP,
+    height=Inches(5.2),
+    min_gap=Inches(0.15),
+    style="fluent",
+):
+    """Add vertical pillar cards with gradient headers and glow effects.
+
+    An elevated version of add_pillar_cards — each card header uses a gradient
+    fill instead of a flat color, and the entire card gets a subtle glow
+    in the accent color. Creates a premium, keynote-quality visual.
+
+    style: "fluent" (gradient + glow) | "glass" (acrylic cards, dark only)
+
+    pillars = [(color, num, title, desc), ...]
+
+    Example::
+        add_gradient_pillar_cards(slide, [
+            (MS_BLUE, "01", "Discover", "Identify opportunities"),
+            (MS_BLUE_DARKER, "02", "Prototype", "Validate quickly"),
+            (MS_DARK_BLUE, "03", "Scale", "Production readiness"),
+        ])
+    """
+    n = len(pillars)
+    card_w = (CONTENT_WIDTH - (n - 1) * min_gap) / n
+    h = float(height)
+    _validate_bounds(left, top, CONTENT_WIDTH, height, "add_gradient_pillar_cards")
+
+    header_frac = 0.26
+    circle_r = Inches(0.50)
+
+    for i, (color, num, title_text, desc) in enumerate(pillars):
+        x = left + i * (card_w + min_gap)
+        _header_h = h * header_frac
+
+        if style == "glass" and _ACTIVE_THEME == "dark":
+            # Full glass card
+            card = add_glass_card(
+                slide, x, top, card_w, height,
+                glow_color=color, blur_opacity=78,
+            )
+            # Gradient header overlay
+            hdr = slide.shapes.add_shape(
+                MSO_SHAPE.ROUNDED_RECTANGLE, x, top, card_w, _header_h
+            )
+            hdr.line.fill.background()
+            try:
+                hdr.adjustments[0] = 0.05
+            except Exception:
+                pass
+            add_gradient_fill(hdr, color, _darken_color(color, 0.30), angle_deg=135)
+            set_shape_alpha(hdr, 30)
+        else:
+            # Elevated card with gradient header
+            card = add_elevated_card(
+                slide, x, top, card_w, height,
+                fill=_t(MS_WHITE, _DARK_CARD_BG), shadow="subtle",
+            )
+            # Add subtle glow in accent color
+            add_colored_shadow(card, color=color, blur_pt=10, offset_pt=2, opacity=0.15)
+            # Gradient header band
+            hdr = slide.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE, x, top, card_w, _header_h
+            )
+            hdr.line.fill.background()
+            add_gradient_fill(hdr, color, _darken_color(color, 0.25), angle_deg=135)
+
+        # Icon circle
+        add_icon_circle(
+            slide, x + card_w / 2 - circle_r, top + _header_h * 0.12,
+            circle_r * 2, _darken_color(color, 0.18), num,
+        )
+        # Title
+        title_top = top + h * 0.32
+        add_textbox(
+            slide, title_text,
+            x + Inches(0.1), title_top,
+            card_w - Inches(0.2), h * 0.16,
+            font_size=17, color=_t(MS_DARK_BLUE, _DARK_TEXT),
+            bold=True, alignment=PP_ALIGN.CENTER, shrink_to_fit=True,
+        )
+        # Description
+        desc_top = top + h * 0.52
+        add_textbox(
+            slide, desc,
+            x + Inches(0.12), desc_top,
+            card_w - Inches(0.24), h * 0.42,
+            font_size=13, color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
+            alignment=PP_ALIGN.CENTER, shrink_to_fit=True,
+        )
+
+    return ElementBox(None, left, top, CONTENT_WIDTH, height)
+
+
+def add_fluent_process_flow(
+    slide,
+    steps,
+    left=CONTENT_LEFT,
+    top=Inches(2.0),
+    box_w=Inches(2.5),
+    box_h=Inches(1.4),
+    arrow_w=Inches(0.6),
+    colors=None,
+    annotations=None,
+    glow=True,
+):
+    """Add a process flow with gradient boxes and glowing connectors.
+
+    Premium version of add_process_flow — each step box has a gradient fill
+    and colored glow. Connector arrows pulse with the same accent color.
+    Creates a sense of energy and forward motion.
+
+    Example::
+        add_fluent_process_flow(slide,
+            ["Discover", "Prototype", "Ship"],
+            colors=[MS_DARK_BLUE, MS_BLUE, MS_GREEN])
+    """
+    n = len(steps)
+    if colors is None:
+        colors = [MS_DARK_BLUE, MS_BLUE, MS_LIGHT_BLUE]
+        colors = [colors[i % len(colors)] for i in range(n)]
+
+    total_w = n * box_w + (n - 1) * arrow_w
+    start_x = left + (CONTENT_WIDTH - total_w) / 2
+
+    boxes = []
+    for i, label in enumerate(steps):
+        x = start_x + i * (box_w + arrow_w)
+        c = colors[i % len(colors)]
+        c_end = _darken_color(c, 0.30)
+        text_color = MS_WHITE
+
+        # Gradient box
+        box = add_gradient_card(
+            slide, x, top, box_w, box_h,
+            color_start=c, color_end=c_end,
+            angle_deg=135, corner_radius=0.06, shadow=None,
+        )
+        if glow:
+            add_colored_shadow(box, color=c, blur_pt=12, offset_pt=3, opacity=0.25)
+        else:
+            add_shadow(box, blur_pt=6, offset_pt=3, opacity=0.18)
+        add_inner_glow(box, color=_lighten_color(c, 0.50), blur_pt=6, opacity=0.10)
+
+        _set_shape_text(
+            box, label,
+            font_size=16, color=text_color, bold=True,
+            alignment=PP_ALIGN.CENTER, v_align="middle",
+            margin_left=Inches(0.1), margin_right=Inches(0.1),
+        )
+        boxes.append(box)
+
+        # Glowing connector arrow
+        if i < n - 1:
+            arrow_x = x + box_w + Inches(0.05)
+            arrow_y = top + (box_h - Inches(0.5)) / 2
+            arr = add_arrow_right(
+                slide, arrow_x, arrow_y,
+                width=arrow_w - Inches(0.1), height=Inches(0.5),
+                color=_t(c, _lighten_color(c, 0.40)),
+            )
+            if glow and _ACTIVE_THEME == "dark":
+                add_colored_shadow(arr, color=c, blur_pt=6, offset_pt=1, opacity=0.20)
+
+    # Annotations
+    if annotations:
+        for step_idx, text in annotations:
+            ax = start_x + step_idx * (box_w + arrow_w)
+            add_bullet_list(
+                slide,
+                text if isinstance(text, list) else [text],
+                ax, top + box_h + Inches(0.3), box_w,
+                font_size=14, color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
+            )
+
+    anno_h = Inches(1.3) if annotations else 0
+    return ElementBox(boxes[0] if boxes else None, left, top, total_w, box_h + anno_h)
+
+
+def add_fluent_stats_row(
+    slide,
+    stats,
+    left=CONTENT_LEFT,
+    top=Inches(1.8),
+    width=None,
+    card_h=Inches(1.8),
+    gap=Inches(0.25),
+    glow=True,
+):
+    """Add a row of stat cards with gradient accents and glow effects.
+
+    Premium version of add_stats_row. Each card has a gradient accent bar
+    and colored glow in the stat's color. Numbers are larger and bolder.
+
+    stats = [(value, label, color), ...]
+
+    Example::
+        add_fluent_stats_row(slide, [
+            ("3.2M", "API Calls/Day", MS_BLUE),
+            ("99.99%", "Uptime", MS_GREEN),
+            ("<10ms", "P95 Latency", MS_BLUE_DARKER),
+        ])
+    """
+    if width is None:
+        width = CONTENT_WIDTH
+    n = len(stats)
+    card_w = (width - (n - 1) * gap) / n
+
+    cards = []
+    for i, (value, label, color) in enumerate(stats):
+        x = left + i * (card_w + gap)
+
+        if _ACTIVE_THEME == "dark":
+            card = add_glass_card(
+                slide, x, top, card_w, card_h,
+                glow_color=color, blur_opacity=82,
+            )
+        else:
+            card = add_elevated_card(
+                slide, x, top, card_w, card_h,
+                fill=MS_WHITE, shadow="subtle",
+            )
+            add_inner_glow(card, color=color, blur_pt=6, opacity=0.08)
+
+        # Gradient accent bar at top
+        accent = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE, x, top, card_w, Inches(0.12)
+        )
+        accent.line.fill.background()
+        add_gradient_fill(accent, color, _darken_color(color, 0.30), angle_deg=0)
+
+        # Colored glow
+        if glow:
+            add_colored_shadow(card, color=color, blur_pt=10, offset_pt=2, opacity=0.18)
+
+        # Value text
+        card_color = _t(color, _lighten_color(color, 0.55))
+        h_emu = int(card_h)
+        _set_shape_text(
+            card, str(value),
+            font_size=42, color=card_color, bold=True,
+            alignment=PP_ALIGN.CENTER, v_align="middle",
+            font_name=FONT_SEMIBOLD,
+            margin_top=int(h_emu * 0.08),
+            margin_bottom=int(h_emu * 0.05),
+        )
+        # Label
+        _add_shape_paragraph(
+            card, label,
+            font_size=14, color=_t(MS_DARK_BLUE, _DARK_TEXT),
+            alignment=PP_ALIGN.CENTER, space_before=Pt(4),
+        )
+        cards.append(card)
+
+    return ElementBox(cards[0] if cards else None, left, top, width, card_h)
+
+
+def create_premium_slide(
+    prs, title, page_num=None, total=None, notes="",
+    title_font_size=28, mica_style="cool",
+):
+    """Create a standard slide with Mica background — the premium slide template.
+
+    Identical to create_standard_slide but with an atmospheric mica gradient
+    layer underneath all content. Only visible on dark theme (light theme
+    uses standard white background).
+
+    Example::
+        slide = create_premium_slide(prs, "Architecture Overview",
+                                     page_num=3, total=10, mica_style="aurora")
+    """
+    slide = create_standard_slide(prs, title, page_num, total, notes, title_font_size)
+    if _ACTIVE_THEME == "dark":
+        add_mica_background(slide, style=mica_style)
+    return slide

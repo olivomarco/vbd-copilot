@@ -142,7 +142,7 @@ function ToolCard({ event, completion }: { event: JobEvent; completion?: JobEven
       style={{
         borderRadius: 6,
         fontSize: 13,
-        background: isComplete ? "#f0faf0" : "var(--hover-bg)",
+        background: isComplete ? "var(--bg-success)" : "var(--hover-bg)",
         border: open ? "1px solid var(--border)" : "1px solid transparent",
         transition: "border 0.15s ease",
       }}
@@ -255,7 +255,7 @@ function CollapsibleWarning({ message, subtle }: { message: string; subtle?: boo
     <div
       style={{
         padding: "6px 12px",
-        background: subtle ? "transparent" : "#fff0f0",
+        background: subtle ? "transparent" : "var(--bg-error)",
         borderRadius: 6,
         fontSize: subtle ? 12 : 13,
         color: subtle ? "var(--text-secondary)" : "#d13438",
@@ -313,7 +313,7 @@ function SubagentGroup({
           gap: 8,
           cursor: "pointer",
           userSelect: "none",
-          background: isComplete ? "#f0faf0" : "#fff5e6",
+          background: isComplete ? "var(--bg-success)" : "var(--bg-warning)",
         }}
       >
         <span style={{ fontSize: 10, color: "var(--text-secondary)", flexShrink: 0, width: 12, display: "inline-flex" }}>
@@ -372,7 +372,7 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
 
   if (t === "subagent_started") {
     return (
-      <div style={{ padding: "8px 12px", background: "#fff5e6", borderRadius: 6, fontSize: 13 }}>
+      <div style={{ padding: "8px 12px", background: "var(--bg-warning)", borderRadius: 6, fontSize: 13 }}>
         <span style={{ marginRight: 6, display: "inline-flex" }}><Bot20Regular /></span>
         Subagent: <strong>{d.agent}</strong>
       </div>
@@ -380,7 +380,7 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
   }
   if (t === "subagent_completed") {
     return (
-      <div style={{ padding: "8px 12px", background: "#f0faf0", borderRadius: 6, fontSize: 13 }}>
+      <div style={{ padding: "8px 12px", background: "var(--bg-success)", borderRadius: 6, fontSize: 13 }}>
         <span style={{ marginRight: 6, display: "inline-flex" }}><Checkmark20Regular /></span>
         Subagent <strong>{d.agent}</strong> completed
       </div>
@@ -502,7 +502,7 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
       <div
         style={{
           padding: "12px 16px",
-          background: "linear-gradient(135deg, #e6f4ff 0%, #f0f8ff 100%)",
+          background: "var(--bg-info)",
           borderRadius: 8,
           border: "1px solid rgba(0, 120, 212, 0.2)",
           fontSize: 13,
@@ -526,9 +526,9 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
                   alignItems: "center",
                   gap: 8,
                   padding: "5px 10px",
-                  background: "rgba(255,255,255,0.7)",
+                  background: "var(--bg-card-elevated)",
                   borderRadius: 6,
-                  border: "1px solid rgba(0,0,0,0.06)",
+                  border: "1px solid var(--border)",
                 }}
               >
                 <span style={{ flexShrink: 0, display: "inline-flex" }}>{fileIcon(ext)}</span>
@@ -547,7 +547,7 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
                     fontSize: 11,
                     borderRadius: 4,
                     border: "1px solid var(--border)",
-                    background: "white",
+                    background: "var(--bg-card-elevated)",
                     color: "var(--brand-primary)",
                     cursor: "pointer",
                     flexShrink: 0,
@@ -587,7 +587,7 @@ function EventCard({ event, completion, userAnswer }: { event: JobEvent; complet
     const wasTimedOut = userAnswer?.type === "input_timed_out";
     const answered = !!userAnswer && !wasTimedOut;
     const answerText = answered ? eventData(userAnswer!, "user_response").content : undefined;
-    const cardBg = wasTimedOut ? "#f5f5f5" : answered ? "#f5f5f5" : "#fff5e6";
+    const cardBg = wasTimedOut ? "var(--hover-bg)" : answered ? "var(--hover-bg)" : "var(--bg-warning)";
     const cardOpacity = wasTimedOut || answered ? 0.85 : 1;
     return (
       <div style={{
@@ -1209,7 +1209,7 @@ export function AgentWorkspace() {
                 border: "1px solid #7FBA00",
                 borderRadius: 10,
                 padding: "20px 24px",
-                background: "#f0fff0",
+                background: "var(--bg-success)",
               }}
             >
               <Text weight="semibold" size={400} style={{ display: "block", marginBottom: 12 }}>
@@ -1268,7 +1268,7 @@ export function AgentWorkspace() {
                 border: `2px solid ${isSubmitted ? "#8a8886" : isPlanReview ? "#FFB900" : "#0078D4"}`,
                 borderRadius: 10,
                 padding: "16px 20px",
-                background: isSubmitted ? "#f5f5f5" : isPlanReview ? "#fffbf0" : "#f0f6ff",
+                background: isSubmitted ? "var(--hover-bg)" : isPlanReview ? "var(--bg-hint)" : "var(--bg-info)",
                 opacity: isSubmitted && !retryAvailable ? 0.8 : 1,
                 transition: "opacity 0.3s",
               }}
@@ -1277,14 +1277,14 @@ export function AgentWorkspace() {
                 <div style={{
                   display: "flex", alignItems: "center", gap: 8,
                   padding: "8px 12px", marginBottom: 12, borderRadius: 6,
-                  background: retryAvailable ? "#fff4ce" : "#e8f5e9",
+                  background: retryAvailable ? "var(--bg-caution)" : "var(--bg-success)",
                   border: `1px solid ${retryAvailable ? "#f0c800" : "#a5d6a7"}`,
                   fontSize: 13,
                 }}>
                   {retryAvailable ? (
                     <>
                       <Warning20Regular style={{ color: "#c87400" }} />
-                      <span style={{ flex: 1, color: "#6b5900" }}>Response may not have reached the server.</span>
+                      <span style={{ flex: 1, color: "var(--text-warning)" }}>Response may not have reached the server.</span>
                       <Button
                         appearance="outline"
                         size="small"
@@ -1297,7 +1297,7 @@ export function AgentWorkspace() {
                   ) : (
                     <>
                       <Spinner size="tiny" />
-                      <span style={{ color: "#4a7c59" }}>Response sent — waiting for confirmation...</span>
+                      <span style={{ color: "var(--text-success)" }}>Response sent — waiting for confirmation...</span>
                     </>
                   )}
                 </div>

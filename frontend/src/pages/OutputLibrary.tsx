@@ -281,7 +281,7 @@ export function OutputLibrary() {
             gap: 14,
             padding: "14px 20px",
             marginBottom: 20,
-            background: "linear-gradient(135deg, #FFF4E5 0%, #FFF0DB 100%)",
+            background: "var(--bg-hint)",
             border: "1px solid #FFB90060",
             borderLeft: "4px solid #F25022",
             borderRadius: 10,
@@ -302,10 +302,10 @@ export function OutputLibrary() {
             <Warning20Regular style={{ color: "#F25022" }} />
           </div>
           <div style={{ flex: 1 }}>
-            <Text weight="semibold" size={300} style={{ display: "block", color: "#9B4400" }}>
+            <Text weight="semibold" size={300} style={{ display: "block", color: "var(--text-warning)" }}>
               Delete "{deleteTarget.title}"?
             </Text>
-            <Text size={200} style={{ color: "#9B4400CC" }}>
+            <Text size={200} style={{ color: "var(--text-warning)" }}>
               This will permanently remove {deleteTarget.file_count} file{deleteTarget.file_count !== 1 ? "s" : ""} ({formatSize(deleteTarget.size)}). This action cannot be undone.
             </Text>
           </div>

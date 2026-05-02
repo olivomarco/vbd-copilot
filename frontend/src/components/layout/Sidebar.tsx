@@ -247,7 +247,7 @@ export function Sidebar() {
             style={{
               display: "block",
               padding: "0 12px 6px",
-              color: "#107C10",
+              color: "var(--text-success)",
               textTransform: "uppercase",
               fontWeight: 700,
               fontSize: 10,
@@ -278,7 +278,7 @@ export function Sidebar() {
                   position: "relative",
                   margin: "0 4px 6px",
                   padding: "10px 12px",
-                  background: "linear-gradient(135deg, #f0fff0 0%, #e8f5e8 100%)",
+                  background: "var(--bg-success-gradient)",
                   border: "1px solid #7FBA0060",
                   borderLeft: "3px solid #7FBA00",
                   borderRadius: 8,
@@ -290,11 +290,11 @@ export function Sidebar() {
                   navigate(libraryPath);
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = "linear-gradient(135deg, #e8f5e8 0%, #d4ebd4 100%)";
+                  (e.currentTarget as HTMLElement).style.background = "var(--bg-success)";
                   (e.currentTarget as HTMLElement).style.borderColor = "#7FBA00";
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = "linear-gradient(135deg, #f0fff0 0%, #e8f5e8 100%)";
+                  (e.currentTarget as HTMLElement).style.background = "var(--bg-success-gradient)";
                   (e.currentTarget as HTMLElement).style.borderColor = "#7FBA0060";
                 }}
               >
@@ -348,7 +348,7 @@ export function Sidebar() {
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
-                      color: "#107C10",
+                      color: "var(--text-success)",
                     }}
                   >
                     {job.brief.topic.slice(0, 28)}{job.brief.topic.length > 28 ? "…" : ""}

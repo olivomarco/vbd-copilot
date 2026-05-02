@@ -152,7 +152,7 @@ export function Launchpad() {
             gap: 12,
             padding: "14px 18px",
             marginBottom: 24,
-            background: "linear-gradient(135deg, #FFF4E5 0%, #FFF0DB 100%)",
+            background: "var(--bg-hint)",
             border: "1px solid #FFB90060",
             borderLeft: "4px solid #F25022",
             borderRadius: 10,
@@ -177,8 +177,7 @@ export function Launchpad() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#6B3A00",
-              opacity: 0.6,
+              color: "var(--text-warning)",
             }}
             onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.opacity = "1")}
             onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.opacity = "0.6")}
@@ -201,10 +200,10 @@ export function Launchpad() {
             <Warning20Regular style={{ color: "#F25022" }} />
           </div>
           <div style={{ paddingRight: 20 }}>
-            <Text weight="semibold" size={300} style={{ display: "block", color: "#6B3A00" }}>
+            <Text weight="semibold" size={300} style={{ display: "block", color: "var(--text-warning)" }}>
               Experimental Interface
             </Text>
-            <Text size={200} style={{ color: "#6B3A00CC", display: "block", marginTop: 2, lineHeight: 1.45 }}>
+            <Text size={200} style={{ color: "var(--text-warning)", display: "block", marginTop: 2, lineHeight: 1.45 }}>
               The Desktop / Web UI is experimental — it works for most flows but may have rough edges or unexpected behaviour. Fall back to CLI if something breaks.
             </Text>
           </div>
@@ -377,8 +376,8 @@ export function Launchpad() {
                         width: 24,
                         height: 24,
                         borderRadius: "50%",
-                        background: locked ? "#edebe9" : meta.color,
-                        color: locked ? "#a19f9d" : "#fff",
+                        background: locked ? "var(--border-subtle)" : meta.color,
+                        color: locked ? "var(--text-secondary)" : "#fff",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",

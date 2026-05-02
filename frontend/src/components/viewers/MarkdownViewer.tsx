@@ -134,7 +134,7 @@ export function MarkdownViewer() {
                 whiteSpace: "nowrap",
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "#f3f2f1";
+                (e.currentTarget as HTMLElement).style.background = "var(--border-subtle)";
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLElement).style.background = "transparent";
