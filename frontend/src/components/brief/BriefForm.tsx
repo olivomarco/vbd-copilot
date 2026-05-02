@@ -22,13 +22,19 @@ import {
   CONTENT_LEVELS,
   CONTENT_LEVEL_META,
   DURATIONS,
+  PRESENTATION_THEMES,
   type AgentType,
   type ContentLevel,
+  type PresentationTheme,
   type GroupedOutput,
 } from "@/api/types";
 import { createSession, listGroupedOutputs } from "@/api/client";
 import { useJobStore, type JobBrief, type Job } from "@/stores/jobStore";
 import { AgentIcon } from "@/components/common/AgentIcon";
+import {
+  WeatherMoon20Regular,
+  WeatherSunny20Regular,
+} from "@fluentui/react-icons";
 
 /** Agents where the topic field expects longer descriptive text. */
 const LONG_TOPIC_AGENTS: Set<AgentType> = new Set([
@@ -43,7 +49,7 @@ interface BriefFormProps {
   onClose: () => void;
   onJobCreated: (jobId: string) => void;
   /** Optional initial values to pre-populate from a template. */
-  initialBrief?: Partial<{ topic: string; contentLevel: ContentLevel; duration: string; audience: string; notes: string }>;
+  initialBrief?: Partial<{ topic: string; contentLevel: ContentLevel; duration: string; audience: string; notes: string; theme: PresentationTheme }>;
 }
 
 export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefFormProps) {
@@ -56,6 +62,7 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
   const [duration, setDuration] = useState(initialBrief?.duration || agentDurations[0]);
   const [audience, setAudience] = useState(initialBrief?.audience || "");
   const [notes, setNotes] = useState(initialBrief?.notes || "");
+  const [theme, setTheme] = useState<PresentationTheme>(initialBrief?.theme || "light");
   const [submitting, setSubmitting] = useState(false);
 
   // Close on Escape key
@@ -121,6 +128,7 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
         duration,
         audience: audience.trim() || undefined,
         notes: notes.trim() || undefined,
+        theme: meta.showTheme ? theme : undefined,
         architecturePath: selectedArch?.primary_file
           ? selectedArch.primary_file
           : undefined,
@@ -160,7 +168,7 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
     } finally {
       setSubmitting(false);
     }
-  }, [topic, level, duration, audience, notes, agent, addJob, onJobCreated]);
+  }, [topic, level, duration, audience, notes, theme, agent, addJob, onJobCreated]);
 
   return (
     <>
@@ -317,6 +325,55 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
                 </Option>
               ))}
             </Dropdown>
+          </div>
+          )}
+
+          {/* Layout Theme — only for slide-conductor */}
+          {meta.showTheme && (
+          <div>
+            <Text
+              weight="semibold"
+              size={300}
+              style={{ display: "block", marginBottom: 8 }}
+            >
+              Layout Theme
+            </Text>
+            <div style={{ display: "flex", gap: 8 }}>
+              {PRESENTATION_THEMES.map((t) => {
+                const isActive = theme === t;
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setTheme(t)}
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      border: isActive ? "2px solid var(--brand-primary)" : "1px solid var(--border)",
+                      background: isActive
+                        ? t === "dark" ? "#1A1C23" : "rgba(0,120,212,0.06)"
+                        : t === "dark" ? "#1A1C23" : "var(--card-bg)",
+                      color: t === "dark" ? "#E8E8E8" : "var(--text-primary)",
+                      cursor: "pointer",
+                      fontWeight: isActive ? 600 : 400,
+                      fontSize: 13,
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {t === "light" ? (
+                      <WeatherSunny20Regular style={{ color: "#F7A600", flexShrink: 0 }} />
+                    ) : (
+                      <WeatherMoon20Regular style={{ color: "#8B9DC3", flexShrink: 0 }} />
+                    )}
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           )}
 

@@ -60,6 +60,119 @@ MS_ERROR_BG = RGBColor(0xFD, 0xE7, 0xE9)  # Error / negative bg
 # Tonal blue palette for multi-element differentiation (cards, layers, grids)
 TONAL_BLUES = [MS_DARK_BLUE, MS_BLUE_DARKER, MS_BLUE, MS_NAVY_LIGHT, MS_ACCENT_LIGHT]
 
+# ═════════════════════════════════════════════════════════════
+# THEME SYSTEM
+# ═════════════════════════════════════════════════════════════
+
+# ── DARK THEME PALETTE ──
+# Used automatically by slide template functions when set_theme("dark") is active.
+# Content generator scripts should use the T accessor (T.TEXT, T.BG, etc.)
+# rather than these private constants directly.
+_DARK_SLIDE_BG = RGBColor(0x1A, 0x1C, 0x23)     # Slide / canvas background
+_DARK_CARD_BG = RGBColor(0x25, 0x28, 0x35)       # Card / panel surface
+_DARK_TEXT = RGBColor(0xE8, 0xE8, 0xE8)           # Body text
+_DARK_TEXT_MUTED = RGBColor(0x9E, 0x9E, 0x9E)     # Secondary / caption text
+_DARK_CALLOUT_BG = RGBColor(0x1A, 0x2A, 0x3A)    # Callout box background (dark teal)
+_DARK_CODE_BG = RGBColor(0x1E, 0x1E, 0x1E)       # Code block background
+_DARK_CODE_TEXT = RGBColor(0xD4, 0xD4, 0xD4)     # Code block text
+_DARK_BORDER = RGBColor(0x3A, 0x3A, 0x3A)         # Subtle border / divider lines
+_DARK_SECTION_BG = RGBColor(0x0D, 0x12, 0x1F)    # Section divider background
+
+# Active theme -- "light" (default) or "dark"
+_ACTIVE_THEME: str = "light"
+
+
+def set_theme(name: str) -> None:
+    """Set the active presentation theme.  Call before ``create_presentation()``.
+
+    name: ``"light"`` (default Microsoft branded, white slides) or
+          ``"dark"`` (dark-background Microsoft branded slides).
+
+    Example::
+
+        set_theme("dark")
+        prs = create_presentation()
+        create_lead_slide(prs, "Azure AI Tour", ...)
+    """
+    global _ACTIVE_THEME
+    if name not in ("light", "dark"):
+        raise ValueError(f"Unknown theme '{name}'. Use 'light' or 'dark'.")
+    _ACTIVE_THEME = name
+
+
+def _t(light_val, dark_val):
+    """Return *light_val* for the light theme, *dark_val* for the dark theme.
+
+    Used internally by slide template functions so they automatically adapt
+    to whichever theme is active at call time.
+    """
+    return light_val if _ACTIVE_THEME == "light" else dark_val
+
+
+class _ThemeAccessor:
+    """Dynamic theme-aware color accessor for use in generator scripts.
+
+    Colors are resolved at *access time*, so they always reflect the theme
+    set by ``set_theme()`` even if it was called after ``from pptx_utils import *``.
+
+    Use these in generator scripts instead of hardcoded ``MS_TEXT`` / ``MS_WHITE``
+    when passing explicit colors to content-layer functions.
+
+    Available attributes::
+
+        T.TEXT        -- body text color
+        T.TEXT_MUTED  -- secondary / muted / caption text
+        T.BG          -- slide / canvas background
+        T.CARD_BG     -- card / panel fill
+        T.CALLOUT_BG  -- callout box background
+        T.CODE_BG     -- code block background
+        T.CODE_TEXT   -- code block text
+        T.BORDER      -- subtle border / divider line
+
+    Example::
+
+        set_theme("dark")
+        slide = create_standard_slide(prs, "Architecture", page_num=3, total=TOTAL)
+        add_bullet_list(slide, items, CONTENT_LEFT, CONTENT_TOP,
+                        CONTENT_WIDTH, color=T.TEXT)
+    """
+
+    @property
+    def TEXT(self) -> RGBColor:
+        return MS_TEXT if _ACTIVE_THEME == "light" else _DARK_TEXT
+
+    @property
+    def TEXT_MUTED(self) -> RGBColor:
+        return MS_TEXT_MUTED if _ACTIVE_THEME == "light" else _DARK_TEXT_MUTED
+
+    @property
+    def BG(self) -> RGBColor:
+        return MS_WHITE if _ACTIVE_THEME == "light" else _DARK_SLIDE_BG
+
+    @property
+    def CARD_BG(self) -> RGBColor:
+        return MS_WHITE if _ACTIVE_THEME == "light" else _DARK_CARD_BG
+
+    @property
+    def CALLOUT_BG(self) -> RGBColor:
+        return MS_CALLOUT_BG if _ACTIVE_THEME == "light" else _DARK_CALLOUT_BG
+
+    @property
+    def CODE_BG(self) -> RGBColor:
+        return MS_CODE_BG if _ACTIVE_THEME == "light" else _DARK_CODE_BG
+
+    @property
+    def CODE_TEXT(self) -> RGBColor:
+        return MS_CODE_TEXT if _ACTIVE_THEME == "light" else _DARK_CODE_TEXT
+
+    @property
+    def BORDER(self) -> RGBColor:
+        return MS_MID_GRAY if _ACTIVE_THEME == "light" else _DARK_BORDER
+
+
+# Singleton accessor -- import T from pptx_utils in generator scripts
+T = _ThemeAccessor()
+
 # Typography Scale (pt) -- consistent hierarchy for all text
 TEXT_DISPLAY = 46  # Hero / title slides
 TEXT_H1 = 32  # Primary headings
@@ -3097,7 +3210,7 @@ def create_standard_slide(
     Returns the slide for adding content below the title (CONTENT_TOP = 1.2").
     """
     slide = new_blank_slide(prs)
-    set_slide_bg(slide, MS_WHITE)
+    set_slide_bg(slide, _t(MS_WHITE, _DARK_SLIDE_BG))
     # Title with Semibold weight for professional feel
     title_h = estimate_text_height(
         title,
@@ -3115,7 +3228,7 @@ def create_standard_slide(
         CONTENT_WIDTH,
         title_h,
         font_size=title_font_size,
-        color=MS_BLUE,
+        color=_t(MS_BLUE, MS_LIGHT_BLUE),
         bold=True,
         font_name=FONT_SEMIBOLD,
         shrink_to_fit=True,
@@ -3128,24 +3241,25 @@ def create_standard_slide(
 
 
 def create_section_divider(prs, title, subtitle="", notes=""):
-    """Create a section divider with MS_DARK_BLUE background, decorative shapes, and logo.
-    Uses dark navy (#243A5E) so the Microsoft logo is clearly readable."""
+    """Create a section divider with dark background, decorative shapes, and logo.
+    Adapts background shade to the active theme (light: MS_DARK_BLUE, dark: deeper navy)."""
     slide = new_blank_slide(prs)
-    set_slide_bg(slide, MS_DARK_BLUE)
+    set_slide_bg(slide, _t(MS_DARK_BLUE, _DARK_SECTION_BG))
     # Left accent bar (bright blue on dark background)
     add_rect(slide, Inches(0), Inches(0), Inches(0.12), SLIDE_HEIGHT, MS_BLUE)
-    # Decorative circles (use slightly lighter shade for contrast on dark bg)
+    # Decorative circles
+    _circle_fill = _t(RGBColor(0x2E, 0x4A, 0x6E), RGBColor(0x1A, 0x22, 0x3A))
     c1 = slide.shapes.add_shape(
         MSO_SHAPE.OVAL, Inches(10.5), Inches(-1.2), Inches(4.5), Inches(4.5)
     )
     c1.fill.solid()
-    c1.fill.fore_color.rgb = RGBColor(0x2E, 0x4A, 0x6E)
+    c1.fill.fore_color.rgb = _circle_fill
     c1.line.fill.background()
     c2 = slide.shapes.add_shape(
         MSO_SHAPE.OVAL, Inches(10), Inches(5.8), Inches(1.5), Inches(1.5)
     )
     c2.fill.solid()
-    c2.fill.fore_color.rgb = RGBColor(0x2E, 0x4A, 0x6E)
+    c2.fill.fore_color.rgb = _circle_fill
     c2.line.fill.background()
     # Title - Light weight for elegant section dividers
     tb = add_textbox(
@@ -3199,13 +3313,13 @@ def create_lead_slide(
                with a "Content Level" sublabel.
     """
     slide = new_blank_slide(prs)
-    set_slide_bg(slide, MS_WHITE)
-    # Background image
-    if use_bg_image and os.path.exists(LEAD_BG_PATH):
+    set_slide_bg(slide, _t(MS_WHITE, _DARK_SLIDE_BG))
+    # Background image -- only for light theme (doesn't composite well on dark)
+    if use_bg_image and _ACTIVE_THEME == "light" and os.path.exists(LEAD_BG_PATH):
         slide.shapes.add_picture(
             LEAD_BG_PATH, Inches(0), Inches(0), SLIDE_WIDTH, SLIDE_HEIGHT
         )
-    # Blue band on right
+    # Blue band on right (same in both themes -- brand anchor)
     add_rect(slide, Inches(8.5), Inches(0), Inches(4.833), SLIDE_HEIGHT, MS_BLUE)
 
     # Level badge in decorative circles
@@ -3257,7 +3371,7 @@ def create_lead_slide(
         Inches(7),
         Inches(1.8),
         font_size=46,
-        color=MS_DARK_BLUE,
+        color=_t(MS_DARK_BLUE, MS_WHITE),
         bold=False,
         font_name=FONT_LIGHT,
         shrink_to_fit=True,
@@ -3274,7 +3388,7 @@ def create_lead_slide(
             Inches(7),
             Inches(0.6),
             font_size=20,
-            color=MS_BLUE,
+            color=_t(MS_BLUE, MS_LIGHT_BLUE),
         )
     if meta:
         add_textbox(
@@ -3285,7 +3399,7 @@ def create_lead_slide(
             Inches(7),
             Inches(0.4),
             font_size=13,
-            color=MS_TEXT_MUTED,
+            color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
         )
     if notes:
         add_speaker_notes(slide, notes)
@@ -3318,14 +3432,15 @@ def create_closing_slide(
         )
         title_height = max(title_height, Inches(0.6))  # minimum height
     slide = new_blank_slide(prs)
-    set_slide_bg(slide, MS_WHITE)
-    # Blue band left
-    add_rect(slide, Inches(0), Inches(0), Inches(5.2), SLIDE_HEIGHT, MS_BLUE)
+    set_slide_bg(slide, _t(MS_WHITE, _DARK_SLIDE_BG))
+    # Left band: bright blue on light theme, dark navy on dark theme
+    _band_color = _t(MS_BLUE, MS_DARK_BLUE)
+    add_rect(slide, Inches(0), Inches(0), Inches(5.2), SLIDE_HEIGHT, _band_color)
     c = slide.shapes.add_shape(
         MSO_SHAPE.OVAL, Inches(-1.5), Inches(4.8), Inches(3.5), Inches(3.5)
     )
     c.fill.solid()
-    c.fill.fore_color.rgb = MS_DARK_BLUE
+    c.fill.fore_color.rgb = _t(MS_DARK_BLUE, RGBColor(0x0D, 0x1A, 0x2E))
     c.line.fill.background()
     # Left title
     add_textbox(
@@ -3398,7 +3513,7 @@ def create_closing_slide(
             right_width,
             Inches(1.2),
             font_size=32,
-            color=MS_DARK_BLUE,
+            color=_t(MS_DARK_BLUE, MS_WHITE),
             bold=True,
             shrink_to_fit=True,
         )
@@ -3411,7 +3526,7 @@ def create_closing_slide(
             right_width,
             Inches(0.35),
             font_size=14,
-            color=MS_BLUE,
+            color=_t(MS_BLUE, MS_LIGHT_BLUE),
             shrink_to_fit=True,
         )
     if cta_items:
@@ -3428,7 +3543,8 @@ def create_closing_slide(
                 big, small = item[0], item[1] if len(item) > 1 else ""
             x = right_left + i * (card_w + cta_gap)
             add_rounded_card(
-                slide, x, cards_top, card_w, card_h, fill=MS_WHITE, border=MS_BLUE
+                slide, x, cards_top, card_w, card_h,
+                fill=_t(MS_WHITE, _DARK_CARD_BG), border=MS_BLUE
             )
             add_textbox(
                 slide,
@@ -3451,7 +3567,7 @@ def create_closing_slide(
                 card_w - Inches(0.16),
                 Inches(0.55),
                 font_size=11,
-                color=MS_TEXT_MUTED,
+                color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
                 alignment=PP_ALIGN.CENTER,
                 shrink_to_fit=True,
             )
@@ -3466,7 +3582,7 @@ def create_closing_slide(
         right_width,
         Inches(0.5),
         font_size=26,
-        color=MS_DARK_BLUE,
+        color=_t(MS_DARK_BLUE, MS_WHITE),
         bold=True,
     )
     add_bottom_bar(slide, page_num, total)

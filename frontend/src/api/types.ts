@@ -144,6 +144,7 @@ export const AGENT_META: Record<
     showContentLevel: boolean;
     showDuration: boolean;
     showAudience: boolean;
+    showTheme: boolean;
     defaultLevel: ContentLevel;
     beta?: boolean;
     /** Override the "Topic" field label and placeholder per agent. */
@@ -161,6 +162,7 @@ export const AGENT_META: Record<
     showContentLevel: true,
     showDuration: true,
     showAudience: true,
+    showTheme: true,
     defaultLevel: "L300",
   },
   "demo-conductor": {
@@ -171,6 +173,7 @@ export const AGENT_META: Record<
     showContentLevel: true,
     showDuration: true,
     showAudience: false,
+    showTheme: false,
     defaultLevel: "L300",
   },
   "hackathon-conductor": {
@@ -181,6 +184,7 @@ export const AGENT_META: Record<
     showContentLevel: true,
     showDuration: true,
     showAudience: true,
+    showTheme: false,
     defaultLevel: "L300",
     durationOptions: ["Half day", "Full day", "2 days"],
   },
@@ -192,6 +196,7 @@ export const AGENT_META: Record<
     showContentLevel: false,
     showDuration: false,
     showAudience: false,
+    showTheme: false,
     defaultLevel: "L200",
     beta: true,
     topicLabel: "Customer & Industry",
@@ -205,6 +210,7 @@ export const AGENT_META: Record<
     showContentLevel: false,
     showDuration: false,
     showAudience: false,
+    showTheme: false,
     defaultLevel: "L200",
     beta: true,
     topicLabel: "Business Challenge",
@@ -218,6 +224,7 @@ export const AGENT_META: Record<
     showContentLevel: false,
     showDuration: false,
     showAudience: false,
+    showTheme: false,
     defaultLevel: "L200",
     beta: true,
     topicLabel: "Project Focus",
@@ -231,6 +238,7 @@ export const AGENT_META: Record<
     showContentLevel: false,
     showDuration: false,
     showAudience: false,
+    showTheme: false,
     defaultLevel: "L300",
     beta: true,
     topicLabel: "Demo Focus",
@@ -240,6 +248,9 @@ export const AGENT_META: Record<
 
 export const CONTENT_LEVELS = ["L100", "L200", "L300", "L400"] as const;
 export type ContentLevel = (typeof CONTENT_LEVELS)[number];
+
+export const PRESENTATION_THEMES = ["light", "dark"] as const;
+export type PresentationTheme = (typeof PRESENTATION_THEMES)[number];
 
 export const CONTENT_LEVEL_META: Record<
   ContentLevel,

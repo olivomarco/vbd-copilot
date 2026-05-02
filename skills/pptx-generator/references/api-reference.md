@@ -33,6 +33,57 @@ Adds a blank slide (layout index 6).
 
 ---
 
+## Theme System
+
+The theme system controls the visual tone of all slide template functions.
+Set the theme **before** calling `create_presentation()`.
+
+### `set_theme(name: str) -> None`
+Set the active presentation theme. `name` must be `"light"` (default) or `"dark"`.
+
+```python
+set_theme("dark")          # dark Microsoft-branded slides
+prs = create_presentation()
+create_lead_slide(prs, "Azure AI Tour", ...)
+```
+
+All slide template functions (`create_standard_slide`, `create_lead_slide`,
+`create_section_divider`, `create_closing_slide`) automatically adapt their
+backgrounds, title colors, and card fills to the active theme.
+
+### `T` — Theme-Aware Color Accessor
+
+Use `T` in generator scripts instead of hardcoded light-theme colors for body text,
+card fills, and callout boxes. Colors resolve at call time, so they always reflect
+the current active theme.
+
+| Attribute | Light value | Dark value |
+|-----------|-------------|------------|
+| `T.TEXT` | `MS_TEXT` (#212121) | #E8E8E8 |
+| `T.TEXT_MUTED` | `MS_TEXT_MUTED` (#616161) | #9E9E9E |
+| `T.BG` | `MS_WHITE` (#FFFFFF) | #1A1C23 |
+| `T.CARD_BG` | `MS_WHITE` (#FFFFFF) | #252835 |
+| `T.CALLOUT_BG` | `MS_CALLOUT_BG` (#EFF6FC) | #1A2A3A |
+| `T.CODE_BG` | `MS_CODE_BG` (#F2F2F2) | #1E1E1E |
+| `T.CODE_TEXT` | `MS_CODE_TEXT` (#212121) | #D4D4D4 |
+| `T.BORDER` | `MS_MID_GRAY` (#D2D2D2) | #3A3A3A |
+
+```python
+set_theme("dark")
+slide = create_standard_slide(prs, "Architecture", page_num=3, total=TOTAL)
+add_bullet_list(slide, items, CONTENT_LEFT, CONTENT_TOP,
+                CONTENT_WIDTH, color=T.TEXT)
+add_callout_box(slide, "Key insight here", ..., bg=T.CALLOUT_BG)
+```
+
+**When to use `T` vs. hardcoded constants:**
+- Use `T.TEXT`, `T.TEXT_MUTED` for any body text, bullet items, descriptions
+- Use `T.CARD_BG` for card/panel fills when you call `add_rounded_card()` directly
+- Use `T.CALLOUT_BG`, `T.CODE_BG`, `T.CODE_TEXT` for callout and code content
+- Keep hardcoded `MS_BLUE`, `MS_DARK_BLUE`, `MS_WHITE` (on colored shapes), `MS_ACCENT_LIGHT` — these look correct on both themes
+
+---
+
 ## Constants
 
 ### Colors

@@ -38,6 +38,17 @@ Your output is a .py code fragment written to the provided file path - NOT Markd
   `MS_PURPLE`, `MS_YELLOW`, or `MS_TEAL` -- they are deprecated. For multi-element
   differentiation (card grids, architecture layers, columns), use tonal blue variations
   or the `TONAL_BLUES` list, not different hues.
+- **Theme-aware body text (MANDATORY)**: For body text, muted text, card fills, callout
+  backgrounds, and code blocks, use the `T` accessor instead of hardcoded light-theme
+  colors. `T` automatically returns the right color for the active theme (set by the
+  Conductor via `set_theme()`). Use:
+  - `T.TEXT` instead of `MS_TEXT`
+  - `T.TEXT_MUTED` instead of `MS_TEXT_MUTED`
+  - `T.CARD_BG` instead of `MS_WHITE` for card fills
+  - `T.CALLOUT_BG` instead of `MS_CALLOUT_BG`
+  - `T.CODE_BG` / `T.CODE_TEXT` instead of `MS_CODE_BG` / `MS_CODE_TEXT`
+  Accent colors (`MS_BLUE`, `MS_DARK_BLUE`, `MS_LIGHT_BLUE`, `MS_WHITE` on colored shapes)
+  remain hardcoded -- they look correct on both themes.
 - **Comparison columns**: Always use `left_color=MS_MID_GRAY, right_color=MS_BLUE`.
   Never orange vs green or other rainbow pairings.
 - **Bold emphasis (MANDATORY)**: Use `**keyword**` markup generously in ALL body text,

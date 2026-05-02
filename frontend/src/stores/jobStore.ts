@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AgentType, ContentLevel } from "@/api/types";
+import { type AgentType, type ContentLevel, type PresentationTheme } from "@/api/types";
 
 /* ------------------------------------------------------------------ */
 /* Cross-tab sync via BroadcastChannel                                 */
@@ -74,6 +74,8 @@ export interface JobBrief {
   duration: string;
   audience?: string;
   notes?: string;
+  /** Presentation layout theme: "light" (default) or "dark". */
+  theme?: PresentationTheme;
   /** Path to an existing architecture project (used by ai-implementor). */
   architecturePath?: string;
   /** Paths to architecture design documents to feed to the agent. */
