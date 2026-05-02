@@ -419,6 +419,22 @@ def _darken_color(color, factor=0.25):
     return RGBColor(r, g, b)
 
 
+def _tone_for_dark(color, darken=0.38, lighten_floor=0.18):
+    """Adjust a color for use as a *large* fill in dark mode.
+
+    Bright/saturated hues are darkened so they don't look garish on a dark
+    background.  Colors that are already very dark are lightened slightly so
+    they remain visually distinct from the slide background.
+
+    In light mode the original color is returned unchanged.
+    """
+    if _ACTIVE_THEME == "light":
+        return color
+    if _luminance(color) > 0.10:
+        return _darken_color(color, darken)
+    else:
+        return _lighten_color(color, lighten_floor)
+
 # ═════════════════════════════════════════════════════════════
 # RETURN TYPE & CONTRAST HELPERS
 # ═════════════════════════════════════════════════════════════
@@ -1288,8 +1304,9 @@ def add_header_card(
     Content area starts at: top + header_height + Inches(0.1)
     """
     # 1. Full-height colored card (peek shows as header + provides outer border)
+    header_fill = _tone_for_dark(color)
     header_shape = add_rounded_card(
-        slide, left, top, width, height, fill=color, border=color
+        slide, left, top, width, height, fill=header_fill, border=header_fill
     )
     # 2. White body card overlaid, offset below header (no border -- the outer
     #    card's border already frames the card; a body border creates an ugly
@@ -1302,7 +1319,7 @@ def add_header_card(
         body_top,
         width,
         body_height,
-        fill=MS_WHITE,
+        fill=_t(MS_WHITE, _DARK_CARD_BG),
         border=None,
         corner_radius=0.0,
     )
@@ -1421,7 +1438,7 @@ def add_progress_bar(
     height=Inches(0.18),
     progress=0.7,
     bar_color=MS_BLUE,
-    track_color=MS_LIGHT_GRAY,
+    track_color=None,
     label="",
     show_pct=True,
 ):
@@ -1434,6 +1451,8 @@ def add_progress_bar(
     Example::
         add_progress_bar(slide, x, y, Inches(4), progress=0.85, label="Adoption")
     """
+    if track_color is None:
+        track_color = _t(MS_LIGHT_GRAY, _DARK_BORDER)
     # Track (background)
     _track = add_rounded_card(
         slide,
@@ -1456,11 +1475,11 @@ def add_progress_bar(
             slide,
             label,
             left,
-            top - Inches(0.22),
+            top - Inches(0.24),
             width,
-            Inches(0.2),
-            font_size=TEXT_CAPTION,
-            color=MS_TEXT_MUTED,
+            Inches(0.22),
+            font_size=TEXT_BODY_SM,
+            color=_t(MS_DARK_BLUE, _DARK_TEXT),
             bold=True,
         )
     # Percentage (right of bar)
@@ -1469,12 +1488,12 @@ def add_progress_bar(
         add_textbox(
             slide,
             pct_text,
-            left + width + Inches(0.1),
+            left + width + Inches(0.12),
             top - Inches(0.01),
-            Inches(0.5),
+            Inches(0.55),
             height,
-            font_size=TEXT_CAPTION,
-            color=MS_TEXT,
+            font_size=TEXT_BODY_SM,
+            color=_t(MS_TEXT, _DARK_TEXT),
             bold=True,
         )
     return ElementBox(fill_bar, left, top, width, height)
@@ -1523,13 +1542,13 @@ def add_checklist(
 
         # Native bullet: checkmark or circle glyph
         b_char = "\u2713" if checked else "\u25cb"
-        b_color = check_color if checked else MS_MID_GRAY
+        b_color = check_color if checked else _t(MS_MID_GRAY, _DARK_TEXT_MUTED)
         _set_bullet_format(
-            p, bullet_char=b_char, bullet_color=b_color, bullet_size_pct=110
+            p, bullet_char=b_char, bullet_color=b_color, bullet_size_pct=125
         )
 
         # Item text
-        _add_runs_from_markup(p, text, font_size, MS_TEXT if checked else MS_TEXT_MUTED)
+        _add_runs_from_markup(p, text, font_size, _t(MS_TEXT, _DARK_TEXT) if checked else _t(MS_TEXT_MUTED, _DARK_TEXT_MUTED))
     return ElementBox(tb, left, top, width, height)
 
 
@@ -1728,7 +1747,7 @@ def add_callout_box(
     top,
     width,
     height=None,
-    bg=MS_CALLOUT_BG,
+    bg=None,
     accent=MS_BLUE,
     font_size=13,
 ):
@@ -1746,6 +1765,8 @@ def add_callout_box(
 
     Returns an ElementBox for vertical chaining.
     """
+    if bg is None:
+        bg = _t(MS_CALLOUT_BG, _DARK_CALLOUT_BG)
     if height is None:
         height = estimate_text_height(
             text,
@@ -1757,13 +1778,13 @@ def add_callout_box(
     card = add_rounded_card(
         slide, left, top, width, height, fill=bg, border=None, corner_radius=0.04
     )
-    add_shadow(card, blur_pt=2, offset_pt=1, opacity=0.08)  # subtle paper shadow
-    accent_bar = add_rect(slide, left, top, Pt(5), height, accent)
+    add_shadow(card, blur_pt=3, offset_pt=1, opacity=0.10)  # subtle elevation shadow
+    accent_bar = add_rect(slide, left, top, Pt(6), height, accent)
     _set_shape_text(
         card,
         text,
         font_size=font_size,
-        color=MS_DARK_BLUE,
+        color=auto_text_color(bg),
         bold=True,
         alignment=PP_ALIGN.LEFT,
         v_align="top",
@@ -1823,29 +1844,28 @@ def add_code_block(slide, code, left, top, width, height=None, language=""):
         top,
         width,
         height,
-        fill=MS_CODE_BG,
+        fill=_t(MS_CODE_BG, _DARK_CODE_BG),
         border=None,
-        corner_radius=0.04,
+        corner_radius=0.05,
     )
     shapes_to_group.append(bg)
-    # Blue left accent
-    accent = add_rect(slide, left, top, Pt(4), height, MS_BLUE)
+    # Blue left accent bar
+    accent = add_rect(slide, left, top, Pt(5), height, MS_BLUE)
     shapes_to_group.append(accent)
-    # Optional language label in top-right
+    # Optional language pill badge (top-right, styled like a VS Code tab)
     if language:
-        lang_tb = add_textbox(
+        lang_badge = add_badge(
             slide,
-            language,
-            left + width - Inches(1.2),
-            top + Inches(0.04),
-            Inches(1.1),
-            Inches(0.25),
-            font_size=8,
-            color=MS_TEXT_MUTED,
-            font_name=FONT_MONO,
-            alignment=PP_ALIGN.RIGHT,
+            language.upper(),
+            left + width - Inches(1.05),
+            top + Inches(0.05),
+            bg_color=_t(MS_DARK_BLUE, RGBColor(0x1E, 0x2D, 0x42)),
+            text_color=_t(MS_ACCENT_LIGHT, _DARK_TEXT_MUTED),
+            font_size=7,
+            width=Inches(0.9),
+            height=Inches(0.22),
         )
-        shapes_to_group.append(lang_tb)
+        shapes_to_group.append(lang_badge)
     # Code text -- split into separate paragraphs per line so PowerPoint
     # correctly measures line count for auto-sizing and text-to-fit.
     code_top_margin = Inches(0.03)
@@ -1876,7 +1896,7 @@ def add_code_block(slide, code, left, top, width, height=None, language=""):
         run = p.add_run()
         run.text = line if line else " "  # empty lines need a space to render
         run.font.size = Pt(10)
-        run.font.color.rgb = MS_CODE_TEXT
+        run.font.color.rgb = _t(MS_CODE_TEXT, _DARK_CODE_TEXT)
         run.font.bold = False
         run.font.name = FONT_MONO
     group_shapes(slide, shapes_to_group)
@@ -1922,9 +1942,12 @@ def add_styled_table(
                 cell.fill.solid()
                 cell.fill.fore_color.rgb = header_color
             else:
-                _add_runs_from_markup(p, str(val), font_size, MS_TEXT)
+                _add_runs_from_markup(p, str(val), font_size, _t(MS_TEXT, _DARK_TEXT))
                 cell.fill.solid()
-                cell.fill.fore_color.rgb = MS_CALLOUT_BG if ri % 2 == 0 else MS_WHITE
+                cell.fill.fore_color.rgb = (
+                    _t(MS_CALLOUT_BG, RGBColor(0x20, 0x24, 0x31)) if ri % 2 == 0
+                    else _t(MS_WHITE, _DARK_CARD_BG)
+                )
             cell.margin_left = Inches(0.08)
             cell.margin_right = Inches(0.08)
             cell.margin_top = Inches(0.04)
@@ -1958,30 +1981,32 @@ def add_metric_card(
                         trend="+0.3%", trend_positive=True)
     """
     card = add_elevated_card(
-        slide, left, top, width, height, fill=MS_WHITE, border=color, shadow="subtle"
+        slide, left, top, width, height, fill=_t(MS_WHITE, _DARK_CARD_BG), border=None, shadow="subtle"
     )
-    accent_bar = add_rect(slide, left, top, width, Inches(0.06), color)
+    accent_bar = add_rect(slide, left, top, width, Inches(0.1), color)
+    # On dark cards the accent color may be too dark to read as text -- lighten it.
+    card_color = _t(color, _lighten_color(color, 0.60))
     # All text embedded in card with proportional spacing and shrink-to-fit
     h_emu = int(height)
     _set_shape_text(
         card,
         str(metric),
-        font_size=40,
-        color=color,
+        font_size=44,
+        color=card_color,
         bold=True,
         alignment=PP_ALIGN.CENTER,
         v_align="middle",
         shrink_to_fit=True,
         margin_left=Inches(0.1),
         margin_right=Inches(0.1),
-        margin_top=int(h_emu * 0.06),
-        margin_bottom=int(h_emu * 0.08),
+        margin_top=int(h_emu * 0.08),
+        margin_bottom=int(h_emu * 0.06),
     )
     _add_shape_paragraph(
         card,
         label,
         font_size=14,
-        color=MS_DARK_BLUE,
+        color=_t(MS_DARK_BLUE, _DARK_TEXT),
         alignment=PP_ALIGN.CENTER,
         space_before=Pt(6),
     )
@@ -1990,7 +2015,7 @@ def add_metric_card(
             card,
             sublabel,
             font_size=11,
-            color=MS_TEXT_MUTED,
+            color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
             alignment=PP_ALIGN.CENTER,
             space_before=Pt(4),
         )
@@ -2025,13 +2050,14 @@ def add_numbered_items(
     for i, (title, desc) in enumerate(items):
         y = top + i * item_height
         c = colors[i % len(colors)]
-        bg_color = MS_LIGHT_GRAY if i % 2 == 0 else MS_WHITE
         ih = int(item_height)
         card_h = item_height - Inches(0.05)
-        last_shape = add_rounded_card(
-            slide, left, y, width, card_h, fill=bg_color, border=MS_MID_GRAY
+        last_shape = add_elevated_card(
+            slide, left, y, width, card_h,
+            fill=_t(MS_WHITE, _DARK_CARD_BG), border=None,
+            corner_radius=0.04, shadow="paper"
         )
-        add_rect(slide, left, y, Pt(5), card_h, c)
+        add_rect(slide, left, y, Pt(6), card_h, c)
         # Icon circle vertically centered at top region of card
         circle_y = y + int(ih * 0.15)
         add_icon_circle(slide, left + Inches(0.2), circle_y, Inches(0.5), c, str(i + 1))
@@ -2044,7 +2070,7 @@ def add_numbered_items(
             width - Inches(1.1),
             int(ih * 0.45),
             font_size=14,
-            color=MS_DARK_BLUE,
+            color=_t(MS_DARK_BLUE, _DARK_TEXT),
             bold=True,
             shrink_to_fit=True,
         )
@@ -2057,7 +2083,7 @@ def add_numbered_items(
             width - Inches(1.1),
             int(ih * 0.44),
             font_size=12,
-            color=MS_TEXT_MUTED,
+            color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
             shrink_to_fit=True,
         )
     return ElementBox(last_shape, left, top, width, total_h)
@@ -2090,44 +2116,29 @@ def add_card_grid(
         x = left + col * (card_w + gap_x)
         y = top + row * (card_h + gap_y)
         ch = int(card_h)  # EMU for proportional offsets
-        s1 = add_rounded_card(
-            slide, x, y, card_w, card_h, fill=color, border=MS_MID_GRAY
+        s1 = add_elevated_card(
+            slide, x, y, card_w, card_h,
+            fill=_t(MS_WHITE, _DARK_CARD_BG), border=None,
+            corner_radius=0.05, shadow="subtle"
         )
-        s2 = add_rounded_card(
-            slide,
-            x,
-            y + Inches(0.08),
-            card_w,
-            card_h - Inches(0.08),
-            fill=MS_WHITE,
-            border=MS_MID_GRAY,
-        )
+        # Colored header band with icon + title
+        _header_h = int(ch * 0.28)
+        s2 = add_rect(slide, x, y, card_w, _header_h, color)
         s3 = add_icon_circle(
-            slide, x + Inches(0.25), y + int(ch * 0.13), Inches(0.5), color, str(i + 1)
+            slide, x + Inches(0.15), y + int(ch * 0.04), Inches(0.44),
+            _darken_color(color, 0.18), str(i + 1)
         )
-        # Title starts below the icon center (no overlap with circle)
         s4 = add_textbox(
-            slide,
-            title,
-            x + Inches(0.95),
-            y + int(ch * 0.13),
-            card_w - Inches(1.2),
-            int(ch * 0.18),
-            font_size=16,
-            color=MS_DARK_BLUE,
-            bold=True,
-            shrink_to_fit=True,
+            slide, title,
+            x + Inches(0.69), y + int(ch * 0.04),
+            card_w - Inches(0.87), int(ch * 0.22),
+            font_size=14, color=MS_WHITE, bold=True, shrink_to_fit=True,
         )
         s5 = add_textbox(
-            slide,
-            desc,
-            x + Inches(0.95),
-            y + int(ch * 0.33),
-            card_w - Inches(1.2),
-            int(ch * 0.60),
-            font_size=12,
-            color=MS_TEXT_MUTED,
-            shrink_to_fit=True,
+            slide, desc,
+            x + Inches(0.2), y + _header_h + Inches(0.12),
+            card_w - Inches(0.4), int(ch) - _header_h - int(Inches(0.2)),
+            font_size=12, color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED), shrink_to_fit=True,
         )
         last_shape = s1
         group_shapes(slide, [s1, s2, s3, s4, s5])
@@ -2170,18 +2181,17 @@ def add_pillar_cards(
     desc_h = h * 0.44
     for i, (color, num, title_text, desc) in enumerate(pillars):
         x = left + i * (card_w + min_gap)
-        add_rounded_card(slide, x, top, card_w, height, fill=color, border=color)
-        add_rounded_card(
-            slide,
-            x,
-            top + Inches(0.08),
-            card_w,
-            height - Inches(0.08),
-            fill=MS_WHITE,
-            border=color,
-        )
+        # Elevated white card with clean shadow
+        add_elevated_card(slide, x, top, card_w, height,
+            fill=_t(MS_WHITE, _DARK_CARD_BG), border=None,
+            corner_radius=0.05, shadow="subtle")
+        # Colored header band (top 22% of card)
+        _header_h = h * 0.22
+        add_rect(slide, x, top, card_w, _header_h, color)
+        # Icon circle centered horizontally, positioned in header band
         add_icon_circle(
-            slide, x + card_w / 2 - circle_r, circle_top, circle_r * 2, color, num
+            slide, x + card_w / 2 - circle_r, top + _header_h * 0.08,
+            circle_r * 2, _darken_color(color, 0.18), num
         )
         add_textbox(
             slide,
@@ -2191,7 +2201,7 @@ def add_pillar_cards(
             card_w - Inches(0.2),
             title_h,
             font_size=15,
-            color=MS_DARK_BLUE,
+            color=_t(MS_DARK_BLUE, _DARK_TEXT),
             bold=True,
             alignment=PP_ALIGN.CENTER,
             shrink_to_fit=True,
@@ -2204,7 +2214,7 @@ def add_pillar_cards(
             card_w - Inches(0.2),
             desc_h,
             font_size=11,
-            color=MS_TEXT_MUTED,
+            color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
             alignment=PP_ALIGN.CENTER,
             shrink_to_fit=True,
         )
@@ -2240,21 +2250,21 @@ def add_quote_block(
         top,
         width,
         total_h + Inches(0.4),
-        fill=MS_CALLOUT_BG,
-        border=MS_LIGHT_GRAY,
+        fill=_t(MS_CALLOUT_BG, _DARK_CALLOUT_BG),
+        border=None,
         shadow="subtle",
     )
     # Left accent bar
-    add_rect(slide, left, top, Pt(5), total_h + Inches(0.4), accent_color)
-    # Opening quote mark (large, decorative)
+    add_rect(slide, left, top, Pt(6), total_h + Inches(0.4), accent_color)
+    # Opening quote mark (large, decorative -- oversized for visual impact)
     add_textbox(
         slide,
         "\u201c",
-        left + Inches(0.3),
-        top - Inches(0.05),
-        Inches(0.6),
-        Inches(0.7),
-        font_size=48,
+        left + Inches(0.25),
+        top - Inches(0.12),
+        Inches(0.72),
+        Inches(0.9),
+        font_size=72,
         color=accent_color,
         bold=True,
     )
@@ -2267,7 +2277,7 @@ def add_quote_block(
         width - Inches(1.2),
         q_height,
         font_size=20,
-        color=MS_DARK_BLUE,
+        color=_t(MS_DARK_BLUE, _DARK_TEXT),
         italic=True,
         shrink_to_fit=True,
     )
@@ -2281,7 +2291,7 @@ def add_quote_block(
             width - Inches(1.2),
             Inches(0.35),
             font_size=TEXT_BODY_SM,
-            color=MS_TEXT_MUTED,
+            color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
             bold=True,
         )
     card_height = total_h + Inches(0.4)
@@ -2338,19 +2348,22 @@ def add_stats_row(
             top,
             card_w,
             card_h,
-            fill=MS_WHITE,
-            border=MS_LIGHT_GRAY,
+            fill=_t(MS_WHITE, _DARK_CARD_BG),
+            border=None,
             shadow="subtle",
         )
-        add_rect(slide, x, top, card_w, Inches(0.05), color)
+        add_rect(slide, x, top, card_w, Inches(0.08), color)
 
         # Text embedded in card with proportional spacing
         ch = int(card_h)
+        # In dark mode the accent color may be too dark to read as text -- lighten it.
+        card_color = _t(color, _lighten_color(color, 0.60))
+
         _set_shape_text(
             card,
             str(value),
-            font_size=36,
-            color=color,
+            font_size=40,
+            color=card_color,
             bold=True,
             alignment=PP_ALIGN.CENTER,
             v_align="middle",
@@ -2363,7 +2376,7 @@ def add_stats_row(
             card,
             label,
             font_size=TEXT_BODY_SM,
-            color=MS_DARK_BLUE,
+            color=_t(MS_DARK_BLUE, _DARK_TEXT),
             alignment=PP_ALIGN.CENTER,
             space_before=Pt(4),
         )
@@ -2408,7 +2421,7 @@ def add_comparison_columns(
     height=Inches(5.0),
     left_title="Before",
     right_title="After",
-    left_color=MS_MID_GRAY,
+    left_color=None,
     right_color=MS_BLUE,
 ):
     """Add a side-by-side comparison layout (Before/After, Option A/B, etc.).
@@ -2424,6 +2437,9 @@ def add_comparison_columns(
             ["CI/CD pipelines", "AI-assisted reviews", "Copilot coding standards"],
             left_title="Without Copilot", right_title="With Copilot")
     """
+    if left_color is None:
+        # Light: neutral gray. Dark: dark steel-blue so it reads as "legacy" without washing out.
+        left_color = _t(MS_MID_GRAY, RGBColor(0x37, 0x47, 0x5A))
     if width is None:
         width = CONTENT_WIDTH
     gap = Inches(0.3)
@@ -2457,10 +2473,10 @@ def add_comparison_columns(
         font_size=TEXT_BODY_SM,
     )
 
-    # VS divider circle
-    vs_x = left + col_w + gap / 2 - Inches(0.25)
-    vs_y = top + Inches(0.1)
-    add_icon_circle(slide, vs_x, vs_y, Inches(0.5), MS_DARK_BLUE, "VS")
+    # VS divider circle (slightly larger, more prominent)
+    vs_x = left + col_w + gap / 2 - Inches(0.27)
+    vs_y = top + Inches(0.08)
+    add_icon_circle(slide, vs_x, vs_y, Inches(0.55), MS_DARK_BLUE, "VS")
     return ElementBox(None, left, top, width, height)
 
 
@@ -2521,12 +2537,12 @@ def add_feature_grid(
             y,
             card_w,
             card_h,
-            fill=MS_WHITE,
-            border=MS_LIGHT_GRAY,
-            shadow="paper",
+            fill=_t(MS_WHITE, _DARK_CARD_BG),
+            border=None,
+            shadow="subtle",
         )
-        # Top accent
-        add_rect(slide, x, y, card_w, Inches(0.04), color)
+        # Top accent bar (slightly taller for visual weight)
+        add_rect(slide, x, y, card_w, Inches(0.06), color)
         # Number circle
         add_icon_circle(
             slide, x + Inches(0.15), y + int(ch * 0.10), Inches(0.4), color, str(i + 1)
@@ -2540,7 +2556,7 @@ def add_feature_grid(
             card_w - Inches(0.85),
             int(ch * 0.22),
             font_size=TEXT_BODY,
-            color=MS_DARK_BLUE,
+            color=_t(MS_DARK_BLUE, _DARK_TEXT),
             bold=True,
             shrink_to_fit=True,
         )
@@ -2553,7 +2569,7 @@ def add_feature_grid(
             card_w - Inches(0.3),
             int(ch * 0.55),
             font_size=TEXT_BODY_SM,
-            color=MS_TEXT_MUTED,
+            color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
             shrink_to_fit=True,
         )
     return ElementBox(None, left, top, total_w, total_h)
@@ -2675,7 +2691,7 @@ def add_colored_columns(
                 indent_inches=0.18,
                 hanging_inches=0.15,
             )
-            _add_runs_from_markup(p, item, body_font_size, MS_TEXT)
+            _add_runs_from_markup(p, item, body_font_size, _t(MS_TEXT, _DARK_TEXT))
     total_h = title_h + bullets_h
     return ElementBox(None, left, top, width, total_h)
 
@@ -2716,6 +2732,9 @@ def add_layered_architecture(
 
     for i, (label, color) in enumerate(layers):
         y = top + i * (layer_h + gap)
+        # In dark mode tone down saturated fills so they look sophisticated,
+        # not garish.  Text color is recomputed against the toned fill.
+        bar_fill = _tone_for_dark(color)
         # Layer bar with subtle shadow
         bar = add_elevated_card(
             slide,
@@ -2723,13 +2742,13 @@ def add_layered_architecture(
             y,
             width,
             layer_h,
-            fill=color,
+            fill=bar_fill,
             border=None,
             corner_radius=0.03,
             shadow="paper",
         )
-        # Label text embedded in bar (auto contrast)
-        text_color = auto_text_color(color)
+        # Label text embedded in bar (auto contrast against actual fill)
+        text_color = auto_text_color(bar_fill)
         _set_shape_text(
             bar,
             label,
@@ -2777,8 +2796,8 @@ def add_agenda_list(
         is_active = i == highlight_index
 
         # Background card
-        bg_color = MS_BLUE if is_active else MS_CALLOUT_BG
-        text_color = MS_WHITE if is_active else MS_DARK_BLUE
+        bg_color = MS_BLUE if is_active else _t(MS_CALLOUT_BG, _DARK_CARD_BG)
+        text_color = MS_WHITE if is_active else _t(MS_DARK_BLUE, _DARK_TEXT)
         num_bg = MS_DARK_BLUE if is_active else MS_BLUE
         num_text = MS_WHITE
 
@@ -2789,10 +2808,13 @@ def add_agenda_list(
             width,
             item_h,
             fill=bg_color,
-            border=MS_ACCENT_LIGHT if not is_active else None,
+            border=None,
             corner_radius=0.04,
             shadow="subtle" if is_active else "paper",
         )
+        # Left accent stripe for the active item
+        if is_active:
+            add_rect(slide, left, y, Pt(5), item_h, MS_LIGHT_BLUE)
 
         # Number circle
         add_icon_circle(
@@ -2863,7 +2885,7 @@ def add_icon_row(
             slot_w,
             Inches(0.5),
             font_size=TEXT_BODY_SM,
-            color=MS_DARK_BLUE,
+            color=_t(MS_DARK_BLUE, _DARK_TEXT),
             bold=True,
             alignment=PP_ALIGN.CENTER,
         )
@@ -2905,6 +2927,11 @@ def add_pricing_table(
         x = left + i * (col_w + gap)
         is_featured = i == highlight_index
 
+        # In dark mode, colors used on the card body (price text, checkmarks) must be
+        # bright enough to read on _DARK_CARD_BG.  We lighten aggressively (60%) so
+        # even near-black hues (MS_DARK_BLUE, MS_MID_GRAY) become clearly legible.
+        card_color = _t(color, _lighten_color(color, 0.60))
+
         # Card (featured gets elevation)
         y_offset = Inches(-0.15) if is_featured else 0
         card_h = height + (Inches(0.15) if is_featured else 0)
@@ -2915,12 +2942,12 @@ def add_pricing_table(
             top + y_offset,
             col_w,
             card_h,
-            fill=MS_WHITE,
-            border=color,
+            fill=_t(MS_WHITE, _DARK_CARD_BG),
+            border=None,
             shadow="strong" if is_featured else "subtle",
         )
 
-        # Header
+        # Header band -- keep original color; auto-contrast the name text
         add_rounded_card(
             slide,
             x,
@@ -2939,7 +2966,7 @@ def add_pricing_table(
             col_w - SPACE_MD,
             Inches(0.4),
             font_size=TEXT_H3,
-            color=MS_WHITE,
+            color=auto_text_color(color),
             bold=True,
             alignment=PP_ALIGN.CENTER,
         )
@@ -2956,7 +2983,7 @@ def add_pricing_table(
                 width=badge_w,
             )
 
-        # Price
+        # Price -- use card_color so it pops on dark card body
         price_top = top + y_offset + Inches(0.75) + (Inches(0.35) if is_featured else 0)
         add_textbox(
             slide,
@@ -2966,12 +2993,12 @@ def add_pricing_table(
             col_w - SPACE_MD,
             Inches(0.6),
             font_size=28,
-            color=color,
+            color=card_color,
             bold=True,
             alignment=PP_ALIGN.CENTER,
         )
 
-        # Features checklist
+        # Features checklist -- use card_color for checkmarks so they read on dark card
         feat_top = price_top + Inches(0.65)
         add_checklist(
             slide,
@@ -2980,7 +3007,7 @@ def add_pricing_table(
             feat_top,
             col_w - Inches(0.4),
             font_size=TEXT_BODY_SM,
-            check_color=color,
+            check_color=card_color,
         )
     return ElementBox(None, left, top, width, height)
 
@@ -3075,9 +3102,9 @@ def add_maturity_model(
         y = top + height - step_h
         is_current = i == current_level
 
-        color = MS_BLUE if is_current else MS_LIGHT_GRAY
-        text_c = MS_WHITE if is_current else MS_DARK_BLUE
-        desc_c = RGBColor(0xDD, 0xEE, 0xFF) if is_current else MS_TEXT_MUTED
+        color = MS_BLUE if is_current else _t(MS_LIGHT_GRAY, _DARK_CARD_BG)
+        text_c = MS_WHITE if is_current else _t(MS_DARK_BLUE, _DARK_TEXT)
+        desc_c = RGBColor(0xDD, 0xEE, 0xFF) if is_current else _t(MS_TEXT_MUTED, _DARK_TEXT_MUTED)
 
         _card = add_elevated_card(
             slide,
@@ -3086,7 +3113,7 @@ def add_maturity_model(
             step_w - Inches(0.08),
             step_h,
             fill=color,
-            border=MS_MID_GRAY,
+            border=_t(MS_MID_GRAY, _DARK_BORDER),
             shadow="medium" if is_current else "paper",
         )
         # Level number
@@ -3235,6 +3262,8 @@ def create_standard_slide(
     )
     add_bottom_bar(slide, page_num, total)
     add_ms_logo(slide)
+    # Thin accent rule between title and content for editorial clarity
+    add_rect(slide, CONTENT_LEFT, Inches(0.95), CONTENT_WIDTH, Pt(2), _t(MS_BLUE, MS_LIGHT_BLUE))
     if notes:
         add_speaker_notes(slide, notes)
     return slide
@@ -3977,7 +4006,7 @@ def add_header_card_with_bullets(
             indent_inches=0.18,
             hanging_inches=0.15,
         )
-        _add_runs_from_markup(p, item, font_size, MS_TEXT)
+        _add_runs_from_markup(p, item, font_size, _t(MS_TEXT, _DARK_TEXT))
     return header_shape, body_shape, tb
 
 
@@ -4014,8 +4043,8 @@ def add_timeline(
     box_w = (available_width - (n - 1) * gap) / n
     total_h = box_height + Inches(0.08) + Inches(0.05) + Inches(0.35) + desc_height
     _validate_bounds(left, top, available_width, total_h, "add_timeline")
-    connector_y = top + box_height + Inches(0.08)
-    week_y = connector_y + Inches(0.05)
+    connector_y = top + box_height / 2 - Pt(1.5)   # centre of milestone boxes
+    week_y = top + box_height + Inches(0.08)
     desc_y = week_y + Inches(0.35)
     shapes = []
     for i, (label, week_label, description) in enumerate(phases):
@@ -4047,15 +4076,15 @@ def add_timeline(
         )
         shapes.append(box)
 
-        # Dotted connector line between boxes
+        # Dotted connector line between milestone boxes -- matches bar_color
         if i < n - 1:
             line_left = x + box_w
             mid_y = connector_y
             conn = slide.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE, line_left, mid_y, gap, Pt(2)
+                MSO_SHAPE.RECTANGLE, line_left, mid_y, gap, Pt(3)
             )
             conn.fill.solid()
-            conn.fill.fore_color.rgb = MS_MID_GRAY
+            conn.fill.fore_color.rgb = bar_color
             conn.line.fill.background()
 
         # Week label
@@ -4081,7 +4110,7 @@ def add_timeline(
             box_w,
             desc_height,
             font_size=10,
-            color=MS_TEXT_MUTED,
+            color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
         )
 
     # Arrow at end suggesting continuation
@@ -4219,7 +4248,7 @@ def add_process_flow(
                 arrow_y,
                 width=arrow_w - Inches(0.1),
                 height=Inches(0.5),
-                color=MS_DARK_BLUE,
+                color=_t(MS_DARK_BLUE, _DARK_TEXT_MUTED),
             )
 
     # Annotations below specific steps
@@ -4233,7 +4262,7 @@ def add_process_flow(
                 top + box_h + Inches(0.3),
                 box_w,
                 font_size=12,
-                color=MS_TEXT_MUTED,
+                color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
             )
 
     anno_h = Inches(1.3) if annotations else 0
@@ -4379,13 +4408,13 @@ def add_image_card(
                 top + img_margin,
                 width - 2 * img_margin,
                 img_h - 2 * img_margin,
-                MS_LIGHT_GRAY,
+                _t(MS_LIGHT_GRAY, _DARK_CARD_BG),
             )
             _set_shape_text(
                 ph,
                 "[Image]",
                 font_size=TEXT_BODY_SM,
-                color=MS_TEXT_MUTED,
+                color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
                 alignment=PP_ALIGN.CENTER,
             )
             shapes_to_group.append(ph)
@@ -4396,13 +4425,13 @@ def add_image_card(
             top + img_margin,
             width - 2 * img_margin,
             img_h - 2 * img_margin,
-            MS_LIGHT_GRAY,
+            _t(MS_LIGHT_GRAY, _DARK_CARD_BG),
         )
         _set_shape_text(
             ph,
             "[Image]",
             font_size=TEXT_BODY_SM,
-            color=MS_TEXT_MUTED,
+            color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
             alignment=PP_ALIGN.CENTER,
         )
         shapes_to_group.append(ph)
@@ -4417,7 +4446,7 @@ def add_image_card(
             width - Inches(0.2),
             caption_h,
             font_size=TEXT_CAPTION,
-            color=MS_TEXT_MUTED,
+            color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
             alignment=PP_ALIGN.CENTER,
         )
         shapes_to_group.append(cap_tb)
