@@ -17,7 +17,7 @@ export function buildPromptFromBrief(job: Job): string | null {
   let prompt: string;
 
   if (job.agent === "slide-conductor") {
-    const themePart = b.theme && b.theme !== "light" ? ` with a ${b.theme} layout theme` : "";
+    const themePart = b.theme ? ` with a ${b.theme} layout theme` : "";
     prompt = `@${job.agent} Create a ${levelPart}${durationPart}presentation on "${b.topic}"${themePart}`;
   } else if (job.agent === "demo-conductor") {
     prompt = `@${job.agent} Create a ${levelPart}${durationPart}demo guide on "${b.topic}"`;
