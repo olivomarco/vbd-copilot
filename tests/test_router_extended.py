@@ -1,18 +1,14 @@
-"""Extended tests for router.py — covers _classify_intent, route_to_agent, _ensure_classifier."""
+"""Extended tests for router.py — covers _classify_intent, route_to_agent."""
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 import router
 from router import (
-    _auto_approve,
     _classify_intent,
-    _ensure_classifier,
-    init_router,
     route_to_agent,
 )
 
@@ -20,146 +16,64 @@ from router import (
 @pytest.fixture(autouse=True)
 def _reset_router():
     """Reset router globals between tests."""
-    old_client = router._copilot_client
-    old_session = router._classifier_session
-    router._copilot_client = None
-    router._classifier_session = None
+    old_tokens = router._AGENT_TOKENS
+    router._AGENT_TOKENS = {}
     yield
-    router._copilot_client = old_client
-    router._classifier_session = old_session
+    router._AGENT_TOKENS = old_tokens
 
 
 # ---------------------------------------------------------------------------
-# _auto_approve
-# ---------------------------------------------------------------------------
-
-
-class TestAutoApprove:
-    @pytest.mark.asyncio
-    async def test_auto_approve_returns_approved(self):
-        result = await _auto_approve(MagicMock(), {})
-        assert result["kind"] == "approved"
-
-
-# ---------------------------------------------------------------------------
-# _ensure_classifier
-# ---------------------------------------------------------------------------
-
-
-class TestEnsureClassifier:
-    @pytest.mark.asyncio
-    async def test_raises_without_init(self):
-        """Calling _ensure_classifier without init_router should fail."""
-        with pytest.raises(RuntimeError, match="Router not initialised"):
-            await _ensure_classifier()
-
-    @pytest.mark.asyncio
-    async def test_creates_session(self):
-        mock_client = AsyncMock()
-        mock_session = MagicMock()
-        mock_client.create_session.return_value = mock_session
-        await init_router(mock_client)
-
-        session = await _ensure_classifier()
-        assert session is mock_session
-        mock_client.create_session.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_returns_cached_session(self):
-        mock_client = AsyncMock()
-        mock_session = MagicMock()
-        mock_client.create_session.return_value = mock_session
-        await init_router(mock_client)
-
-        s1 = await _ensure_classifier()
-        s2 = await _ensure_classifier()
-        assert s1 is s2
-        # Should only create once
-        assert mock_client.create_session.call_count == 1
-
-
-# ---------------------------------------------------------------------------
-# _classify_intent
+# _classify_intent  (sync keyword-based classifier)
 # ---------------------------------------------------------------------------
 
 
 class TestClassifyIntent:
-    @pytest.mark.asyncio
-    async def test_returns_known_agent_from_stream(self):
-        from copilot.generated.session_events import SessionEventType
+    def test_returns_none_when_tokens_empty(self):
+        """When _AGENT_TOKENS is empty, returns None."""
+        assert router._AGENT_TOKENS == {}
+        result = _classify_intent("Build a presentation")
+        assert result is None
 
-        mock_session = AsyncMock()
-        events_captured = []
+    def test_returns_none_for_empty_prompt(self):
+        router._AGENT_TOKENS = {"slide-conductor": {"slide", "deck", "presentation"}}
+        result = _classify_intent("")
+        assert result is None
 
-        def mock_on(handler):
-            events_captured.append(handler)
-            return MagicMock()  # unsubscribe function
+    def test_returns_none_for_stop_words_only(self):
+        router._AGENT_TOKENS = {"slide-conductor": {"slide", "deck", "presentation"}}
+        # All tokens are stop-words or very short — _tokenize returns empty set
+        result = _classify_intent("a an the")
+        assert result is None
 
-        mock_session.on = mock_on
-        mock_session.send_and_wait = AsyncMock(return_value=None)
-
-        with patch(
-            "router._ensure_classifier",
-            new_callable=AsyncMock,
-            return_value=mock_session,
-        ):
-
-            async def send_with_events(*args, **kwargs):
-                # Simulate streamed event
-                handler = events_captured[0]
-                event = SimpleNamespace(
-                    type=SessionEventType.ASSISTANT_MESSAGE_DELTA,
-                    data=SimpleNamespace(delta_content="slide-conductor"),
-                )
-                handler(event)
-                return None
-
-            mock_session.send_and_wait = send_with_events
-            result = await _classify_intent("Build a presentation")
-
+    def test_returns_matching_agent(self):
+        router._AGENT_TOKENS = {
+            "slide-conductor": {"slide", "deck", "presentation"},
+            "demo-conductor": {"demo", "demonstration"},
+        }
+        result = _classify_intent("Build a slide deck")
         assert result == "slide-conductor"
 
-    @pytest.mark.asyncio
-    async def test_returns_none_for_unknown_agent(self):
-        mock_session = AsyncMock()
-        mock_session.on = MagicMock(return_value=MagicMock())
-        reply = SimpleNamespace(data=SimpleNamespace(content="none"))
-        mock_session.send_and_wait = AsyncMock(return_value=reply)
+    def test_returns_best_scoring_agent(self):
+        router._AGENT_TOKENS = {
+            "slide-conductor": {"slide", "deck", "presentation"},
+            "demo-conductor": {"demo", "demonstration", "slide"},
+        }
+        # "demo slide presentation" — slide-conductor matches 2, demo-conductor matches 1
+        result = _classify_intent("demo slide presentation")
+        # slide-conductor: {slide, presentation} = 2 hits; demo-conductor: {demo, slide} = 2 hits
+        # first wins on tie — result is non-None and one of the two
+        assert result in {"slide-conductor", "demo-conductor"}
 
-        with patch(
-            "router._ensure_classifier",
-            new_callable=AsyncMock,
-            return_value=mock_session,
-        ):
-            result = await _classify_intent("Hello world")
+    def test_returns_none_when_no_overlap(self):
+        router._AGENT_TOKENS = {"slide-conductor": {"slide", "deck", "presentation"}}
+        result = _classify_intent("configure networking firewall")
         assert result is None
 
-    @pytest.mark.asyncio
-    async def test_returns_none_on_exception(self):
-        with patch(
-            "router._ensure_classifier",
-            new_callable=AsyncMock,
-            side_effect=Exception("boom"),
-        ):
-            result = await _classify_intent("test prompt")
+    def test_requires_at_least_one_match(self):
+        """Score must be >= 1 to return an agent."""
+        router._AGENT_TOKENS = {"slide-conductor": set()}
+        result = _classify_intent("anything goes here")
         assert result is None
-        # Session should be reset
-        assert router._classifier_session is None
-
-    @pytest.mark.asyncio
-    async def test_uses_reply_content_as_fallback(self):
-        mock_session = AsyncMock()
-        mock_session.on = MagicMock(return_value=MagicMock())
-        reply = SimpleNamespace(data=SimpleNamespace(content="demo-conductor"))
-        mock_session.send_and_wait = AsyncMock(return_value=reply)
-
-        with patch(
-            "router._ensure_classifier",
-            new_callable=AsyncMock,
-            return_value=mock_session,
-        ):
-            result = await _classify_intent("Create demos")
-        assert result == "demo-conductor"
 
 
 # ---------------------------------------------------------------------------

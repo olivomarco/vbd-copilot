@@ -1556,50 +1556,6 @@ def add_checklist(
     return ElementBox(tb, left, top, width, height)
 
 
-def add_gradient_card(
-    slide,
-    left,
-    top,
-    width,
-    height,
-    color_start,
-    color_end,
-    angle_deg=90,
-    corner_radius=0.05,
-    shadow="subtle",
-):
-    """Add a rounded card with a gradient fill and optional shadow.
-
-    Combines add_rounded_card + add_gradient_fill + add_shadow for a single call.
-    Great for hero cards, section headers, and call-to-action panels.
-
-    Example::
-        add_gradient_card(slide, x, y, w, h, MS_BLUE, MS_DARK_BLUE, angle_deg=135)
-    """
-    card = add_rounded_card(
-        slide,
-        left,
-        top,
-        width,
-        height,
-        fill=color_start,
-        border=None,
-        corner_radius=corner_radius,
-    )
-    add_gradient_fill(card, color_start, color_end, angle_deg)
-    if shadow:
-        presets = {
-            "paper": (2, 1, 0.08),
-            "subtle": (4, 2, 0.12),
-            "medium": (6, 3, 0.18),
-            "strong": (12, 5, 0.25),
-            "deep": (20, 8, 0.30),
-        }
-        blur, offset, opacity = presets.get(shadow, presets["medium"])
-        add_shadow(card, blur_pt=blur, offset_pt=offset, opacity=opacity)
-    return card
-
-
 # ═════════════════════════════════════════════════════════════
 # LAYOUT & LAYER UTILITIES
 # ═════════════════════════════════════════════════════════════

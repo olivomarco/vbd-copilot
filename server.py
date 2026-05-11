@@ -358,7 +358,7 @@ async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONRes
             _send(_envelope(conn, "waiting_for_input", payload_data), full_id)
             timed_out = False
             try:
-                answer = await pop_user_response(
+                await pop_user_response(
                     timeout=_ASK_USER_TIMEOUT,
                     session_id=full_id,
                     expected_request_id=request_id,
