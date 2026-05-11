@@ -90,7 +90,9 @@ class TestCreateSession:
             patch("agents.DEFAULT_MODEL", "gpt-4o"),
             patch("tools.ALL_CUSTOM_TOOLS", []),
         ):
-            resp = client.post("/sessions", json={"agent": "test-agent", "model": "gpt-4o"})
+            resp = client.post(
+                "/sessions", json={"agent": "test-agent", "model": "gpt-4o"}
+            )
 
         assert resp.status_code == 200
         data = resp.json()
@@ -227,8 +229,9 @@ class TestEndSession:
         fake_session = SimpleNamespace(_event_handlers=[])
         server_mod._session_map["full-sid-1"] = fake_session
 
-        with patch("server_adapter.destroy_connection"), patch(
-            "server_adapter.emit_state_changed"
+        with (
+            patch("server_adapter.destroy_connection"),
+            patch("server_adapter.emit_state_changed"),
         ):
             resp = client.delete("/sessions/full-sid-1")
 
@@ -238,8 +241,9 @@ class TestEndSession:
     def test_end_session_no_map_entry(self, client, _reset_globals):
         _reset_globals.resolve_prefix.return_value = "full-sid-2"
 
-        with patch("server_adapter.destroy_connection"), patch(
-            "server_adapter.emit_state_changed"
+        with (
+            patch("server_adapter.destroy_connection"),
+            patch("server_adapter.emit_state_changed"),
         ):
             resp = client.delete("/sessions/full-sid-2")
 
@@ -416,9 +420,7 @@ class TestSessionEvents:
 class TestTurnInvocations:
     def test_get_turn_invocations_found(self, client, _reset_globals):
         _reset_globals.resolve_prefix.return_value = "full-sid"
-        _reset_globals.get_turns.return_value = [
-            {"id": "turn-1", "turn_number": 1}
-        ]
+        _reset_globals.get_turns.return_value = [{"id": "turn-1", "turn_number": 1}]
         _reset_globals.get_invocations.return_value = [{"id": "inv-1"}]
 
         resp = client.get("/sessions/full-sid/turns/1/invocations")
@@ -535,7 +537,9 @@ class TestDeleteGroup:
 
     def test_delete_hackathon_not_found(self, client):
         server_mod._outputs_dir / "hackathons"  # don't create
-        resp = client.delete("/outputs/grouped", params={"id": "hackathons/nonexistent"})
+        resp = client.delete(
+            "/outputs/grouped", params={"id": "hackathons/nonexistent"}
+        )
         assert resp.status_code == 404
 
 
@@ -675,9 +679,7 @@ class TestFindNewOutputs:
         assert any(r.name == "test.md" for r in results)
 
     def test_nonexistent_dir_returns_empty(self):
-        results = _find_new_outputs(
-            time.time() - 10, agent_name="slide-conductor"
-        )
+        results = _find_new_outputs(time.time() - 10, agent_name="slide-conductor")
         assert results == []
 
 

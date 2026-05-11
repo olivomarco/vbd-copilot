@@ -67,9 +67,7 @@ class TestDetectAgent:
         mock_classify.assert_called_once_with("I need a presentation about Azure")
 
     @pytest.mark.asyncio
-    @patch(
-        "router._classify_intent", return_value="demo-conductor"
-    )
+    @patch("router._classify_intent", return_value="demo-conductor")
     async def test_llm_routes_demo(self, mock_classify):
         result = await detect_agent("Create demos for AKS")
         assert result == "demo-conductor"
@@ -93,9 +91,7 @@ class TestDetectAgent:
         assert result == "ai-solution-architect"
 
     @pytest.mark.asyncio
-    @patch(
-        "router._classify_intent", return_value="ai-implementor"
-    )
+    @patch("router._classify_intent", return_value="ai-implementor")
     async def test_llm_routes_implementor(self, mock_classify):
         result = await detect_agent("Implement the solution with Bicep")
         assert result == "ai-implementor"
@@ -115,14 +111,9 @@ class TestDetectAgent:
     # ── @mention takes priority over LLM ──────────────────────────────────
 
     @pytest.mark.asyncio
-    @patch(
-        "router._classify_intent", return_value="demo-conductor"
-    )
+    @patch("router._classify_intent", return_value="demo-conductor")
     async def test_mention_overrides_llm(self, mock_classify):
         """Explicit @mention should take priority, classifier should not be called."""
         result = await detect_agent("@slide-conductor make me a demo deck")
         assert result == "slide-conductor"
         mock_classify.assert_not_called()
-
-
-

@@ -68,15 +68,15 @@ TONAL_BLUES = [MS_DARK_BLUE, MS_BLUE_DARKER, MS_BLUE, MS_NAVY_LIGHT, MS_ACCENT_L
 # Used automatically by slide template functions when set_theme("dark") is active.
 # Content generator scripts should use the T accessor (T.TEXT, T.BG, etc.)
 # rather than these private constants directly.
-_DARK_SLIDE_BG = RGBColor(0x1A, 0x1C, 0x23)     # Slide / canvas background
-_DARK_CARD_BG = RGBColor(0x25, 0x28, 0x35)       # Card / panel surface
-_DARK_TEXT = RGBColor(0xE8, 0xE8, 0xE8)           # Body text
-_DARK_TEXT_MUTED = RGBColor(0x9E, 0x9E, 0x9E)     # Secondary / caption text
-_DARK_CALLOUT_BG = RGBColor(0x1A, 0x2A, 0x3A)    # Callout box background (dark teal)
-_DARK_CODE_BG = RGBColor(0x1E, 0x1E, 0x1E)       # Code block background
-_DARK_CODE_TEXT = RGBColor(0xD4, 0xD4, 0xD4)     # Code block text
-_DARK_BORDER = RGBColor(0x3A, 0x3A, 0x3A)         # Subtle border / divider lines
-_DARK_SECTION_BG = RGBColor(0x0D, 0x12, 0x1F)    # Section divider background
+_DARK_SLIDE_BG = RGBColor(0x1A, 0x1C, 0x23)  # Slide / canvas background
+_DARK_CARD_BG = RGBColor(0x25, 0x28, 0x35)  # Card / panel surface
+_DARK_TEXT = RGBColor(0xE8, 0xE8, 0xE8)  # Body text
+_DARK_TEXT_MUTED = RGBColor(0x9E, 0x9E, 0x9E)  # Secondary / caption text
+_DARK_CALLOUT_BG = RGBColor(0x1A, 0x2A, 0x3A)  # Callout box background (dark teal)
+_DARK_CODE_BG = RGBColor(0x1E, 0x1E, 0x1E)  # Code block background
+_DARK_CODE_TEXT = RGBColor(0xD4, 0xD4, 0xD4)  # Code block text
+_DARK_BORDER = RGBColor(0x3A, 0x3A, 0x3A)  # Subtle border / divider lines
+_DARK_SECTION_BG = RGBColor(0x0D, 0x12, 0x1F)  # Section divider background
 
 # Active theme -- "light" (default) or "dark"
 _ACTIVE_THEME: str = "light"
@@ -434,6 +434,7 @@ def _tone_for_dark(color, darken=0.38, lighten_floor=0.18):
         return _darken_color(color, darken)
     else:
         return _lighten_color(color, lighten_floor)
+
 
 # ═════════════════════════════════════════════════════════════
 # RETURN TYPE & CONTRAST HELPERS
@@ -1309,9 +1310,7 @@ def add_header_card(
     )
     add_shadow(header_shape, blur_pt=6, offset_pt=3, opacity=0.15)
     # 2. Gradient header band (rounded top, straight bottom)
-    band = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, left, top, width, header_height
-    )
+    band = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, header_height)
     band.line.fill.background()
     dark_color = _t(_darken_color(color, 0.28), _darken_color(color, 0.15))
     add_gradient_fill(band, color, dark_color, angle_deg=135)
@@ -1319,8 +1318,14 @@ def add_header_card(
     body_top = top + header_height
     body_height = height - header_height
     body_shape = add_rounded_card(
-        slide, left, body_top, width, body_height,
-        fill=_t(MS_WHITE, _DARK_CARD_BG), border=None, corner_radius=0.0,
+        slide,
+        left,
+        body_top,
+        width,
+        body_height,
+        fill=_t(MS_WHITE, _DARK_CARD_BG),
+        border=None,
+        corner_radius=0.0,
     )
     # 4. Header text
     header_tb = add_textbox(
@@ -1360,8 +1365,13 @@ def add_elevated_card(
     """
     if _ACTIVE_THEME == "dark":
         return add_glass_card(
-            slide, left, top, width, height,
-            tint_color=_DARK_CARD_BG, corner_radius=corner_radius,
+            slide,
+            left,
+            top,
+            width,
+            height,
+            tint_color=_DARK_CARD_BG,
+            corner_radius=corner_radius,
         )
     card = add_rounded_card(
         slide, left, top, width, height, fill, border, corner_radius
@@ -1552,7 +1562,12 @@ def add_checklist(
         )
 
         # Item text
-        _add_runs_from_markup(p, text, font_size, _t(MS_TEXT, _DARK_TEXT) if checked else _t(MS_TEXT_MUTED, _DARK_TEXT_MUTED))
+        _add_runs_from_markup(
+            p,
+            text,
+            font_size,
+            _t(MS_TEXT, _DARK_TEXT) if checked else _t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
+        )
     return ElementBox(tb, left, top, width, height)
 
 
@@ -1905,7 +1920,8 @@ def add_styled_table(
                 _add_runs_from_markup(p, str(val), font_size, _t(MS_TEXT, _DARK_TEXT))
                 cell.fill.solid()
                 cell.fill.fore_color.rgb = (
-                    _t(MS_CALLOUT_BG, RGBColor(0x20, 0x24, 0x31)) if ri % 2 == 0
+                    _t(MS_CALLOUT_BG, RGBColor(0x20, 0x24, 0x31))
+                    if ri % 2 == 0
                     else _t(MS_WHITE, _DARK_CARD_BG)
                 )
             cell.margin_left = Inches(0.08)
@@ -1941,7 +1957,14 @@ def add_metric_card(
                         trend="+0.3%", trend_positive=True)
     """
     card = add_elevated_card(
-        slide, left, top, width, height, fill=_t(MS_WHITE, _DARK_CARD_BG), border=None, shadow="subtle"
+        slide,
+        left,
+        top,
+        width,
+        height,
+        fill=_t(MS_WHITE, _DARK_CARD_BG),
+        border=None,
+        shadow="subtle",
     )
     accent_bar = add_rect(slide, left, top, width, Inches(0.1), color)
     # On dark cards the accent color may be too dark to read as text -- lighten it.
@@ -2013,9 +2036,15 @@ def add_numbered_items(
         ih = int(item_height)
         card_h = item_height - Inches(0.05)
         last_shape = add_elevated_card(
-            slide, left, y, width, card_h,
-            fill=_t(MS_WHITE, _DARK_CARD_BG), border=None,
-            corner_radius=0.04, shadow="paper"
+            slide,
+            left,
+            y,
+            width,
+            card_h,
+            fill=_t(MS_WHITE, _DARK_CARD_BG),
+            border=None,
+            corner_radius=0.04,
+            shadow="paper",
         )
         add_rect(slide, left, y, Pt(6), card_h, c)
         # Icon circle vertically centered at top region of card
@@ -2077,9 +2106,15 @@ def add_card_grid(
         y = top + row * (card_h + gap_y)
         ch = int(card_h)  # EMU for proportional offsets
         s1 = add_elevated_card(
-            slide, x, y, card_w, card_h,
-            fill=_t(MS_WHITE, _DARK_CARD_BG), border=None,
-            corner_radius=0.05, shadow="subtle"
+            slide,
+            x,
+            y,
+            card_w,
+            card_h,
+            fill=_t(MS_WHITE, _DARK_CARD_BG),
+            border=None,
+            corner_radius=0.05,
+            shadow="subtle",
         )
         # Gradient header band
         _header_h = int(ch * 0.28)
@@ -2087,20 +2122,35 @@ def add_card_grid(
         hdr.line.fill.background()
         add_gradient_fill(hdr, color, _darken_color(color, 0.30), angle_deg=135)
         s3 = add_icon_circle(
-            slide, x + Inches(0.15), y + int(ch * 0.04), Inches(0.44),
-            _darken_color(color, 0.25), str(i + 1)
+            slide,
+            x + Inches(0.15),
+            y + int(ch * 0.04),
+            Inches(0.44),
+            _darken_color(color, 0.25),
+            str(i + 1),
         )
         s4 = add_textbox(
-            slide, title,
-            x + Inches(0.69), y + int(ch * 0.04),
-            card_w - Inches(0.87), int(ch * 0.22),
-            font_size=15, color=MS_WHITE, bold=True, shrink_to_fit=True,
+            slide,
+            title,
+            x + Inches(0.69),
+            y + int(ch * 0.04),
+            card_w - Inches(0.87),
+            int(ch * 0.22),
+            font_size=15,
+            color=MS_WHITE,
+            bold=True,
+            shrink_to_fit=True,
         )
         s5 = add_textbox(
-            slide, desc,
-            x + Inches(0.2), y + _header_h + Inches(0.12),
-            card_w - Inches(0.4), int(ch) - _header_h - int(Inches(0.2)),
-            font_size=13, color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED), shrink_to_fit=True,
+            slide,
+            desc,
+            x + Inches(0.2),
+            y + _header_h + Inches(0.12),
+            card_w - Inches(0.4),
+            int(ch) - _header_h - int(Inches(0.2)),
+            font_size=13,
+            color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
+            shrink_to_fit=True,
         )
         last_shape = s1
         group_shapes(slide, [s1, hdr, s3, s4, s5])
@@ -2117,7 +2167,12 @@ def add_pillar_cards(
 ):
     """Add vertical pillar cards. Delegates to add_gradient_pillar_cards (Fluent style)."""
     return add_gradient_pillar_cards(
-        slide, pillars, left=left, top=top, height=height, min_gap=min_gap,
+        slide,
+        pillars,
+        left=left,
+        top=top,
+        height=height,
+        min_gap=min_gap,
     )
 
 
@@ -2209,8 +2264,13 @@ def add_stats_row(
 ):
     """Add a horizontal row of big-number statistics. Delegates to add_fluent_stats_row."""
     return add_fluent_stats_row(
-        slide, stats, left=left, top=top,
-        width=width, card_h=card_h, gap=gap,
+        slide,
+        stats,
+        left=left,
+        top=top,
+        width=width,
+        card_h=card_h,
+        gap=gap,
     )
 
 
@@ -2565,7 +2625,9 @@ def add_layered_architecture(
         # Dark mode: keep vivid colours as-is (they read well against dark BG),
         # but aggressively lift near-black fills to a visible midtone.
         if _ACTIVE_THEME == "dark":
-            bar_fill = _lighten_color(color, 0.48) if _luminance(color) < 0.10 else color
+            bar_fill = (
+                _lighten_color(color, 0.48) if _luminance(color) < 0.10 else color
+            )
         else:
             bar_fill = color
         # Layer bar with subtle shadow
@@ -2937,7 +2999,11 @@ def add_maturity_model(
 
         color = MS_BLUE if is_current else _t(MS_LIGHT_GRAY, _DARK_CARD_BG)
         text_c = MS_WHITE if is_current else _t(MS_DARK_BLUE, _DARK_TEXT)
-        desc_c = RGBColor(0xDD, 0xEE, 0xFF) if is_current else _t(MS_TEXT_MUTED, _DARK_TEXT_MUTED)
+        desc_c = (
+            RGBColor(0xDD, 0xEE, 0xFF)
+            if is_current
+            else _t(MS_TEXT_MUTED, _DARK_TEXT_MUTED)
+        )
 
         _card = add_elevated_card(
             slide,
@@ -3096,7 +3162,14 @@ def create_standard_slide(
     add_bottom_bar(slide, page_num, total)
     add_ms_logo(slide)
     # Thin accent rule between title and content for editorial clarity
-    add_rect(slide, CONTENT_LEFT, Inches(0.95), CONTENT_WIDTH, Pt(2), _t(MS_BLUE, MS_LIGHT_BLUE))
+    add_rect(
+        slide,
+        CONTENT_LEFT,
+        Inches(0.95),
+        CONTENT_WIDTH,
+        Pt(2),
+        _t(MS_BLUE, MS_LIGHT_BLUE),
+    )
     if notes:
         add_speaker_notes(slide, notes)
     return slide
@@ -3405,8 +3478,13 @@ def create_closing_slide(
                 big, small = item[0], item[1] if len(item) > 1 else ""
             x = right_left + i * (card_w + cta_gap)
             add_rounded_card(
-                slide, x, cards_top, card_w, card_h,
-                fill=_t(MS_WHITE, _DARK_CARD_BG), border=MS_BLUE
+                slide,
+                x,
+                cards_top,
+                card_w,
+                card_h,
+                fill=_t(MS_WHITE, _DARK_CARD_BG),
+                border=MS_BLUE,
             )
             add_textbox(
                 slide,
@@ -3876,7 +3954,7 @@ def add_timeline(
     box_w = (available_width - (n - 1) * gap) / n
     total_h = box_height + Inches(0.08) + Inches(0.05) + Inches(0.35) + desc_height
     _validate_bounds(left, top, available_width, total_h, "add_timeline")
-    connector_y = top + box_height / 2 - Pt(1.5)   # centre of milestone boxes
+    connector_y = top + box_height / 2 - Pt(1.5)  # centre of milestone boxes
     week_y = top + box_height + Inches(0.08)
     desc_y = week_y + Inches(0.35)
     shapes = []
@@ -4029,9 +4107,15 @@ def add_process_flow(
 ):
     """Add a horizontal process flow diagram. Delegates to add_fluent_process_flow."""
     return add_fluent_process_flow(
-        slide, steps, left=left, top=top,
-        box_w=box_w, box_h=box_h, arrow_w=arrow_w,
-        colors=colors, annotations=annotations,
+        slide,
+        steps,
+        left=left,
+        top=top,
+        box_w=box_w,
+        box_h=box_h,
+        arrow_w=arrow_w,
+        colors=colors,
+        annotations=annotations,
     )
 
 
@@ -4535,8 +4619,9 @@ def add_colored_shadow(shape, color=MS_BLUE, blur_pt=12, offset_pt=4, opacity=0.
         add_colored_shadow(card, color=MS_BLUE, blur_pt=16, opacity=0.35)
     """
     hex_color = "%02X%02X%02X" % (color[0], color[1], color[2])
-    return add_shadow(shape, blur_pt=blur_pt, offset_pt=offset_pt,
-                      opacity=opacity, color=hex_color)
+    return add_shadow(
+        shape, blur_pt=blur_pt, offset_pt=offset_pt, opacity=opacity, color=hex_color
+    )
 
 
 def set_shape_alpha(shape, alpha_pct):
@@ -4656,9 +4741,7 @@ def add_glass_card(
     # Semi-transparency (acrylic effect)
     set_shape_alpha(card, 100 - blur_opacity)
     # Subtle luminous border
-    card.line.color.rgb = _t(
-        RGBColor(0xE0, 0xE0, 0xE8), RGBColor(0x48, 0x4C, 0x5C)
-    )
+    card.line.color.rgb = _t(RGBColor(0xE0, 0xE0, 0xE8), RGBColor(0x48, 0x4C, 0x5C))
     card.line.width = Pt(0.75)
     # Inner glow for the reveal-highlight effect
     if border_glow:
@@ -4710,8 +4793,9 @@ def add_glow_card(
     card.line.color.rgb = glow_color
     card.line.width = Pt(1.0)
     # Colored outer glow
-    add_colored_shadow(card, color=glow_color, blur_pt=blur,
-                       offset_pt=offset, opacity=opacity)
+    add_colored_shadow(
+        card, color=glow_color, blur_pt=blur, offset_pt=offset, opacity=opacity
+    )
     return card
 
 
@@ -4777,9 +4861,7 @@ def add_accent_divider(
     if color_end is None:
         color_end = _t(MS_DARK_BLUE, RGBColor(0x38, 0x6E, 0xA8))
 
-    bar = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, left, top, width, height
-    )
+    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
     bar.line.fill.background()
     add_gradient_fill(bar, color_start, color_end, angle_deg=angle_deg)
     return bar
@@ -4816,9 +4898,16 @@ def add_gradient_hero_stat(
         color_end = _t(MS_DARK_BLUE, RGBColor(0x14, 0x28, 0x45))
 
     card = add_gradient_card(
-        slide, left, top, width, height,
-        color_start=color_start, color_end=color_end,
-        angle_deg=135, corner_radius=0.05, shadow=None,
+        slide,
+        left,
+        top,
+        width,
+        height,
+        color_start=color_start,
+        color_end=color_end,
+        angle_deg=135,
+        corner_radius=0.05,
+        shadow=None,
     )
     # Luminous colored glow underneath
     if glow:
@@ -4827,7 +4916,9 @@ def add_gradient_hero_stat(
     else:
         add_shadow(card, blur_pt=12, offset_pt=5, opacity=0.25)
     # Inner reveal highlight
-    add_inner_glow(card, color=_t(MS_LIGHT_BLUE, MS_LIGHT_BLUE), blur_pt=12, opacity=0.12)
+    add_inner_glow(
+        card, color=_t(MS_LIGHT_BLUE, MS_LIGHT_BLUE), blur_pt=12, opacity=0.12
+    )
     # Metric text (white on gradient — always high contrast)
     h_emu = int(height)
     _set_shape_text(
@@ -4845,25 +4936,37 @@ def add_gradient_hero_stat(
     )
     # Label
     _add_shape_paragraph(
-        card, label,
-        font_size=16, color=RGBColor(0xCC, 0xE4, 0xFF),
-        alignment=PP_ALIGN.CENTER, space_before=Pt(4),
+        card,
+        label,
+        font_size=16,
+        color=RGBColor(0xCC, 0xE4, 0xFF),
+        alignment=PP_ALIGN.CENTER,
+        space_before=Pt(4),
     )
     # Sublabel
     if sublabel:
         _add_shape_paragraph(
-            card, sublabel,
-            font_size=11, color=RGBColor(0x88, 0xB8, 0xE0),
-            alignment=PP_ALIGN.CENTER, space_before=Pt(3),
+            card,
+            sublabel,
+            font_size=11,
+            color=RGBColor(0x88, 0xB8, 0xE0),
+            alignment=PP_ALIGN.CENTER,
+            space_before=Pt(3),
         )
     # Trend
     if trend:
         arrow = "\u25b2 " if trend_positive else "\u25bc "
-        t_color = RGBColor(0x6B, 0xFF, 0x6B) if trend_positive else RGBColor(0xFF, 0x7B, 0x7B)
+        t_color = (
+            RGBColor(0x6B, 0xFF, 0x6B) if trend_positive else RGBColor(0xFF, 0x7B, 0x7B)
+        )
         _add_shape_paragraph(
-            card, arrow + trend,
-            font_size=13, color=t_color, bold=True,
-            alignment=PP_ALIGN.CENTER, space_before=Pt(6),
+            card,
+            arrow + trend,
+            font_size=13,
+            color=t_color,
+            bold=True,
+            alignment=PP_ALIGN.CENTER,
+            space_before=Pt(6),
         )
     return ElementBox(card, left, top, width, height)
 
@@ -4902,51 +5005,79 @@ def add_hero_quote(
     if style == "dramatic":
         # Full gradient background card
         card = add_gradient_card(
-            slide, left, top, width, total_h,
+            slide,
+            left,
+            top,
+            width,
+            total_h,
             color_start=_t(RGBColor(0xEF, 0xF6, 0xFC), RGBColor(0x14, 0x1C, 0x2E)),
             color_end=_t(RGBColor(0xDE, 0xEC, 0xF9), RGBColor(0x0D, 0x14, 0x22)),
-            angle_deg=135, corner_radius=0.05, shadow=None,
+            angle_deg=135,
+            corner_radius=0.05,
+            shadow=None,
         )
-        add_colored_shadow(card, color=accent_color, blur_pt=16, offset_pt=3, opacity=0.20)
+        add_colored_shadow(
+            card, color=accent_color, blur_pt=16, offset_pt=3, opacity=0.20
+        )
         add_inner_glow(card, color=accent_color, blur_pt=8, opacity=0.12)
     else:
         # Editorial: clean elevated card
         card = add_elevated_card(
-            slide, left, top, width, total_h,
-            fill=_t(MS_WHITE, _DARK_CARD_BG), shadow="medium",
+            slide,
+            left,
+            top,
+            width,
+            total_h,
+            fill=_t(MS_WHITE, _DARK_CARD_BG),
+            shadow="medium",
         )
 
     # Gradient accent bar on left edge
-    accent_bar = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, left, top, Pt(5), total_h
-    )
+    accent_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, Pt(5), total_h)
     accent_bar.line.fill.background()
-    add_gradient_fill(accent_bar, accent_color,
-                      _darken_color(accent_color, 0.35), angle_deg=90)
+    add_gradient_fill(
+        accent_bar, accent_color, _darken_color(accent_color, 0.35), angle_deg=90
+    )
 
     # Giant decorative opening quote mark
     add_textbox(
-        slide, "\u201c",
-        left + Inches(0.3), top - Inches(0.05),
-        Inches(0.8), Inches(1.0),
-        font_size=80, color=accent_color, bold=True,
+        slide,
+        "\u201c",
+        left + Inches(0.3),
+        top - Inches(0.05),
+        Inches(0.8),
+        Inches(1.0),
+        font_size=80,
+        color=accent_color,
+        bold=True,
     )
     # Quote text
     add_textbox(
-        slide, quote,
-        left + Inches(0.9), top + Inches(0.25),
-        width - Inches(1.3), q_height,
-        font_size=24, color=_t(MS_DARK_BLUE, _DARK_TEXT),
-        italic=True, font_name=FONT_LIGHT, shrink_to_fit=True,
+        slide,
+        quote,
+        left + Inches(0.9),
+        top + Inches(0.25),
+        width - Inches(1.3),
+        q_height,
+        font_size=24,
+        color=_t(MS_DARK_BLUE, _DARK_TEXT),
+        italic=True,
+        font_name=FONT_LIGHT,
+        shrink_to_fit=True,
     )
     # Attribution
     if attribution:
         add_textbox(
-            slide, attribution,
-            left + Inches(0.9), top + q_height + Inches(0.3),
-            width - Inches(1.3), Inches(0.35),
-            font_size=13, color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
-            bold=True, font_name=FONT_SEMIBOLD,
+            slide,
+            attribution,
+            left + Inches(0.9),
+            top + q_height + Inches(0.3),
+            width - Inches(1.3),
+            Inches(0.35),
+            font_size=13,
+            color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
+            bold=True,
+            font_name=FONT_SEMIBOLD,
         )
     return ElementBox(card, left, top, width, total_h)
 
@@ -4999,13 +5130,23 @@ def add_reveal_card_grid(
         # Glass card (dark) or elevated card (light)
         if _ACTIVE_THEME == "dark":
             card = add_glass_card(
-                slide, x, y, card_w, card_h,
-                glow_color=glow_color, blur_opacity=80,
+                slide,
+                x,
+                y,
+                card_w,
+                card_h,
+                glow_color=glow_color,
+                blur_opacity=80,
             )
         else:
             card = add_elevated_card(
-                slide, x, y, card_w, card_h,
-                fill=MS_WHITE, shadow="subtle",
+                slide,
+                x,
+                y,
+                card_w,
+                card_h,
+                fill=MS_WHITE,
+                shadow="subtle",
             )
             add_inner_glow(card, color=glow_color, blur_pt=6, opacity=0.10)
 
@@ -5014,24 +5155,42 @@ def add_reveal_card_grid(
         cx = x + card_w / 2 - circle_size / 2
         cy = y + Inches(0.2)
         circle_fill = _t(MS_DARK_BLUE, RGBColor(0x08, 0x18, 0x30))
-        add_icon_circle(slide, cx, cy, circle_size, circle_fill, icon_text,
-                        text_color=_t(MS_WHITE, glow_color))
+        add_icon_circle(
+            slide,
+            cx,
+            cy,
+            circle_size,
+            circle_fill,
+            icon_text,
+            text_color=_t(MS_WHITE, glow_color),
+        )
 
         # Title
         add_textbox(
-            slide, title,
-            x + Inches(0.15), y + Inches(1.05),
-            card_w - Inches(0.3), Inches(0.45),
-            font_size=15, color=_t(MS_DARK_BLUE, _DARK_TEXT),
-            bold=True, alignment=PP_ALIGN.CENTER, shrink_to_fit=True,
+            slide,
+            title,
+            x + Inches(0.15),
+            y + Inches(1.05),
+            card_w - Inches(0.3),
+            Inches(0.45),
+            font_size=15,
+            color=_t(MS_DARK_BLUE, _DARK_TEXT),
+            bold=True,
+            alignment=PP_ALIGN.CENTER,
+            shrink_to_fit=True,
         )
         # Description
         add_textbox(
-            slide, desc,
-            x + Inches(0.15), y + Inches(1.55),
-            card_w - Inches(0.3), card_h - Inches(1.75),
-            font_size=13, color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
-            alignment=PP_ALIGN.CENTER, shrink_to_fit=True,
+            slide,
+            desc,
+            x + Inches(0.15),
+            y + Inches(1.55),
+            card_w - Inches(0.3),
+            card_h - Inches(1.75),
+            font_size=13,
+            color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
+            alignment=PP_ALIGN.CENTER,
+            shrink_to_fit=True,
         )
 
     return ElementBox(None, left, top, total_w, total_h)
@@ -5078,8 +5237,13 @@ def add_gradient_pillar_cards(
         if style == "glass" and _ACTIVE_THEME == "dark":
             # Full glass card
             card = add_glass_card(
-                slide, x, top, card_w, height,
-                glow_color=color, blur_opacity=78,
+                slide,
+                x,
+                top,
+                card_w,
+                height,
+                glow_color=color,
+                blur_opacity=78,
             )
             # Gradient header overlay
             hdr = slide.shapes.add_shape(
@@ -5095,40 +5259,58 @@ def add_gradient_pillar_cards(
         else:
             # Elevated card with gradient header
             card = add_elevated_card(
-                slide, x, top, card_w, height,
-                fill=_t(MS_WHITE, _DARK_CARD_BG), shadow="subtle",
+                slide,
+                x,
+                top,
+                card_w,
+                height,
+                fill=_t(MS_WHITE, _DARK_CARD_BG),
+                shadow="subtle",
             )
             # Add subtle glow in accent color
             add_colored_shadow(card, color=color, blur_pt=10, offset_pt=2, opacity=0.15)
             # Gradient header band
-            hdr = slide.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE, x, top, card_w, _header_h
-            )
+            hdr = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, top, card_w, _header_h)
             hdr.line.fill.background()
             add_gradient_fill(hdr, color, _darken_color(color, 0.25), angle_deg=135)
 
         # Icon circle
         add_icon_circle(
-            slide, x + card_w / 2 - circle_r, top + _header_h * 0.12,
-            circle_r * 2, _darken_color(color, 0.18), num,
+            slide,
+            x + card_w / 2 - circle_r,
+            top + _header_h * 0.12,
+            circle_r * 2,
+            _darken_color(color, 0.18),
+            num,
         )
         # Title
         title_top = top + h * 0.32
         add_textbox(
-            slide, title_text,
-            x + Inches(0.1), title_top,
-            card_w - Inches(0.2), h * 0.16,
-            font_size=17, color=_t(MS_DARK_BLUE, _DARK_TEXT),
-            bold=True, alignment=PP_ALIGN.CENTER, shrink_to_fit=True,
+            slide,
+            title_text,
+            x + Inches(0.1),
+            title_top,
+            card_w - Inches(0.2),
+            h * 0.16,
+            font_size=17,
+            color=_t(MS_DARK_BLUE, _DARK_TEXT),
+            bold=True,
+            alignment=PP_ALIGN.CENTER,
+            shrink_to_fit=True,
         )
         # Description
         desc_top = top + h * 0.52
         add_textbox(
-            slide, desc,
-            x + Inches(0.12), desc_top,
-            card_w - Inches(0.24), h * 0.42,
-            font_size=13, color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
-            alignment=PP_ALIGN.CENTER, shrink_to_fit=True,
+            slide,
+            desc,
+            x + Inches(0.12),
+            desc_top,
+            card_w - Inches(0.24),
+            h * 0.42,
+            font_size=13,
+            color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
+            alignment=PP_ALIGN.CENTER,
+            shrink_to_fit=True,
         )
 
     return ElementBox(None, left, top, CONTENT_WIDTH, height)
@@ -5174,9 +5356,16 @@ def add_fluent_process_flow(
 
         # Gradient box
         box = add_gradient_card(
-            slide, x, top, box_w, box_h,
-            color_start=c, color_end=c_end,
-            angle_deg=135, corner_radius=0.06, shadow=None,
+            slide,
+            x,
+            top,
+            box_w,
+            box_h,
+            color_start=c,
+            color_end=c_end,
+            angle_deg=135,
+            corner_radius=0.06,
+            shadow=None,
         )
         if glow:
             add_colored_shadow(box, color=c, blur_pt=12, offset_pt=3, opacity=0.25)
@@ -5185,10 +5374,15 @@ def add_fluent_process_flow(
         add_inner_glow(box, color=_lighten_color(c, 0.50), blur_pt=6, opacity=0.10)
 
         _set_shape_text(
-            box, label,
-            font_size=16, color=text_color, bold=True,
-            alignment=PP_ALIGN.CENTER, v_align="middle",
-            margin_left=Inches(0.1), margin_right=Inches(0.1),
+            box,
+            label,
+            font_size=16,
+            color=text_color,
+            bold=True,
+            alignment=PP_ALIGN.CENTER,
+            v_align="middle",
+            margin_left=Inches(0.1),
+            margin_right=Inches(0.1),
         )
         boxes.append(box)
 
@@ -5197,8 +5391,11 @@ def add_fluent_process_flow(
             arrow_x = x + box_w + Inches(0.05)
             arrow_y = top + (box_h - Inches(0.5)) / 2
             arr = add_arrow_right(
-                slide, arrow_x, arrow_y,
-                width=arrow_w - Inches(0.1), height=Inches(0.5),
+                slide,
+                arrow_x,
+                arrow_y,
+                width=arrow_w - Inches(0.1),
+                height=Inches(0.5),
                 color=_t(c, _lighten_color(c, 0.40)),
             )
             if glow and _ACTIVE_THEME == "dark":
@@ -5211,8 +5408,11 @@ def add_fluent_process_flow(
             add_bullet_list(
                 slide,
                 text if isinstance(text, list) else [text],
-                ax, top + box_h + Inches(0.3), box_w,
-                font_size=14, color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
+                ax,
+                top + box_h + Inches(0.3),
+                box_w,
+                font_size=14,
+                color=_t(MS_TEXT_MUTED, _DARK_TEXT_MUTED),
             )
 
     anno_h = Inches(1.3) if annotations else 0
@@ -5254,13 +5454,23 @@ def add_fluent_stats_row(
 
         if _ACTIVE_THEME == "dark":
             card = add_glass_card(
-                slide, x, top, card_w, card_h,
-                glow_color=color, blur_opacity=82,
+                slide,
+                x,
+                top,
+                card_w,
+                card_h,
+                glow_color=color,
+                blur_opacity=82,
             )
         else:
             card = add_elevated_card(
-                slide, x, top, card_w, card_h,
-                fill=MS_WHITE, shadow="subtle",
+                slide,
+                x,
+                top,
+                card_w,
+                card_h,
+                fill=MS_WHITE,
+                shadow="subtle",
             )
             add_inner_glow(card, color=color, blur_pt=6, opacity=0.08)
 
@@ -5279,18 +5489,25 @@ def add_fluent_stats_row(
         card_color = _t(color, _lighten_color(color, 0.55))
         h_emu = int(card_h)
         _set_shape_text(
-            card, str(value),
-            font_size=42, color=card_color, bold=True,
-            alignment=PP_ALIGN.CENTER, v_align="middle",
+            card,
+            str(value),
+            font_size=42,
+            color=card_color,
+            bold=True,
+            alignment=PP_ALIGN.CENTER,
+            v_align="middle",
             font_name=FONT_SEMIBOLD,
             margin_top=int(h_emu * 0.08),
             margin_bottom=int(h_emu * 0.05),
         )
         # Label
         _add_shape_paragraph(
-            card, label,
-            font_size=14, color=_t(MS_DARK_BLUE, _DARK_TEXT),
-            alignment=PP_ALIGN.CENTER, space_before=Pt(4),
+            card,
+            label,
+            font_size=14,
+            color=_t(MS_DARK_BLUE, _DARK_TEXT),
+            alignment=PP_ALIGN.CENTER,
+            space_before=Pt(4),
         )
         cards.append(card)
 
@@ -5298,8 +5515,13 @@ def add_fluent_stats_row(
 
 
 def create_premium_slide(
-    prs, title, page_num=None, total=None, notes="",
-    title_font_size=28, mica_style="cool",
+    prs,
+    title,
+    page_num=None,
+    total=None,
+    notes="",
+    title_font_size=28,
+    mica_style="cool",
 ):
     """Create a standard slide with Mica background — the premium slide template.
 

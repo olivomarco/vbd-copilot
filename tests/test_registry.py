@@ -141,7 +141,9 @@ class TestCatalogRefresh:
     def test_refresh_updates_routable_set(self, catalog, skill_dirs):
         # Make research-subagent routable by replacing it with infer=True
         agents = [
-            a if a.name != "research-subagent" else _make_agent("research-subagent", infer=True)
+            a
+            if a.name != "research-subagent"
+            else _make_agent("research-subagent", infer=True)
             for a in catalog.agent_configs_list
         ]
         catalog.refresh(agents)

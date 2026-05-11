@@ -88,9 +88,7 @@ def refresh_catalog() -> bool:
     changed = CATALOG.refresh(new_agents)
     if changed:
         AGENTS.clear()
-        AGENTS.update(
-            {n: _build_sdk_config(a) for n, a in CATALOG.all_agents.items()}
-        )
+        AGENTS.update({n: _build_sdk_config(a) for n, a in CATALOG.all_agents.items()})
         ROUTABLE_AGENTS.clear()
         ROUTABLE_AGENTS.update(
             {n: _build_sdk_config(a) for n, a in CATALOG.routable_agents.items()}

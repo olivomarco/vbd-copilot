@@ -452,7 +452,11 @@ async def pop_user_response(
             while True:
                 content, rid = await conn.input_queue.get()
                 # Accept if: no expected ID, no provided ID, or IDs match
-                if expected_request_id is None or rid is None or rid == expected_request_id:
+                if (
+                    expected_request_id is None
+                    or rid is None
+                    or rid == expected_request_id
+                ):
                     return content
                 log.warning(
                     "[ask_user] Discarding stale response (expected=%s, got=%s)",
@@ -598,7 +602,9 @@ def build_snapshot(session_id: str) -> dict[str, Any] | None:
         return None
     has_turn = conn.current_turn_task is not None and not conn.current_turn_task.done()
     status = (
-        "waiting" if conn.pending_input else ("active" if (conn.websockets or has_turn) else "idle")
+        "waiting"
+        if conn.pending_input
+        else ("active" if (conn.websockets or has_turn) else "idle")
     )
     return _envelope(
         conn,

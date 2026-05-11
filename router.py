@@ -22,10 +22,45 @@ from agents import DEFAULT_MODEL, ROUTABLE_AGENTS
 
 # Stop-words to ignore when scoring keyword overlap
 _STOP_WORDS = {
-    "a", "an", "the", "and", "or", "of", "to", "in", "for", "on", "with",
-    "is", "it", "this", "that", "any", "all", "how", "what", "can", "i",
-    "me", "my", "do", "you", "please", "create", "make", "build", "generate",
-    "new", "some", "want", "need", "get", "give", "show", "using", "use",
+    "a",
+    "an",
+    "the",
+    "and",
+    "or",
+    "of",
+    "to",
+    "in",
+    "for",
+    "on",
+    "with",
+    "is",
+    "it",
+    "this",
+    "that",
+    "any",
+    "all",
+    "how",
+    "what",
+    "can",
+    "i",
+    "me",
+    "my",
+    "do",
+    "you",
+    "please",
+    "create",
+    "make",
+    "build",
+    "generate",
+    "new",
+    "some",
+    "want",
+    "need",
+    "get",
+    "give",
+    "show",
+    "using",
+    "use",
 }
 
 logger = logging.getLogger(__name__)
@@ -40,6 +75,7 @@ logger = logging.getLogger(__name__)
 # Instead we score the prompt against each routable agent's name tokens and
 # description tokens.  For a small, well-named agent catalog this is accurate
 # enough and adds zero latency.
+
 
 def _tokenize(text: str) -> set[str]:
     """Lower-case word tokens, stop-words removed."""

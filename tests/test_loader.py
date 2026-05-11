@@ -114,6 +114,7 @@ Nested prompt.
 # Cache behaviour
 # ---------------------------------------------------------------------------
 
+
 def _write_agent(path, name):
     path.write_text(
         f"---\nname: {name}\ndisplay_name: {name.title()}\ndescription: desc\n---\nPrompt.\n"
@@ -125,6 +126,7 @@ def _advance_mtime(path) -> None:
     from a previously cached value — needed in tests that run faster than the
     filesystem clock's granularity."""
     import os
+
     st = os.stat(path)
     future = st.st_mtime + 1.0
     os.utime(path, (future, future))

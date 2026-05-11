@@ -69,7 +69,11 @@ class TestNameSessionEdgeCases:
         # Single arg that doesn't match an existing session and no current session
         handle_sessions("name somerandomname", store, console, current_session_id=None)
         output = console.file.getvalue()
-        assert "No active session" in output or "not found" in output.lower() or "OK" in output
+        assert (
+            "No active session" in output
+            or "not found" in output.lower()
+            or "OK" in output
+        )
 
     def test_name_with_session_id(self, store, console):
         _populate(store)

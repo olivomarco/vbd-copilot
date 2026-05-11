@@ -513,9 +513,7 @@ class TestOtherEventTypes:
                 "copilot.generated.session_events.SessionEventType",
                 FakeSessionEventType,
             ):
-                handler(
-                    _make_event(FakeSessionEventType.SESSION_COMPACTION_START)
-                )
+                handler(_make_event(FakeSessionEventType.SESSION_COMPACTION_START))
 
         assert any(m.get("type") == "compaction_start" for m in sent)
 
@@ -545,9 +543,7 @@ class TestOtherEventTypes:
                 "copilot.generated.session_events.SessionEventType",
                 FakeSessionEventType,
             ):
-                handler(
-                    _make_event(FakeSessionEventType.ASSISTANT_TURN_END)
-                )
+                handler(_make_event(FakeSessionEventType.ASSISTANT_TURN_END))
 
         assert any(m.get("type") == "turn_ended" for m in sent)
 

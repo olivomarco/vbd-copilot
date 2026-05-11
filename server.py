@@ -240,11 +240,25 @@ async def create_session(body: CreateSessionRequest) -> JSONResponse:
         lock = get_ask_user_lock(sid) if sid else asyncio.Lock()
         question = request.get("question", "")
         request_id = str(uuid.uuid4())
-        log.info("[ask_user] Waiting for lock (sid=%s, q=%s, rid=%s)", sid, question[:60], request_id[:8])
+        log.info(
+            "[ask_user] Waiting for lock (sid=%s, q=%s, rid=%s)",
+            sid,
+            question[:60],
+            request_id[:8],
+        )
         async with lock:
-            log.info("[ask_user] Lock acquired (sid=%s, q=%s, rid=%s)", sid, question[:60], request_id[:8])
+            log.info(
+                "[ask_user] Lock acquired (sid=%s, q=%s, rid=%s)",
+                sid,
+                question[:60],
+                request_id[:8],
+            )
             choices = request.get("choices")
-            payload_data = {"question": question, "choices": choices, "request_id": request_id}
+            payload_data = {
+                "question": question,
+                "choices": choices,
+                "request_id": request_id,
+            }
             conn = get_connection(sid) if sid else None
             if sid:
                 set_pending_input(sid, payload_data)
@@ -271,10 +285,17 @@ async def create_session(body: CreateSessionRequest) -> JSONResponse:
                         conn_obj.pending_input_request_id = None
                     if timed_out:
                         _send(
-                            _envelope(conn, "input_timed_out", {"question": question, "request_id": request_id}),
+                            _envelope(
+                                conn,
+                                "input_timed_out",
+                                {"question": question, "request_id": request_id},
+                            ),
                             sid,
                         )
-                    _send(_envelope(conn, "input_resolved", {"request_id": request_id}), sid)
+                    _send(
+                        _envelope(conn, "input_resolved", {"request_id": request_id}),
+                        sid,
+                    )
             log.info("[ask_user] Lock releasing (sid=%s, q=%s)", sid, question[:60])
         return UserInputResponse(answer=answer, wasFreeform=True)
 
@@ -350,7 +371,11 @@ async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONRes
         async with lock:
             question = request.get("question", "")
             choices = request.get("choices")
-            payload_data = {"question": question, "choices": choices, "request_id": request_id}
+            payload_data = {
+                "question": question,
+                "choices": choices,
+                "request_id": request_id,
+            }
             conn = get_connection(full_id)
             set_pending_input(full_id, payload_data)
             if conn:
@@ -371,10 +396,18 @@ async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONRes
                     conn.pending_input_request_id = None
                 if timed_out:
                     _send(
-                        _envelope(conn, "input_timed_out", {"question": question, "request_id": request_id}),
+                        _envelope(
+                            conn,
+                            "input_timed_out",
+                            {"question": question, "request_id": request_id},
+                        ),
                         full_id,
                     )
-                _send(_envelope(conn, "input_resolved", {"request_id": request_id}), full_id)
+                _send(
+                    _envelope(conn, "input_resolved", {"request_id": request_id}),
+                    full_id,
+                )
+
     try:
         session = await _copilot_client.resume_session(
             full_id,
@@ -467,7 +500,12 @@ async def get_turn_invocations(session_id: str, turn_number: int) -> JSONRespons
 @app.get("/sessions/{session_id}/status")
 async def get_session_status(session_id: str) -> JSONResponse:
     """Lightweight status check for frontend reconnect polling."""
-    from server_adapter import get_connection, get_pending_input, get_output_files, has_active_turn
+    from server_adapter import (
+        get_connection,
+        get_pending_input,
+        get_output_files,
+        has_active_turn,
+    )
 
     store = _store()
     full_id = store.resolve_prefix("sessions", session_id)
@@ -743,7 +781,9 @@ class _OutputsCache:
         self._dir_mtimes: dict[Path, float] = {}
         self._file_mtimes: dict[Path, float] = {}
 
-    def _snapshot(self, outputs_dir: Path) -> tuple[dict[Path, float], dict[Path, float]]:
+    def _snapshot(
+        self, outputs_dir: Path
+    ) -> tuple[dict[Path, float], dict[Path, float]]:
         """Collect current mtimes for all dirs and tracked files under outputs_dir."""
         dirs: dict[Path, float] = {}
         files: dict[Path, float] = {}
@@ -1612,7 +1652,11 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                 async with lock:
                     question = request.get("question", "")
                     choices = request.get("choices")
-                    payload_data = {"question": question, "choices": choices, "request_id": request_id}
+                    payload_data = {
+                        "question": question,
+                        "choices": choices,
+                        "request_id": request_id,
+                    }
                     conn = _gc(session_id)
                     set_pending_input(session_id, payload_data)
                     if conn:
@@ -1645,7 +1689,12 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
                                 session_id,
                             )
                         _send(
-                            _envelope(_gc(session_id), "input_resolved", {"request_id": request_id}), session_id
+                            _envelope(
+                                _gc(session_id),
+                                "input_resolved",
+                                {"request_id": request_id},
+                            ),
+                            session_id,
                         )
                 return UserInputResponse(answer=answer, wasFreeform=True)
 
@@ -1850,15 +1899,14 @@ async def ws_agent(websocket: WebSocket, session_id: str) -> None:
 
                     conn = get_connection(session_id)
                     _send(
-                        _envelope(conn, "turn_started", {"agent": agent_name}), session_id
+                        _envelope(conn, "turn_started", {"agent": agent_name}),
+                        session_id,
                     )
                     # Clear stale done status from previous turn
                     from server_adapter import clear_last_done
 
                     clear_last_done(session_id)
-                    task = asyncio.create_task(
-                        _run_turn(clean, agent_name, turn_id)
-                    )
+                    task = asyncio.create_task(_run_turn(clean, agent_name, turn_id))
                     set_turn_task(session_id, task)
 
             elif msg_type == "cancel":
