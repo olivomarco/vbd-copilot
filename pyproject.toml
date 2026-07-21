@@ -17,7 +17,7 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "websockets>=13.0",
-    "pillow>=12.2.0",
+    "pillow>=12.3.0",
     "pymupdf>=1.24",
 ]
 
